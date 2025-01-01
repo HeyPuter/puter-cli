@@ -1,5 +1,4 @@
 import { PuterAuth } from '../commands/auth.js';
-// const { PuterAuth } = require('../commands/auth.js');
 
 
 // Mock Config store

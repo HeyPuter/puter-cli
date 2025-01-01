@@ -9,7 +9,7 @@
   "type": "module",
   "scripts": {
     "start": "node bin/index.js",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest tests/*"
   },
   "keywords": [
     "puter",
@@ -28,21 +28,12 @@
     "ora": "^8.0.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.26.0",
-    "@babel/preset-env": "^7.26.0",
-    "babel-jest": "^29.7.0",
     "jest": "^29.7.0"
   },
   "jest": {
     "testEnvironment": "node",
     "testPathIgnorePatterns": [
       "node_modules"
-    ],
-    "transform": {
-      "^.+\\.js$": "babel-jest"
-    },
-    "moduleNameMapper": {
-      "#(.*)": "<rootDir>/node_modules/$1"
-    }
+    ]
   }
 }

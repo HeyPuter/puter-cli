@@ -4,87 +4,88 @@ import Conf from 'conf';
 import ora from 'ora';
 import fetch from 'node-fetch';
 
-export class PuterAuth {
-  constructor(config = new Conf({ projectName: 'puter-cli' }), fetcher = fetch) {
-    this.config = config;
-    this.fetch = fetcher;
-    this.baseUrl = 'https://puter.com';
-  }
+const config = new Conf({ projectName: 'puter-cli' });
 
-  async login(credentials = null) {
-    let username, password;
+export async function login() {
+  const answers = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'username',
+      message: 'Username:',
+      validate: input => input.length >= 1 || 'Username is required'
+    },
+    {
+      type: 'password',
+      name: 'password',
+      message: 'Password:',
+      mask: '*',
+      validate: input => input.length >= 1 || 'Password is required'
+    }
+  ]);
 
-    if (!credentials) {
-      const answers = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'username',
-          message: 'Username:',
-          validate: input => input.length >= 1 || 'Username is required'
-        },
-        {
-          type: 'password',
-          name: 'password',
-          message: 'Password:',
-          mask: '*',
-          validate: input => input.length >= 1 || 'Password is required'
-        }
-      ]);
-      username = answers.username;
-      password = answers.password;
+  const spinner = ora('Logging in to Puter...').start();
+  
+  try {
+    const response = await fetch('https://puter.com/login', {
+      method: 'POST',
+      headers: {
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Connection': 'keep-alive',
+        'Content-Type': 'application/json',
+        'Origin': 'https://puter.com',
+        'Referer': 'https://puter.com/',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      body: JSON.stringify({
+        username: answers.username,
+        password: answers.password
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.proceed && data.token) {
+      config.set('auth_token', data.token);
+      config.set('username', answers.username);
+      
+      spinner.succeed(chalk.green('Successfully logged in to Puter!'));
+      console.log(chalk.dim(`Token: ${data.token.slice(0, 5)}...${data.token.slice(-5)}`));
     } else {
-      username = credentials.username;
-      password = credentials.password;
+      spinner.fail(chalk.red('Login failed. Please check your credentials.'));
     }
-
-    try {
-      const response = await this.fetch(`${this.baseUrl}/login`, {
-        method: 'POST',
-        headers: {
-          'Accept': '*/*',
-          'Content-Type': 'application/json',
-          'Origin': this.baseUrl,
-          'Referer': this.baseUrl
-        },
-        body: JSON.stringify({ username, password })
-      });
-
-      const data = await response.json();
-
-      if (data.proceed && data.token) {
-        this.config.set('auth_token', data.token);
-        this.config.set('username', username);
-        return { success: true, token: data.token, username };
-      }
-      return { success: false, error: 'Invalid credentials' };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async logout() {
-    try {
-      const token = this.config.get('auth_token');
-      if (!token) {
-        return { success: false, error: 'Not logged in' };
-      }
-      this.config.clear();
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  isAuthenticated() {
-    return !!this.config.get('auth_token');
-  }
-
-  getAuthToken() {
-    return this.config.get('auth_token');
+  } catch (error) {
+    spinner.fail(chalk.red('Failed to login'));
+    console.error(chalk.red(`Error: ${error.message}`));
   }
 }
 
-// Create default instance for CLI usage
-const defaultAuth = new PuterAuth();
-export const login = defaultAuth.login.bind(defaultAuth);
-export const logout = defaultAuth.logout.bind(defaultAuth);
+export async function logout() {
+  const spinner = ora('Logging out from Puter...').start();
+  
+  try {
+    const token = config.get('auth_token');
+    if (!token) {
+      spinner.info(chalk.yellow('Already logged out'));
+      return;
+    }
+
+    config.clear(); // Remove all stored data
+    spinner.succeed(chalk.green('Successfully logged out from Puter!'));
+  } catch (error) {
+    spinner.fail(chalk.red('Failed to logout'));
+    console.error(chalk.red(`Error: ${error.message}`));
+  }
+}
+
+export function isAuthenticated() {
+  return !!config.get('auth_token');
+}
+
+export function getAuthToken() {
+  return config.get('auth_token');
+}
+
+export function getCurrentUserName() {
+  return config.get('username');
+}

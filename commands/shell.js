@@ -2,11 +2,12 @@ import readline from 'node:readline';
 import chalk from 'chalk';
 import Conf from 'conf';
 import { execCommand } from './executor.js';
+import { getAuthToken } from './auth.js';
 
 const config = new Conf({ projectName: 'puter-cli' });
 
 export function startShell() {
-  if (!config.get('auth_token')) {
+  if (!getAuthToken()) {
     console.log(chalk.red('Please login first using: puter login'));
     process.exit(1);
   }
@@ -22,7 +23,6 @@ export function startShell() {
 
   rl.on('line', async (line) => {
     const trimmedLine = line.trim();
-    
     if (trimmedLine) {
       try {
         await execCommand(trimmedLine);
@@ -30,7 +30,6 @@ export function startShell() {
         console.error(chalk.red(error.message));
       }
     }
-    
     rl.prompt();
   }).on('close', () => {
     console.log(chalk.yellow('\nGoodbye!'));

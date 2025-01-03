@@ -199,29 +199,31 @@ export async function deleteApp(name) {
 /**
  * Generate a random app name
  * @returns a random app name or null if it fails
+ * @see: [randName](https://github.com/HeyPuter/puter/blob/06a67a3b223a6cbd7ec2e16853b6d2304f621a88/src/puter-js/src/index.js#L389)
  */
-export async function generateAppName() {
+export async function generateAppName(separateWith = '-'){
     const spinner = ora(chalk.green('Generating random app name...\n')).start();
-    try {
-        const response = await fetch(`${API_BASE}/drivers/call`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                interface: "puter-apps",
-                method: "generate-name",
-                args: {}
-            })
-        });
-        const data = await response.json();
-        if (data && data.result) {
-            spinner.succeed(chalk.green(`Generated name: ${data.result}`));
-            return data.result;
-        } else {
-            spinner.fail(chalk.red('Failed to generate app name'));
-            return null;
-        }
+    try {        
+        const first_adj = ['helpful','sensible', 'loyal', 'honest', 'clever', 'capable','calm', 'smart', 'genius', 'bright', 'charming', 'creative', 'diligent', 'elegant', 'fancy', 
+        'colorful', 'avid', 'active', 'gentle', 'happy', 'intelligent', 'jolly', 'kind', 'lively', 'merry', 'nice', 'optimistic', 'polite', 
+        'quiet', 'relaxed', 'silly', 'victorious', 'witty', 'young', 'zealous', 'strong', 'brave', 'agile', 'bold'];
+
+        const nouns = ['street', 'roof', 'floor', 'tv', 'idea', 'morning', 'game', 'wheel', 'shoe', 'bag', 'clock', 'pencil', 'pen', 
+        'magnet', 'chair', 'table', 'house', 'dog', 'room', 'book', 'car', 'cat', 'tree', 
+        'flower', 'bird', 'fish', 'sun', 'moon', 'star', 'cloud', 'rain', 'snow', 'wind', 'mountain', 
+        'river', 'lake', 'sea', 'ocean', 'island', 'bridge', 'road', 'train', 'plane', 'ship', 'bicycle', 
+        'horse', 'elephant', 'lion', 'tiger', 'bear', 'zebra', 'giraffe', 'monkey', 'snake', 'rabbit', 'duck', 
+        'goose', 'penguin', 'frog', 'crab', 'shrimp', 'whale', 'octopus', 'spider', 'ant', 'bee', 'butterfly', 'dragonfly', 
+        'ladybug', 'snail', 'camel', 'kangaroo', 'koala', 'panda', 'piglet', 'sheep', 'wolf', 'fox', 'deer', 'mouse', 'seal',
+        'chicken', 'cow', 'dinosaur', 'puppy', 'kitten', 'circle', 'square', 'garden', 'otter', 'bunny', 'meerkat', 'harp']
+
+        // return a random combination of first_adj + noun + number (between 0 and 9999)
+        // e.g. clever-idea-123
+        const appName = first_adj[Math.floor(Math.random() * first_adj.length)] + separateWith + nouns[Math.floor(Math.random() * nouns.length)] + separateWith + Math.floor(Math.random() * 10000);
+        spinner.succeed(chalk.green(`AppName: "${appName}"`));
+        return appName;
     } catch (error) {
-        spinner.fail(chalk.red('Failed to generate app name'));
+        spinner.fail(chalk.red(`Failed to create an app name.`));
         console.error(chalk.red(`Error: ${error.message}`));
         return null;
     }

@@ -4,7 +4,7 @@ import ora from 'ora';
 import Conf from 'conf';
 import path from 'path';
 import { formatDate } from './utils.js';
-import { listApps } from './apps.js';
+import { listApps, createApp, deleteApp, generateAppName } from './apps.js';
 import { getCurrentUserName } from './auth.js';
 
 const config = new Conf({ projectName: 'puter-cli' });
@@ -24,6 +24,23 @@ const commands = {
           iconSize: parseInt(args[1]) || 64
       };
       await listApps(options);
+  },
+  'app:create': async (args) => {
+    if (args.length < 1) {
+        console.log(chalk.red('Usage: app:create <name> [description] [url]'));
+        return;
+    }
+    await createApp(args[0], args[1]);
+  },
+  'app:delete': async (args) => {
+    if (args.length < 1) {
+        console.log(chalk.red('Usage: app:delete <name>'));
+        return;
+    }
+    await deleteApp(args[0]);
+  },
+  'app:name': async () => {
+      await generateAppName();
   },
   ls: listFiles,
   mkdir: makeDirectory,
@@ -61,6 +78,9 @@ function showHelp() {
   ${chalk.cyan('apps [period] [iconSize]')}  List all your apps
                       period: today, yesterday, 7d, 30d, this_month, last_month
                       iconSize: 16, 32, 64, 128, 256, 512
+  ${chalk.cyan('app:create')}        Create a new app: app:create <name> [url]
+  ${chalk.cyan('app:delete')}        Delete an app: app:delete <name>
+  ${chalk.cyan('app:name')}          Generate a random app name                      
   ${chalk.cyan('ls')}       List files and directories
   ${chalk.cyan('mkdir')}    Create a new directory
   ${chalk.cyan('rm')}       Remove a file or directory

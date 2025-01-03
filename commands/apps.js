@@ -4,9 +4,10 @@ import fetch from 'node-fetch';
 import { API_BASE, getHeaders } from './commons.js';
 import { formatDate } from './utils.js';
 import Table from 'cli-table3';
+import inquirer from 'inquirer';
 
 export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
-    const spinner = ora(chalk.green('Listing apps...\n')).start();
+    const spinner = ora(chalk.green(`Listing of apps during period "${statsPeriod}":\n`)).start();
     try {
         const response = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
@@ -27,12 +28,12 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
             const table = new Table({
                 head: [
                     chalk.cyan('Title'),
-                    // chalk.cyan('Name'),
+                    chalk.cyan('Name'),
                     chalk.cyan('Created'),
                     chalk.cyan('Index URL'),
                     // chalk.cyan('Description'),
-                    chalk.cyan(`Opened (${statsPeriod})`),
-                    chalk.cyan(`User(s) (${statsPeriod})`)
+                    chalk.cyan('Opened'),
+                    chalk.cyan('User(s)')
                 ],
                 colWidths: [20, 30, 50, 10, 10],
                 wordWrap: false
@@ -42,7 +43,7 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
             for (const app of data['result']) {
                 table.push([
                     app['title'],
-                    // app['name'],
+                    app['name'],
                     formatDate(app['created_at']),
                     app['index_url'],
                     // app['description'] || 'N/A',
@@ -53,6 +54,7 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
 
             // Display the table
             console.log(table.toString());
+            console.log('\n');
             spinner.succeed(chalk.green(`You have in total: ${data['result'].length} application(s).`));
         } else {
             spinner.fail(chalk.red('Unable to list your apps. Please check your credentials.'));
@@ -60,5 +62,167 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
     } catch (error) {
         spinner.fail(chalk.red('Failed to list your apps.'));
         console.error(chalk.red(`Error: ${error.message}`));
+    }
+}
+
+/**
+ * Create a new web application
+ * @param {string} name The name of the App
+ * @param {string} description A description of the App
+ * @param {string} url A default coming-soon URL
+ * @returns Output JSON data
+ */
+export async function createApp(name, description = '', url = 'https://dev-center.puter.com/coming-soon.html') {
+    const spinner = ora(chalk.green(`Creating app "${name}"...\n`)).start();
+    try {
+        const response = await fetch(`${API_BASE}/drivers/call`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                interface: "puter-apps",
+                method: "create",
+                args: {
+                    object: {
+                        name,
+                        index_url: url,
+                        title: name,
+                        description: description,
+                        maximize_on_start: false,
+                        background: false,
+                        metadata: {
+                            window_resizable: true
+                        }
+                    },
+                    options: {
+                        dedupe_name: true
+                    }
+                }
+            })
+        });
+        const data = await response.json();
+        if (data && data.success) {
+            spinner.succeed(chalk.green(`App "${data.result.name}" created successfully!`));
+            console.log(chalk.dim(`UID: ${data.result.uid}`));
+            return data.result;
+        } else {
+            spinner.fail(chalk.red(`Failed to create app "${name}"`));
+        }
+    } catch (error) {
+        spinner.fail(chalk.red(`Failed to create app "${name}"`));
+        console.error(chalk.red(`Error: ${error.message}`));
+    }
+}
+
+/**
+ * Delete an app by its name
+ * @param {string} name The name of the app to delete
+ * @returns a boolean success value
+ */
+export async function deleteApp(name) {
+    const spinner = ora(chalk.green(`Checking app "${name}"...\n`)).start();
+    try {
+        // Step 1: Read app details
+        const readResponse = await fetch(`${API_BASE}/drivers/call`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                interface: "puter-apps",
+                method: "read",
+                args: {
+                    params: { icon_size: 16 },
+                    id: { name }
+                }
+            })
+        });
+        
+        const readData = await readResponse.json();
+        spinner.stop();
+
+        if (!readData.success || !readData.result) {
+            console.log(chalk.red(`App "${name}" not found.`));
+            return false;
+        }
+
+        // Show app details and confirm deletion
+        console.log(chalk.cyan('\nApp Details:'));
+        console.log(chalk.dim('----------------------------------------'));
+        console.log(`Name: ${readData.result.name}`);
+        console.log(`Title: ${readData.result.title}`);
+        console.log(`Created: ${new Date(readData.result.created_at).toLocaleString()}`);
+        console.log(`URL: ${readData.result.index_url}`);
+        console.log(chalk.dim('----------------------------------------'));
+
+        const { confirm } = await inquirer.prompt([
+            {
+                type: 'confirm',
+                name: 'confirm',
+                message: chalk.yellow(`Are you sure you want to delete "${name}"?`),
+                default: false
+            }
+        ]);
+
+        if (!confirm) {
+            console.log(chalk.yellow('Operation cancelled.'));
+            return false;
+        }
+
+        // Step 2: Delete the app
+        spinner.start(chalk.green(`Deleting app "${name}"...`));
+        const deleteResponse = await fetch(`${API_BASE}/drivers/call`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                interface: "puter-apps",
+                method: "delete",
+                args: {
+                    id: { name }
+                }
+            })
+        });
+
+        const deleteData = await deleteResponse.json();
+        
+        if (deleteData.success) {
+            spinner.succeed(chalk.green(`App "${name}" deleted successfully!`));
+            return true;
+        } else {
+            spinner.fail(chalk.red(`Failed to delete app "${name}"`));
+            return false;
+        }
+    } catch (error) {
+        spinner.fail(chalk.red(`Failed to delete app "${name}"`));
+        console.error(chalk.red(`Error: ${error.message}`));
+        return false;
+    }
+}
+
+/**
+ * Generate a random app name
+ * @returns a random app name or null if it fails
+ */
+export async function generateAppName() {
+    const spinner = ora(chalk.green('Generating random app name...\n')).start();
+    try {
+        const response = await fetch(`${API_BASE}/drivers/call`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                interface: "puter-apps",
+                method: "generate-name",
+                args: {}
+            })
+        });
+        const data = await response.json();
+        if (data && data.result) {
+            spinner.succeed(chalk.green(`Generated name: ${data.result}`));
+            return data.result;
+        } else {
+            spinner.fail(chalk.red('Failed to generate app name'));
+            return null;
+        }
+    } catch (error) {
+        spinner.fail(chalk.red('Failed to generate app name'));
+        console.error(chalk.red(`Error: ${error.message}`));
+        return null;
     }
 }

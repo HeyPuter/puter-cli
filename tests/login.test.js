@@ -1,5 +1,5 @@
 import { PuterAuth } from '../commands/auth.js';
-
+import { describe, it, beforeEach, expect } from 'vitest';
 
 // Mock Config store
 class MockConfig {

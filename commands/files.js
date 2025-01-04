@@ -3,7 +3,7 @@ import ora from 'ora';
 import fetch from 'node-fetch';
 import { API_BASE, getHeaders } from './commons.js';
 import { formatDate, formatDateTime, formatSize } from './utils.js';
-import Table from 'cli-table3';
+import inquirer from 'inquirer';
 import { getCurrentUserName } from './auth.js';
 
 /**
@@ -144,4 +144,150 @@ export async function renameFileOrDirectory(args = []) {
         console.log(chalk.red('Failed to rename item.'));
         console.error(chalk.red(`Error: ${error.message}`));
     }
+}
+
+/**
+ * Move a file/directory to the Trash
+ * @param {Array} args Options:
+ * -f: Force delete (no confirmation)
+ * @returns void
+ */
+export async function removeFileOrDirectory(args = []) {
+    if (args.length < 1) {
+        console.log(chalk.red('Usage: remove <name> [-f]'));
+        return;
+    }
+
+    const username = getCurrentUserName();
+    const name = args[0];
+    const skipConfirmation = args.includes('-f'); // Check the flag if provided
+
+    console.log(chalk.green(`Preparing to remove "${name}"...\n`));
+
+    try {
+        // Step 1: Get the UID of the file/directory using the name
+        const statResponse = await fetch(`${API_BASE}/stat`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                path: `/${username}/${name}`
+            })
+        });
+
+        const statData = await statResponse.json();
+        if (!statData || !statData.uid) {
+            console.log(chalk.red(`Could not find file or directory with name "${name}".`));
+            return;
+        }
+
+        const uid = statData.uid;
+        const originalPath = statData.path;
+
+        // Step 2: Prompt for confirmation (unless -f flag is provided)
+        if (!skipConfirmation) {
+            const { confirm } = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'confirm',
+                    message: `Are you sure you want to move "${name}" to Trash?`,
+                    default: false
+                }
+            ]);
+
+            if (!confirm) {
+                console.log(chalk.yellow('Operation canceled.'));
+                return;
+            }
+        }
+
+        // Step 3: Perform the move operation to Trash
+        const moveResponse = await fetch(`${API_BASE}/move`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                source: uid,
+                destination: `/${username}/Trash`,
+                overwrite: false,
+                new_name: uid, // Use the UID as the new name in Trash
+                create_missing_parents: false,
+                new_metadata: {
+                    original_name: name,
+                    original_path: originalPath,
+                    trashed_ts: Math.floor(Date.now() / 1000) // Current timestamp
+                }
+            })
+        });
+
+        const moveData = await moveResponse.json();
+        if (moveData && moveData.moved) {
+            console.log(chalk.green(`Successfully moved "${name}" to Trash!`));
+            console.log(chalk.dim(`New Path: ${moveData.moved.path}`));
+            console.log(chalk.dim(`UID: ${moveData.moved.uid}`));
+        } else {
+            console.log(chalk.red('Failed to move item to Trash. Please check your input.'));
+        }
+    } catch (error) {
+        console.log(chalk.red('Failed to remove item.'));
+        console.error(chalk.red(`Error: ${error.message}`));
+    }
+}
+
+
+/**
+ * Delete a folder and its contents (PREVENTED BY PUTER API)
+ * @param {string} folderPath - The path of the folder to delete (defaults to Trash).
+ * @param {boolean} skipConfirmation - Whether to skip the confirmation prompt.
+ */
+export async function deleteFolder(folderPath = `/${getCurrentUserName()}/Trash`, skipConfirmation = false) {
+    console.log(chalk.green(`Preparing to delete "${folderPath}"...\n`));
+
+    try {
+        // Step 1: Prompt for confirmation (unless skipConfirmation is true)
+        if (!skipConfirmation) {
+            const { confirm } = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'confirm',
+                    message: `Are you sure you want to delete all contents of "${folderPath}"?`,
+                    default: false
+                }
+            ]);
+
+            if (!confirm) {
+                console.log(chalk.yellow('Operation canceled.'));
+                return;
+            }
+        }
+
+        // Step 2: Perform the delete operation
+        const deleteResponse = await fetch(`${API_BASE}/delete`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                paths: [folderPath],
+                descendants_only: true, // Delete only the contents, not the folder itself
+                recursive: true // Delete all subdirectories and files
+            })
+        });
+
+        const deleteData = await deleteResponse.json();
+        if (deleteResponse.ok) {
+            console.log(chalk.green(`Successfully deleted all contents of "${folderPath}"!`));
+        } else {
+            console.log(chalk.red('Failed to delete folder. Please check your input.'));
+        }
+    } catch (error) {
+        console.log(chalk.red('Failed to delete folder.'));
+        console.error(chalk.red(`Error: ${error.message}`));
+    }
+}
+
+
+/**
+ * Empty the Trash (wrapper for deleteFolder).
+ * @param {boolean} skipConfirmation - Whether to skip the confirmation prompt.
+ */
+export async function emptyTrash(skipConfirmation = true) {
+    const trashPath = `/${getCurrentUserName()}/Trash`;
+    await deleteFolder(trashPath, skipConfirmation);
 }

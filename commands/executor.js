@@ -4,8 +4,9 @@ import Conf from 'conf';
 import path from 'path';
 import { formatDate } from './utils.js';
 import { listApps, createApp, deleteApp } from './apps.js';
-import { listFiles, makeDirectory, renameFileOrDirectory } from './files.js';
+import { listFiles, makeDirectory, renameFileOrDirectory, removeFileOrDirectory, emptyTrash } from './files.js';
 import { getCurrentUserName } from './auth.js';
+import inquirer from 'inquirer';
 
 const config = new Conf({ projectName: 'puter-cli' });
 
@@ -35,14 +36,31 @@ const commands = {
   'app:delete': async (args) => {
     if (args.length < 1) {
         console.log(chalk.red('Usage: app:delete <name>'));
-        return;
     }
-    await deleteApp(args[0]);
+    const name = args[0].trim();
+
+    const { confirm } = await inquirer.prompt([
+      {
+          type: 'confirm',
+          name: 'confirm',
+          message: chalk.yellow(`Are you sure you want to delete "${name}"?`),
+          default: false
+      }
+    ]);
+
+    if (!confirm) {
+        console.log(chalk.yellow('Operation cancelled.'));
+        return false;
+    } 
+    // return await deleteApp(name);
+    await deleteApp(name);
   },
   ls: listFiles,
   mkdir: makeDirectory,
   mv: renameFileOrDirectory,
-  rm: removeFile,
+  rm: removeFileOrDirectory,
+  // rmdir: deleteFolder,
+  clean: emptyTrash,
   cp: copyFile,
   touch: touchFile,
   put: uploadFile,
@@ -85,7 +103,8 @@ function showHelp() {
   ${chalk.cyan('ls')}       List files and directories
   ${chalk.cyan('mkdir')}    Create a new directory
   ${chalk.cyan('mv')}       Rename a file or directory
-  ${chalk.cyan('rm')}       Remove a file or directory
+  ${chalk.cyan('rm')}       Move a file or directory to the system's Trash
+  ${chalk.cyan('clean')}    Empty the system's Trash
   ${chalk.cyan('cp')}       Copy files or directories
   ${chalk.cyan('touch')}    Create a new empty file
   ${chalk.cyan('put')}      Upload file to Puter cloud
@@ -158,15 +177,6 @@ fetch("https://api.puter.com/batch", {
 });
 */
 
-async function removeFile(args) {
-    const pathName = args[0];
-    if (!args.length || !pathName.length) {
-        throw new Error('File/directory name is required');
-    }
-    console.log(`Removing: ${pathName}...`);
-    // Delete a directory
-    // await fs.rmdir(pathName);
-}
 
 async function copyFile(args) {
   if (args.length < 2) {

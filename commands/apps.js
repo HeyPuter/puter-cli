@@ -3,7 +3,6 @@ import fetch from 'node-fetch';
 import { API_BASE, getHeaders } from './commons.js';
 import { formatDate } from './utils.js';
 import Table from 'cli-table3';
-import inquirer from 'inquirer';
 
 /**
  * 
@@ -81,7 +80,7 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
  * @returns Output JSON data
  */
 export async function createApp(name, description = '', url = 'https://dev-center.puter.com/coming-soon.html') {
-    const spinner = ora(chalk.green(`Creating app "${name}"...\n`)).start();
+    console.log(chalk.green(`Creating app "${name}"...\n`));
     try {
         // Step 1: Create the app
         const createAppResponse = await fetch(`${API_BASE}/drivers/call`, {
@@ -114,11 +113,11 @@ export async function createApp(name, description = '', url = 'https://dev-cente
             return;
         }
         const appUid = createAppData.result.uid;
-        spinner.succeed(chalk.green(`App "${name}" created successfully!`));
+        console.log(chalk.green(`App "${name}" created successfully!`));
         console.log(chalk.dim(`UID: ${appUid}`));
 
         // Step 2: Create a directory for the app
-        const createDirSpinner = ora(chalk.green(`Creating directory for app "${name}"...\n`)).start();
+        console.log(chalk.green(`Creating directory for app "${name}"...\n`));
         const createDirResponse = await fetch(`${API_BASE}/mkdir`, {
             method: 'POST',
             headers: getHeaders(),
@@ -132,15 +131,15 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         });
         const createDirData = await createDirResponse.json();
         if (!createDirData || !createDirData.uid) {
-            createDirSpinner.fail(chalk.red(`Failed to create directory for app "${name}"`));
+            console.error(chalk.red(`Failed to create directory for app "${name}"`));
             return;
         }
         const dirUid = createDirData.uid;
-        createDirSpinner.succeed(chalk.green(`Directory created successfully!`));
+        console.log(chalk.green(`Directory created successfully!`));
         console.log(chalk.dim(`Directory UID: ${dirUid}`));
 
         // Step 3: Create a subdomain for the app
-        const createSubdomainSpinner = ora(chalk.green(`Creating subdomain for app "${name}"...\n`)).start();
+        console.log(chalk.green(`Creating subdomain for app "${name}"...\n`));
         const subdomainName = `${name}-${crypto.randomUUID().split('-')[0]}`;
         const createSubdomainResponse = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
@@ -158,14 +157,14 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         });
         const createSubdomainData = await createSubdomainResponse.json();
         if (!createSubdomainData || !createSubdomainData.success) {
-            createSubdomainSpinner.fail(chalk.red(`Failed to create subdomain for app "${name}"`));
+            console.error(chalk.red(`Failed to create subdomain for app "${name}"`));
             return;
         }
-        createSubdomainSpinner.succeed(chalk.green(`Subdomain created successfully!`));
+        console.log(chalk.green(`Subdomain created successfully!`));
         console.log(chalk.dim(`Subdomain: ${subdomainName}`));
 
         /*/ Step 4: Update the app's index_url to point to the subdomain
-        const updateAppSpinner = ora(chalk.green(`Updating app "${name}" with new subdomain...\n`)).start();
+        console.log(chalk.green(`Updating app "${name}" with new subdomain...\n`)));
         const updateAppResponse = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
             headers: getHeaders(),
@@ -192,16 +191,15 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         console.log(updateAppData);
         console.log('\n\n');
         if (!updateAppData || !updateAppData.success) {
-            updateAppSpinner.fail(chalk.red(`Failed to update app "${name}" with new subdomain`));
+            console.error(chalk.red(`Failed to update app "${name}" with new subdomain`));
             return;
         }
-        updateAppSpinner.succeed(chalk.green(`App updated successfully!`));
+        console.log(chalk.green(`App updated successfully!`));
         console.log(chalk.dim(`Index URL: https://${subdomainName}.puter.site`));
         */
         return createAppData.result;
     } catch (error) {
-        spinner.fail(chalk.red(`Failed to create app "${name}"`));
-        console.error(chalk.red(`Error: ${error.message}`));
+        console.error(chalk.red(`Failed to create app "${name}".\nError: ${error.message}`));
     }
 }
 
@@ -211,7 +209,7 @@ export async function createApp(name, description = '', url = 'https://dev-cente
  * @returns a boolean success value
  */
 export async function deleteApp(name) {
-    const spinner = ora(chalk.green(`Checking app "${name}"...\n`)).start();
+    console.log(chalk.green(`Checking app "${name}"...\n`));
     try {
         // Step 1: Read app details
         const readResponse = await fetch(`${API_BASE}/drivers/call`, {
@@ -228,7 +226,6 @@ export async function deleteApp(name) {
         });
         
         const readData = await readResponse.json();
-        spinner.stop();
 
         if (!readData.success || !readData.result) {
             console.log(chalk.red(`App "${name}" not found.`));
@@ -244,22 +241,8 @@ export async function deleteApp(name) {
         console.log(`URL: ${readData.result.index_url}`);
         console.log(chalk.dim('----------------------------------------'));
 
-        const { confirm } = await inquirer.prompt([
-            {
-                type: 'confirm',
-                name: 'confirm',
-                message: chalk.yellow(`Are you sure you want to delete "${name}"?`),
-                default: false
-            }
-        ]);
-
-        if (!confirm) {
-            console.log(chalk.yellow('Operation cancelled.'));
-            return false;
-        }
-
         // Step 2: Delete the app
-        spinner.start(chalk.green(`Deleting app "${name}"...`));
+        console.log(chalk.green(`Deleting app "${name}"...`));
         const deleteResponse = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
             headers: getHeaders(),
@@ -275,15 +258,14 @@ export async function deleteApp(name) {
         const deleteData = await deleteResponse.json();
         
         if (deleteData.success) {
-            spinner.succeed(chalk.green(`App "${name}" deleted successfully!`));
-            return true;
+            console.log(chalk.green(`App "${name}" deleted successfully!`));
+            // return true;
         } else {
-            spinner.fail(chalk.red(`Failed to delete app "${name}"`));
-            return false;
+            console.error(chalk.red(`Failed to delete app "${name}"`));
+            // return false;
         }
     } catch (error) {
-        spinner.fail(chalk.red(`Failed to delete app "${name}"`));
-        console.error(chalk.red(`Error: ${error.message}`));
-        return false;
+        console.error(chalk.red(`Failed to delete app "${name}".\nError: ${error.message}`));
+        // return false;
     }
 }

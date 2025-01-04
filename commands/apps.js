@@ -1,13 +1,22 @@
 import chalk from 'chalk';
-import ora from 'ora';
 import fetch from 'node-fetch';
 import { API_BASE, getHeaders } from './commons.js';
 import { formatDate } from './utils.js';
 import Table from 'cli-table3';
 import inquirer from 'inquirer';
 
+/**
+ * 
+ * @param {object} options 
+ * ```json
+ * {
+ *  statsPeriod: [all (default), today, yesterday, 7d, 30d, this_month, last_month, this_year, last_year, month_to_date, year_to_date, last_12_months],
+ *  iconSize: [16, 32, 64, 128, 256, 512]
+ * }
+ * ```
+ */
 export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
-    const spinner = ora(chalk.green(`Listing of apps during period "${statsPeriod}":\n`)).start();
+    console.log(chalk.green(`Listing of apps during period "${statsPeriod}":\n`));
     try {
         const response = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
@@ -30,12 +39,12 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
                     chalk.cyan('Title'),
                     chalk.cyan('Name'),
                     chalk.cyan('Created'),
-                    chalk.cyan('Index URL'),
+                    chalk.cyan('Subdomain'),
                     // chalk.cyan('Description'),
                     chalk.cyan('Opened'),
                     chalk.cyan('User(s)')
                 ],
-                colWidths: [20, 30, 50, 10, 10],
+                colWidths: [20, 30, 25, 35, 5, 5],
                 wordWrap: false
             });
 
@@ -45,8 +54,8 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
                     app['title'],
                     app['name'],
                     formatDate(app['created_at']),
-                    app['index_url'],
-                    // app['description'] || 'N/A',
+                    app['index_url']?app['index_url'].split('.')[0].split('//')[1]:'<NO_URL>',
+                    // app['description'].slice(0, 10) || 'N/A',
                     app['stats']['open_count'],
                     app['stats']['user_count']
                 ]);
@@ -55,13 +64,12 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
             // Display the table
             console.log(table.toString());
             console.log('\n');
-            spinner.succeed(chalk.green(`You have in total: ${data['result'].length} application(s).`));
+            console.log(chalk.green(`You have in total: ${data['result'].length} application(s).`));
         } else {
-            spinner.fail(chalk.red('Unable to list your apps. Please check your credentials.'));
+            console.error(chalk.red('Unable to list your apps. Please check your credentials.'));
         }
     } catch (error) {
-        spinner.fail(chalk.red('Failed to list your apps.'));
-        console.error(chalk.red(`Error: ${error.message}`));
+        console.error(chalk.red(`Failed to list apps. Error: ${error.message}`));
     }
 }
 
@@ -75,7 +83,8 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
 export async function createApp(name, description = '', url = 'https://dev-center.puter.com/coming-soon.html') {
     const spinner = ora(chalk.green(`Creating app "${name}"...\n`)).start();
     try {
-        const response = await fetch(`${API_BASE}/drivers/call`, {
+        // Step 1: Create the app
+        const createAppResponse = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({
@@ -99,14 +108,97 @@ export async function createApp(name, description = '', url = 'https://dev-cente
                 }
             })
         });
-        const data = await response.json();
-        if (data && data.success) {
-            spinner.succeed(chalk.green(`App "${data.result.name}" created successfully!`));
-            console.log(chalk.dim(`UID: ${data.result.uid}`));
-            return data.result;
-        } else {
+        const createAppData = await createAppResponse.json();
+        if (!createAppData || !createAppData.success) {
             spinner.fail(chalk.red(`Failed to create app "${name}"`));
+            return;
         }
+        const appUid = createAppData.result.uid;
+        spinner.succeed(chalk.green(`App "${name}" created successfully!`));
+        console.log(chalk.dim(`UID: ${appUid}`));
+
+        // Step 2: Create a directory for the app
+        const createDirSpinner = ora(chalk.green(`Creating directory for app "${name}"...\n`)).start();
+        const createDirResponse = await fetch(`${API_BASE}/mkdir`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                parent: `/${createAppData.result.owner.username}/AppData/${appUid}`,
+                path: `app-${crypto.randomUUID()}`,
+                overwrite: true,
+                dedupe_name: false,
+                create_missing_parents: true
+            })
+        });
+        const createDirData = await createDirResponse.json();
+        if (!createDirData || !createDirData.uid) {
+            createDirSpinner.fail(chalk.red(`Failed to create directory for app "${name}"`));
+            return;
+        }
+        const dirUid = createDirData.uid;
+        createDirSpinner.succeed(chalk.green(`Directory created successfully!`));
+        console.log(chalk.dim(`Directory UID: ${dirUid}`));
+
+        // Step 3: Create a subdomain for the app
+        const createSubdomainSpinner = ora(chalk.green(`Creating subdomain for app "${name}"...\n`)).start();
+        const subdomainName = `${name}-${crypto.randomUUID().split('-')[0]}`;
+        const createSubdomainResponse = await fetch(`${API_BASE}/drivers/call`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                interface: "puter-subdomains",
+                method: "create",
+                args: {
+                    object: {
+                        subdomain: subdomainName,
+                        root_dir: `/${createAppData.result.owner.username}/AppData/${appUid}/${createDirData.name}`
+                    }
+                }
+            })
+        });
+        const createSubdomainData = await createSubdomainResponse.json();
+        if (!createSubdomainData || !createSubdomainData.success) {
+            createSubdomainSpinner.fail(chalk.red(`Failed to create subdomain for app "${name}"`));
+            return;
+        }
+        createSubdomainSpinner.succeed(chalk.green(`Subdomain created successfully!`));
+        console.log(chalk.dim(`Subdomain: ${subdomainName}`));
+
+        /*/ Step 4: Update the app's index_url to point to the subdomain
+        const updateAppSpinner = ora(chalk.green(`Updating app "${name}" with new subdomain...\n`)).start();
+        const updateAppResponse = await fetch(`${API_BASE}/drivers/call`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                interface: "puter-apps",
+                method: "update",
+                args: {
+                    id: { name: subdomainName },
+                    object: {
+                        name: subdomainName,
+                        index_url: `https://${subdomainName}.puter.site`,
+                        title: name,
+                        description: description,
+                        maximize_on_start: false,
+                        background: false,
+                        metadata: {
+                            window_resizable: true
+                        }
+                    }
+                }
+            })
+        });
+        const updateAppData = await updateAppResponse.json();
+        console.log(updateAppData);
+        console.log('\n\n');
+        if (!updateAppData || !updateAppData.success) {
+            updateAppSpinner.fail(chalk.red(`Failed to update app "${name}" with new subdomain`));
+            return;
+        }
+        updateAppSpinner.succeed(chalk.green(`App updated successfully!`));
+        console.log(chalk.dim(`Index URL: https://${subdomainName}.puter.site`));
+        */
+        return createAppData.result;
     } catch (error) {
         spinner.fail(chalk.red(`Failed to create app "${name}"`));
         console.error(chalk.red(`Error: ${error.message}`));
@@ -193,38 +285,5 @@ export async function deleteApp(name) {
         spinner.fail(chalk.red(`Failed to delete app "${name}"`));
         console.error(chalk.red(`Error: ${error.message}`));
         return false;
-    }
-}
-
-/**
- * Generate a random app name
- * @returns a random app name or null if it fails
- * @see: [randName](https://github.com/HeyPuter/puter/blob/06a67a3b223a6cbd7ec2e16853b6d2304f621a88/src/puter-js/src/index.js#L389)
- */
-export async function generateAppName(separateWith = '-'){
-    const spinner = ora(chalk.green('Generating random app name...\n')).start();
-    try {        
-        const first_adj = ['helpful','sensible', 'loyal', 'honest', 'clever', 'capable','calm', 'smart', 'genius', 'bright', 'charming', 'creative', 'diligent', 'elegant', 'fancy', 
-        'colorful', 'avid', 'active', 'gentle', 'happy', 'intelligent', 'jolly', 'kind', 'lively', 'merry', 'nice', 'optimistic', 'polite', 
-        'quiet', 'relaxed', 'silly', 'victorious', 'witty', 'young', 'zealous', 'strong', 'brave', 'agile', 'bold'];
-
-        const nouns = ['street', 'roof', 'floor', 'tv', 'idea', 'morning', 'game', 'wheel', 'shoe', 'bag', 'clock', 'pencil', 'pen', 
-        'magnet', 'chair', 'table', 'house', 'dog', 'room', 'book', 'car', 'cat', 'tree', 
-        'flower', 'bird', 'fish', 'sun', 'moon', 'star', 'cloud', 'rain', 'snow', 'wind', 'mountain', 
-        'river', 'lake', 'sea', 'ocean', 'island', 'bridge', 'road', 'train', 'plane', 'ship', 'bicycle', 
-        'horse', 'elephant', 'lion', 'tiger', 'bear', 'zebra', 'giraffe', 'monkey', 'snake', 'rabbit', 'duck', 
-        'goose', 'penguin', 'frog', 'crab', 'shrimp', 'whale', 'octopus', 'spider', 'ant', 'bee', 'butterfly', 'dragonfly', 
-        'ladybug', 'snail', 'camel', 'kangaroo', 'koala', 'panda', 'piglet', 'sheep', 'wolf', 'fox', 'deer', 'mouse', 'seal',
-        'chicken', 'cow', 'dinosaur', 'puppy', 'kitten', 'circle', 'square', 'garden', 'otter', 'bunny', 'meerkat', 'harp']
-
-        // return a random combination of first_adj + noun + number (between 0 and 9999)
-        // e.g. clever-idea-123
-        const appName = first_adj[Math.floor(Math.random() * first_adj.length)] + separateWith + nouns[Math.floor(Math.random() * nouns.length)] + separateWith + Math.floor(Math.random() * 10000);
-        spinner.succeed(chalk.green(`AppName: "${appName}"`));
-        return appName;
-    } catch (error) {
-        spinner.fail(chalk.red(`Failed to create an app name.`));
-        console.error(chalk.red(`Error: ${error.message}`));
-        return null;
     }
 }

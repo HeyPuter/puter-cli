@@ -421,3 +421,38 @@ function resolvePath(currentPath, relativePath) {
 
     return currentPath;
 }
+
+/**
+ * Fetch disk usage information using the /df API.
+ * @param {Object} body - Optional arguments to include in the request body.
+ */
+export async function getDiskUsage(body = null) {
+    console.log(chalk.green('Fetching disk usage information...\n'));
+    try {
+        const response = await fetch(`${API_BASE}/df`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: body ? JSON.stringify(body) : null
+        });
+
+        const data = await response.json();
+        console.log(data);
+        if (response.ok && data) {
+            const freeSpace = parseInt(data.capacity) - parseInt(data.used);
+            const usagePercentage = (parseInt(data.used) / parseInt(data.capacity)) * 100;
+            console.log(chalk.cyan('Disk Usage Information:'));
+            console.log(chalk.dim('----------------------------------------'));
+            console.log(chalk.cyan(`Total Capacity: `) + chalk.white(formatSize(data.capacity)));
+            console.log(chalk.cyan(`Used Space: `) + chalk.white(formatSize(data.used)));
+            console.log(chalk.cyan(`Free Space: `) + chalk.white(formatSize(freeSpace)));
+            // format the usagePercentage with 2 decimal floating point value:
+            console.log(chalk.cyan(`Usage Percentage: `) + chalk.white(`${usagePercentage.toFixed(2)}%`));
+            console.log(chalk.dim('----------------------------------------'));
+            console.log(chalk.green('Done.'));
+        } else {
+            console.error(chalk.red('Unable to fetch disk usage information.'));
+        }
+    } catch (error) {
+        console.error(chalk.red(`Failed to fetch disk usage information.\nError: ${error.message}`));
+    }
+}

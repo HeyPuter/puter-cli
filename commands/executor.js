@@ -5,8 +5,8 @@ import path from 'path';
 import { formatDate } from './utils.js';
 import { listApps, createApp, deleteApp } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
-  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, getInfo } from './files.js';
-import { getCurrentUserName, getUserInfo } from './auth.js';
+  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, getInfo, getDiskUsage } from './files.js';
+import { getCurrentUserName, getUserInfo, getUsageInfo } from './auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
@@ -75,6 +75,8 @@ const commands = {
   rm: removeFileOrDirectory,
   // rmdir: deleteFolder, // Not implemented in Puter API
   clean: emptyTrash,
+  df: getDiskUsage,
+  usage: getUsageInfo,
   cp: copyFile,
   touch: touchFile,
   put: uploadFile,
@@ -133,6 +135,9 @@ function showHelp() {
   ${chalk.cyan('logout')}   Logout from Puter account
   ${chalk.cyan('whoami')}   Show user informations
   ${chalk.cyan('stat')}     Show statistical informations
+  ${chalk.cyan('df')}       Show disk usage informations
+  ${chalk.cyan('usage')}    Show usage informations
+  ${chalk.cyan('stat')}     Show statistical informations
   ${chalk.cyan('apps [period] [iconSize]')}  List all your apps
                       period: today, yesterday, 7d, 30d, this_month, last_month
                       iconSize: 16, 32, 64, 128, 256, 512
@@ -152,22 +157,6 @@ function showHelp() {
   ${chalk.cyan('update')}   Sync local directory with cloud
   `);
 }
-
-// TODO:
-// - Implement: df
-/*fetch("https://api.puter.com/df", {
-  "headers": headers,
-  "body": null,
-  "method": "POST"
-});*/
-// - batch:
-/*
-fetch("https://api.puter.com/batch", {
-  "headers": headers,
-  "body": "------WebKitFormBoundary9qbZOtGMqNWdo0HK\r\nContent-Disposition: form-data; name=\"operation_id\"\r\n\r\n14ef8286-1492-4c97-a74f-3b9de8290ad6\r\n------WebKitFormBoundary9qbZOtGMqNWdo0HK\r\nContent-Disposition: form-data; name=\"socket_id\"\r\n\r\nB8R97dMkUxcJdLUaBE9Z\r\n------WebKitFormBoundary9qbZOtGMqNWdo0HK\r\nContent-Disposition: form-data; name=\"original_client_socket_id\"\r\n\r\nB8R97dMkUxcJdLUaBE9Z\r\n------WebKitFormBoundary9qbZOtGMqNWdo0HK\r\nContent-Disposition: form-data; name=\"fileinfo\"\r\n\r\n{\"name\":\"New File.txt\",\"type\":\"\",\"size\":0}\r\n------WebKitFormBoundary9qbZOtGMqNWdo0HK\r\nContent-Disposition: form-data; name=\"operation\"\r\n\r\n{\"op\":\"write\",\"dedupe_name\":true,\"overwrite\":false,\"operation_id\":\"14ef8286-1492-4c97-a74f-3b9de8290ad6\",\"path\":\"/bitsnaps/Documents/Apps/NutriExpert\",\"name\":\"New File.txt\",\"item_upload_id\":0}\r\n------WebKitFormBoundary9qbZOtGMqNWdo0HK\r\nContent-Disposition: form-data; name=\"file\"; filename=\"New File.txt\"\r\nContent-Type: application/octet-stream\r\n\r\n\r\n------WebKitFormBoundary9qbZOtGMqNWdo0HK--\r\n",
-  "method": "POST"
-});
-*/
 
 
 async function copyFile(args) {

@@ -2,11 +2,10 @@ import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
 import path from 'path';
-import { formatDate } from './utils.js';
 import { listApps, createApp, deleteApp } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
-  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, getInfo, getDiskUsage } from './files.js';
-import { getCurrentUserName, getUserInfo, getUsageInfo } from './auth.js';
+  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, getInfo, getDiskUsage, createFile } from './files.js';
+import { getUserInfo, getUsageInfo } from './auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
@@ -78,7 +77,7 @@ const commands = {
   df: getDiskUsage,
   usage: getUsageInfo,
   cp: copyFile,
-  touch: touchFile,
+  touch: createFile,
   put: uploadFile,
   get: downloadFile,
   update: syncDirectory
@@ -164,13 +163,6 @@ async function copyFile(args) {
     throw new Error('Source and destination required');
   }
   console.log(`Copying ${args[0]} to ${args[1]}...`);
-}
-
-async function touchFile(args) {
-  if (!args.length) {
-    throw new Error('File name is required');
-  }
-  console.log(`Creating file ${args[0]}...`);
 }
 
 async function uploadFile(args) {

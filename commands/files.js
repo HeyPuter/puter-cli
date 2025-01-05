@@ -422,8 +422,22 @@ function resolvePath(currentPath, relativePath) {
     return currentPath;
 }
 
+function showDiskSpaceUsage(data) {
+    const freeSpace = parseInt(data.capacity) - parseInt(data.used);
+    const usagePercentage = (parseInt(data.used) / parseInt(data.capacity)) * 100;
+    console.log(chalk.cyan('Disk Usage Information:'));
+    console.log(chalk.dim('----------------------------------------'));
+    console.log(chalk.cyan(`Total Capacity: `) + chalk.white(formatSize(data.capacity)));
+    console.log(chalk.cyan(`Used Space: `) + chalk.white(formatSize(data.used)));
+    console.log(chalk.cyan(`Free Space: `) + chalk.white(formatSize(freeSpace)));
+    // format the usagePercentage with 2 decimal floating point value:
+    console.log(chalk.cyan(`Usage Percentage: `) + chalk.white(`${usagePercentage.toFixed(2)}%`));
+    console.log(chalk.dim('----------------------------------------'));
+    console.log(chalk.green('Done.'));
+}
+
 /**
- * Fetch disk usage information using the /df API.
+ * Fetch disk usage information
  * @param {Object} body - Optional arguments to include in the request body.
  */
 export async function getDiskUsage(body = null) {
@@ -438,21 +452,127 @@ export async function getDiskUsage(body = null) {
         const data = await response.json();
         console.log(data);
         if (response.ok && data) {
-            const freeSpace = parseInt(data.capacity) - parseInt(data.used);
-            const usagePercentage = (parseInt(data.used) / parseInt(data.capacity)) * 100;
-            console.log(chalk.cyan('Disk Usage Information:'));
-            console.log(chalk.dim('----------------------------------------'));
-            console.log(chalk.cyan(`Total Capacity: `) + chalk.white(formatSize(data.capacity)));
-            console.log(chalk.cyan(`Used Space: `) + chalk.white(formatSize(data.used)));
-            console.log(chalk.cyan(`Free Space: `) + chalk.white(formatSize(freeSpace)));
-            // format the usagePercentage with 2 decimal floating point value:
-            console.log(chalk.cyan(`Usage Percentage: `) + chalk.white(`${usagePercentage.toFixed(2)}%`));
-            console.log(chalk.dim('----------------------------------------'));
-            console.log(chalk.green('Done.'));
+            showDiskSpaceUsage(data);
         } else {
             console.error(chalk.red('Unable to fetch disk usage information.'));
         }
     } catch (error) {
         console.error(chalk.red(`Failed to fetch disk usage information.\nError: ${error.message}`));
+    }
+}
+
+/**
+ * Create a new empty file (similar to Unix "touch" command).
+ * @param {Array} args - The arguments passed to the command (file name and optional path).
+ */
+export async function createFile(args = []) {
+    if (args.length < 1) {
+        console.log(chalk.red('Usage: touch <file_name> [path] [content] [dedupe_name] [overwrite]'));
+        return;
+    }
+
+    const fileName = args[0];
+    const path = args.length > 1 ? `/${getCurrentUserName()}/${args.slice(1).join('/')}` : getCurrentDirectory();
+    const content = args.length > 2 ? args[2] : ''; // Optional content
+    const dedupeName = args.length > 3 ? args[3] === 'true' : false; // Default: false
+    const overwrite = args.length > 4 ? args[4] === 'true' : true; // Default: true
+
+    console.log(chalk.green(`Creating file "${fileName}" in "${path}"...\n`));
+
+    try {
+        // Step 1: Check if the file already exists
+        const statResponse = await fetch(`${API_BASE}/stat`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                path: `${path}/${fileName}`
+            })
+        });
+
+        if (statResponse.ok) {
+            const statData = await statResponse.json();
+            if (statData && statData.id) {
+                if (!overwrite) {
+                    console.error(chalk.red(`File "${fileName}" already exists. Use --overwrite=true to replace it.`));
+                    return;
+                }
+                console.log(chalk.yellow(`File "${fileName}" already exists. It will be overwritten.`));
+            }
+        } else if (statResponse.status !== 404) {
+            console.error(chalk.red('Failed to check if file exists.'));
+            return;
+        }
+
+        // Step 2: Check disk space
+        const dfResponse = await fetch(`${API_BASE}/df`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: null
+        });
+
+        if (!dfResponse.ok) {
+            console.error(chalk.red('Unable to check disk space.'));
+            return;
+        }
+
+        const dfData = await dfResponse.json();
+        if (dfData.used >= dfData.capacity) {
+            console.error(chalk.red('Not enough disk space to create the file.'));
+            showDiskSpaceUsage(dfData); // Display disk usage info
+            return;
+        }
+
+        // Step 3: Create the file using /batch
+        const operationId = crypto.randomUUID(); // Generate a unique operation ID
+        const socketId = 'undefined'; // Placeholder socket ID
+
+        // Prepare the file as a Blob
+        const fileBlob = new Blob([content || ''], { type: 'text/plain' });
+
+        // Prepare FormData
+        const formData = new FormData();
+        formData.append('operation_id', operationId);
+        formData.append('socket_id', socketId);
+        formData.append('original_client_socket_id', socketId);
+        formData.append('fileinfo', JSON.stringify({
+            name: fileName,
+            type: 'text/plain',
+            size: fileBlob.size
+        }));
+        formData.append('operation', JSON.stringify({
+            op: 'write',
+            dedupe_name: dedupeName,
+            overwrite: overwrite,
+            operation_id: operationId,
+            path: path,
+            name: fileName,
+            item_upload_id: 0
+        }));
+        formData.append('file', fileBlob, fileName);
+
+        // Send the request
+        const createResponse = await fetch(`${API_BASE}/batch`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: formData
+        });
+
+        if (!createResponse.ok) {
+            const errorText = await createResponse.text();
+            console.error(chalk.red(`Failed to create file. Server response: ${errorText}`));
+            return;
+        }
+
+        const createData = await createResponse.json();
+        if (createData && createData.results && createData.results.length > 0) {
+            const file = createData.results[0];
+            console.log(chalk.green(`File "${fileName}" created successfully!`));
+            console.log(chalk.dim(`Path: ${file.path}`));
+            console.log(chalk.dim(`UID: ${file.uid}`));
+        } else {
+            console.error(chalk.red('Failed to create file. Invalid response from server.'));
+        }
+    } catch (error) {
+        console.error(chalk.red(`Failed to create file.\nError: ${error.message}`));
     }
 }

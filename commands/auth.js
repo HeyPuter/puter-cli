@@ -3,8 +3,8 @@ import chalk from 'chalk';
 import Conf from 'conf';
 import ora from 'ora';
 import fetch from 'node-fetch';
-
-const config = new Conf({ projectName: 'puter-cli' });
+import { PROJECT_NAME } from './commons.js'
+const config = new Conf({ projectName: PROJECT_NAME });
 
 export async function login() {
   const answers = await inquirer.prompt([
@@ -48,6 +48,7 @@ export async function login() {
     if (data.proceed && data.token) {
       config.set('auth_token', data.token);
       config.set('username', answers.username);
+      config.set('cwd', `/${answers.username}`);
       
       spinner.succeed(chalk.green('Successfully logged in to Puter!'));
       console.log(chalk.dim(`Token: ${data.token.slice(0, 5)}...${data.token.slice(-5)}`));
@@ -88,4 +89,8 @@ export function getAuthToken() {
 
 export function getCurrentUserName() {
   return config.get('username');
+}
+
+export function getCurrentDirectory() {
+  return config.get('cwd');
 }

@@ -4,11 +4,18 @@ import Conf from 'conf';
 import path from 'path';
 import { formatDate } from './utils.js';
 import { listApps, createApp, deleteApp } from './apps.js';
-import { listFiles, makeDirectory, renameFileOrDirectory, removeFileOrDirectory, emptyTrash } from './files.js';
+import { listFiles, makeDirectory, renameFileOrDirectory, 
+  removeFileOrDirectory, emptyTrash, changeDirectory } from './files.js';
 import { getCurrentUserName } from './auth.js';
+import { PROJECT_NAME } from './commons.js';
 import inquirer from 'inquirer';
 
-const config = new Conf({ projectName: 'puter-cli' });
+const config = new Conf({ projectName: PROJECT_NAME });
+
+// Update the prompt function
+export function getPrompt() {
+  return chalk.cyan(`puter@${config.get('cwd')}> `);
+}
 
 const commands = {
   help: showHelp,
@@ -56,6 +63,12 @@ const commands = {
     await deleteApp(name);
   },
   ls: listFiles,
+  cd: async (args) => {
+    await changeDirectory(args);
+  },
+  pwd: () => {
+    console.log(`${config.get('cwd')}`);
+  },
   mkdir: makeDirectory,
   mv: renameFileOrDirectory,
   rm: removeFileOrDirectory,
@@ -101,6 +114,8 @@ function showHelp() {
   ${chalk.cyan('app:create')}        Create a new app: app:create <name> [url]
   ${chalk.cyan('app:delete')}        Delete an app: app:delete <name>
   ${chalk.cyan('ls')}       List files and directories
+  ${chalk.cyan('cd')}       Change the current working directory
+  ${chalk.cyan('pwd')}      Print the current working directory
   ${chalk.cyan('mkdir')}    Create a new directory
   ${chalk.cyan('mv')}       Rename a file or directory
   ${chalk.cyan('rm')}       Move a file or directory to the system's Trash

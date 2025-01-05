@@ -1,18 +1,23 @@
 import chalk from 'chalk';
 import ora from 'ora';
+import Conf from 'conf';
 import fetch from 'node-fetch';
 import { API_BASE, getHeaders } from './commons.js';
 import { formatDate, formatDateTime, formatSize } from './utils.js';
 import inquirer from 'inquirer';
 import { getCurrentUserName } from './auth.js';
+import { PROJECT_NAME } from './commons.js';
+
+const config = new Conf({ projectName: PROJECT_NAME });
 
 /**
  * List files in the current working directory.
  * @param {string} args Default current working directory
  */
 export async function listFiles(args = ['/']) {
-  const username = getCurrentUserName();
-  const path = `/${username}/${args.join('/')}`;
+//   const username = getCurrentUserName();
+//   const path = `/${username}/${args.join('/')}`;
+  const path = config.get('cwd');
   console.log(chalk.green(`Listing files in ${path}...\n`));
   try {
       const response = await fetch(`${API_BASE}/readdir`, {
@@ -290,4 +295,58 @@ export async function deleteFolder(folderPath = `/${getCurrentUserName()}/Trash`
 export async function emptyTrash(skipConfirmation = true) {
     const trashPath = `/${getCurrentUserName()}/Trash`;
     await deleteFolder(trashPath, skipConfirmation);
+}
+
+/**
+ * Change the current working directory
+ * @param {Array} Path
+ * @returns void
+ */
+export async function changeDirectory(args) {
+    if (!args.length) {
+        return '/';
+    }
+
+    let currentPath = config.get('cwd');
+    
+    const path = args[0];
+    if (path === '..') {
+        const parts = currentPath.split('/').filter(p => p);
+        if (parts.length > 0) {
+            parts.pop();
+            currentPath = '/' + parts.join('/');
+            if (currentPath !== '/') currentPath += '/';
+        }
+        config.set('cwd', currentPath);
+        return;
+    }
+
+    try {
+        console.log(`currentPath: ${currentPath}`);
+        console.log(`path: ${path}`);
+        console.log(`${currentPath +'/'+ path}`);
+        const response = await fetch(`${API_BASE}/stat`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                // method: "read",
+                // args: {
+                    path: currentPath +'/'+ path
+                // }
+            })
+        });
+        
+        const data = await response.json();
+        console.log(data);
+        if (data && data.is_dir) {
+            currentPath += '/' + path;
+            currentPath = currentPath.replace(/\/+/g, '/');
+        } else {
+            console.log(chalk.red(`"${path}" is not a directory`));
+        }
+    } catch (error) {
+        console.log(chalk.red(`Cannot access "${path}": ${error.message}`));
+    }
+    console.log(chalk.green(`cwd: "${currentPath}"`));
+    config.set('cwd', currentPath);
 }

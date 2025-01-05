@@ -1,10 +1,11 @@
 import readline from 'node:readline';
 import chalk from 'chalk';
 import Conf from 'conf';
-import { execCommand } from './executor.js';
+import { execCommand, getPrompt } from './executor.js';
 import { getAuthToken } from './auth.js';
+import { PROJECT_NAME } from './commons.js';
 
-const config = new Conf({ projectName: 'puter-cli' });
+const config = new Conf({ projectName: PROJECT_NAME });
 
 export function startShell() {
   if (!getAuthToken()) {
@@ -12,27 +13,31 @@ export function startShell() {
     process.exit(1);
   }
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: chalk.cyan('puter> ')
-  });
+  try {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      prompt: getPrompt()
+    });
 
-  console.log(chalk.green('Welcome to Puter-CLI! Type "help" for available commands.'));
-  rl.prompt();
-
-  rl.on('line', async (line) => {
-    const trimmedLine = line.trim();
-    if (trimmedLine) {
-      try {
-        await execCommand(trimmedLine);
-      } catch (error) {
-        console.error(chalk.red(error.message));
-      }
-    }
+    console.log(chalk.green('Welcome to Puter-CLI! Type "help" for available commands.'));
     rl.prompt();
-  }).on('close', () => {
-    console.log(chalk.yellow('\nGoodbye!'));
-    process.exit(0);
-  });
+
+    rl.on('line', async (line) => {
+      const trimmedLine = line.trim();
+      if (trimmedLine) {
+        try {
+          await execCommand(trimmedLine);
+        } catch (error) {
+          console.error(chalk.red(error.message));
+        }
+      }
+      rl.prompt();
+    }).on('close', () => {
+      console.log(chalk.yellow('\nGoodbye!'));
+      process.exit(0);
+    });
+  } catch (error) {
+    console.error(chalk.red('Error starting shell:', error));
+  }
 }

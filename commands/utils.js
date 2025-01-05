@@ -16,6 +16,11 @@ export function formatDate(value) {
     });
 }
 
+/**
+ * Format timestamp to date or time
+ * @param {number} timestamp value
+ * @returns string
+ */
 export function formatDateTime(timestamp) {
     const date = new Date(timestamp * 1000); // Convert to milliseconds
     const now = new Date();

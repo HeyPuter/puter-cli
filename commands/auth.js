@@ -3,9 +3,13 @@ import chalk from 'chalk';
 import Conf from 'conf';
 import ora from 'ora';
 import fetch from 'node-fetch';
-import { PROJECT_NAME } from './commons.js'
+import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js'
 const config = new Conf({ projectName: PROJECT_NAME });
 
+/**
+ * Login user
+ * @returns void
+ */
 export async function login() {
   const answers = await inquirer.prompt([
     {
@@ -61,6 +65,10 @@ export async function login() {
   }
 }
 
+/**
+ * Logout user
+ * @returns void
+ */
 export async function logout() {
   const spinner = ora('Logging out from Puter...').start();
   
@@ -79,6 +87,37 @@ export async function logout() {
   }
 }
 
+export async function getUserInfo() {
+  console.log(chalk.green('Getting user info...\n'));
+  try {
+    const response = await fetch(`${API_BASE}/whoami`, {
+      method: 'GET',
+      headers: getHeaders()
+    });
+    const data = await response.json();
+    if (data) {
+      console.log(chalk.cyan('User Information:'));
+      console.log(chalk.dim('----------------------------------------'));
+      console.log(chalk.cyan(`Username: `) + chalk.white(data.username));
+      console.log(chalk.cyan(`UUID: `) + chalk.white(data.uuid));
+      console.log(chalk.cyan(`Email: `) + chalk.white(data.email));
+      console.log(chalk.cyan(`Email Confirmed: `) + chalk.white(data.email_confirmed ? 'Yes' : 'No'));
+      console.log(chalk.cyan(`Temporary Account: `) + chalk.white(data.is_temp ? 'Yes' : 'No'));
+      console.log(chalk.cyan(`Account Age: `) + chalk.white(data.human_readable_age));
+      console.log(chalk.dim('----------------------------------------'));
+      console.log(chalk.cyan('Feature Flags:'));
+      for (const [flag, enabled] of Object.entries(data.feature_flags)) {
+        console.log(chalk.cyan(`  - ${flag}: `) + chalk.white(enabled ? 'Enabled' : 'Disabled'));
+      }
+      console.log(chalk.dim('----------------------------------------'));
+      console.log(chalk.green('Done.'));
+    } else {
+      console.error(chalk.red('Unable to get your info. Please check your credentials.'));
+    }
+  } catch (error) {
+    console.error(chalk.red(`Failed to get user info.\nError: ${error.message}`));
+  }
+}
 export function isAuthenticated() {
   return !!config.get('auth_token');
 }

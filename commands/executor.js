@@ -5,15 +5,18 @@ import path from 'path';
 import { formatDate } from './utils.js';
 import { listApps, createApp, deleteApp } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
-  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd } from './files.js';
-import { getCurrentUserName } from './auth.js';
-import { PROJECT_NAME } from './commons.js';
+  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, getInfo } from './files.js';
+import { getCurrentUserName, getUserInfo } from './auth.js';
+import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
-// Update the prompt function
+/**
+ * Update the prompt function
+ * @returns The current prompt
+ */
 export function getPrompt() {
   return chalk.cyan(`puter@${config.get('cwd')}> `);
 }
@@ -28,11 +31,10 @@ const commands = {
   whoami: getUserInfo,
   stat: getInfo,
   apps: async (args) => {
-      const options = {
-          statsPeriod: args[0] || 'all',
-          iconSize: parseInt(args[1]) || 64
-      };
-      await listApps(options);
+      await listApps({
+        statsPeriod: args[0] || 'all',
+        iconSize: parseInt(args[1]) || 64
+    });
   },
   'app:create': async (args) => {
     if (args.length < 1) {
@@ -71,7 +73,7 @@ const commands = {
   mkdir: makeDirectory,
   mv: renameFileOrDirectory,
   rm: removeFileOrDirectory,
-  // rmdir: deleteFolder,
+  // rmdir: deleteFolder, // Not implemented in Puter API
   clean: emptyTrash,
   cp: copyFile,
   touch: touchFile,
@@ -80,6 +82,10 @@ const commands = {
   update: syncDirectory
 };
 
+/**
+ * Execute a command
+ * @param {string} input The command line input
+ */
 export async function execCommand(input) {
   const [cmd, ...args] = input.split(' ');
 
@@ -89,7 +95,7 @@ export async function execCommand(input) {
     const hostCommand = input.slice(1); // Remove the "!"
       exec(hostCommand, (error, stdout, stderr) => {
           if (error) {
-              console.error(chalk.red(`Error executing host command: ${error.message}`));
+              console.error(chalk.red(`Host Error: ${error.message}`));
               return;
           }
           if (stderr) {
@@ -97,6 +103,7 @@ export async function execCommand(input) {
               return;
           }
           console.log(stdout);
+          console.log(chalk.cyan(`Press <Enter> to return.`));
       });
   } else if (commands[cmd]) {
     // const spinner = ora(chalk.green(`Executing command: ${cmd}...\n`)).start();
@@ -115,6 +122,9 @@ export async function execCommand(input) {
   }
 }
 
+/**
+ * Display help menu
+ */
 function showHelp() {
   console.log(chalk.yellow('\nAvailable commands:'));
   console.log(`
@@ -141,54 +151,6 @@ function showHelp() {
   ${chalk.cyan('get')}      Download file from Puter cloud
   ${chalk.cyan('update')}   Sync local directory with cloud
   `);
-}
-
-
-async function getUserInfo() {
-  const spinner = ora(chalk.green('Getting user info...\n')).start();
-  try {
-    const response = await fetch('https://api.puter.com/whoami', {
-      method: 'GET',
-      headers: getHeaders()
-    });
-    const data = await response.json();
-    if (data) {
-      console.dir(data, { depth: null});
-      console.log('\n');
-      spinner.succeed(chalk.green('Done.'));
-    } else {
-      spinner.fail(chalk.red('Unable to get your info. Please check your credentials.'));
-    }
-  } catch (error) {
-    spinner.fail(chalk.red('Failed to get user info'));
-    console.error(chalk.red(`Error: ${error.message}`));
-  }
-}
-
-async function getInfo(args = ['/']) {
-  const path = '/'+getCurrentUsername() + '/'+ (args.length > 0? args.join(' '): '');
-  const spinner = ora(chalk.green('Getting stat info...\n')).start();
-  try {
-    const response = await fetch('https://api.puter.com/stat', {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({
-        path
-      })
-    }
-  );
-    const data = await response.json();
-    if (data) {
-      console.dir(data, { depth: null});
-      console.log('\n');
-      spinner.succeed(chalk.green('Done.'));
-    } else {
-      spinner.fail(chalk.red('Unable to get stat info. Please check your credentials.'));
-    }
-  } catch (error) {
-    spinner.fail(chalk.red('Failed to get stat info'));
-    console.error(chalk.red(`Error: ${error.message}`));
-  }
 }
 
 // TODO:

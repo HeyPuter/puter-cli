@@ -2,11 +2,10 @@ import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
 import fetch from 'node-fetch';
-import { API_BASE, getHeaders } from './commons.js';
+import { API_BASE, PROJECT_NAME, getHeaders } from './commons.js';
 import { formatDate, formatDateTime, formatSize } from './utils.js';
 import inquirer from 'inquirer';
 import { getCurrentDirectory, getCurrentUserName } from './auth.js';
-import { PROJECT_NAME } from './commons.js';
 import { updatePrompt } from './shell.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
@@ -15,35 +14,38 @@ const config = new Conf({ projectName: PROJECT_NAME });
  * List files in the current working directory.
  * @param {string} args Default current working directory
  */
-export async function listFiles(args = ['/']) {
-  const path = config.get('cwd');
-  console.log(chalk.green(`Listing files in ${path}...\n`));
-  try {
-      const response = await fetch(`${API_BASE}/readdir`, {
-          method: 'POST',
-          headers: getHeaders(),
-          body: JSON.stringify({ path })
-      });
-      const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-          console.log(`Type  Name                 Size    Modified          UID`);
-          console.log('---------------------------------------------------------------');
-          data.forEach(file => {
-              const type = file.is_dir ? 'd' : '-';
-              const name = file.name.padEnd(20);
-              const size = file.is_dir ? '0' : formatSize(file.size);
-              const modified = formatDateTime(file.modified);
-              const uid = file.uid;
-              console.log(`${type}    ${name} ${size.padEnd(8)} ${modified}  ${uid}`);
-          });
-          console.log(chalk.green(`There are ${data.length} object(s).`));
-      } else {
-          console.log(chalk.red('No files or directories found.'));
-      }
-  } catch (error) {
-      console.log(chalk.red('Failed to list files.'));
-      console.error(chalk.red(`Error: ${error.message}`));
-  }
+export async function listFiles(args = []) {
+  const names = args.length > 0 ? args : ['.'];
+  for (let path of names)
+    try {
+        path = `${getCurrentDirectory()}/${path}`
+        console.log(chalk.green(`Listing files in ${path}:\n`));
+        const response = await fetch(`${API_BASE}/readdir`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ path })
+        });
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+            console.log(chalk.cyan(`Type  Name                 Size    Modified          UID`));
+            console.log(chalk.dim('----------------------------------------------------------------------------------'));
+            data.forEach(file => {
+                const type = file.is_dir ? 'd' : '-';
+                const write = file.writable ? 'w' : '-';
+                const name = file.name.padEnd(20);
+                const size = file.is_dir ? '0' : formatSize(file.size);
+                const modified = formatDateTime(file.modified);
+                const uid = file.uid;
+                console.log(`${type}${write}   ${name} ${size.padEnd(8)} ${modified}  ${uid}`);
+            });
+            console.log(chalk.green(`There are ${data.length} object(s).`));
+        } else {
+            console.log(chalk.red('No files or directories found.'));
+        }
+    } catch (error) {
+        console.log(chalk.red('Failed to list files.'));
+        console.error(chalk.red(`Error: ${error.message}`));
+    }
 }
 
 /**
@@ -281,7 +283,6 @@ export async function deleteFolder(folderPath, skipConfirmation = false) {
     }
 }
 
-
 /**
  * Empty the Trash (wrapper for deleteFolder).
  * @param {boolean} skipConfirmation - Whether to skip the confirmation prompt.
@@ -289,6 +290,45 @@ export async function deleteFolder(folderPath, skipConfirmation = false) {
 export async function emptyTrash(skipConfirmation = true) {
     const trashPath = `/${getCurrentUserName()}/Trash`;
     await deleteFolder(trashPath, skipConfirmation);
+}
+
+/**
+ * Show statistical information about the current working directory.
+ * @param {Array} args array of path names
+ */
+export async function getInfo(args = []) {
+    const names = args.length > 0 ? args : ['.'];
+    for (let name of names)
+        try {
+            name = `${getCurrentDirectory()}/${name}`;
+            console.log(chalk.green(`Getting stat info for: "${name}"...\n`));
+            const response = await fetch(`${API_BASE}/stat`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    path: name
+                })
+            });
+            const data = await response.json();
+            if (response.ok && data) {
+                console.log(chalk.cyan('File/Directory Information:'));
+                console.log(chalk.dim('----------------------------------------'));
+                console.log(chalk.cyan(`Name: `) + chalk.white(data.name));
+                console.log(chalk.cyan(`Path: `) + chalk.white(data.path));
+                console.log(chalk.cyan(`Type: `) + chalk.white(data.is_dir ? 'Directory' : 'File'));
+                console.log(chalk.cyan(`Size: `) + chalk.white(data.size ? formatSize(data.size) : 'N/A'));
+                console.log(chalk.cyan(`Created: `) + chalk.white(new Date(data.created * 1000).toLocaleString()));
+                console.log(chalk.cyan(`Modified: `) + chalk.white(new Date(data.modified * 1000).toLocaleString()));
+                console.log(chalk.cyan(`Writable: `) + chalk.white(data.writable ? 'Yes' : 'No'));
+                console.log(chalk.cyan(`Owner: `) + chalk.white(data.owner.username));
+                console.log(chalk.dim('----------------------------------------'));
+                console.log(chalk.green('Done.'));
+            } else {
+                console.error(chalk.red('Unable to get stat info. Please check your credentials.'));
+            }
+        } catch (error) {
+            console.error(chalk.red(`Failed to get stat info.\nError: ${error.message}`));
+        }
 }
 
 /**
@@ -313,10 +353,8 @@ export async function changeDirectory(args) {
     }
 
     const path = args[0];
-
     // Handle ".." and deeper navigation
     const newPath = resolvePath(currentPath, path);
-
     try {
         // Check if the new path is a valid directory
         const response = await fetch(`${API_BASE}/stat`, {
@@ -328,9 +366,12 @@ export async function changeDirectory(args) {
         });
 
         const data = await response.json();
-        if (data && data.is_dir) {
-            config.set('cwd', newPath); // Update the current working directory
-            updatePrompt(newPath); // Update the shell prompt
+        if (response.ok && data && data.is_dir) {
+            // Update the newPath to use the correct name from the response
+            const arrayDirs = newPath.split('/');
+            arrayDirs.pop();
+            arrayDirs.push(data.name);
+            updatePrompt(arrayDirs.join('/')); // Update the shell prompt
         } else {
             console.log(chalk.red(`"${newPath}" is not a directory`));
         }

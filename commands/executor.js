@@ -9,6 +9,7 @@ import { listFiles, makeDirectory, renameFileOrDirectory,
 import { getCurrentUserName } from './auth.js';
 import { PROJECT_NAME } from './commons.js';
 import inquirer from 'inquirer';
+import { exec } from 'node:child_process';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -81,7 +82,23 @@ const commands = {
 
 export async function execCommand(input) {
   const [cmd, ...args] = input.split(' ');
-  if (commands[cmd]) {
+
+
+  if (cmd.startsWith('!')) {
+    // Execute the command on the host machine
+    const hostCommand = input.slice(1); // Remove the "!"
+      exec(hostCommand, (error, stdout, stderr) => {
+          if (error) {
+              console.error(chalk.red(`Error executing host command: ${error.message}`));
+              return;
+          }
+          if (stderr) {
+              console.error(chalk.red(stderr));
+              return;
+          }
+          console.log(stdout);
+      });
+  } else if (commands[cmd]) {
     // const spinner = ora(chalk.green(`Executing command: ${cmd}...\n`)).start();
     try {
       await commands[cmd](args);

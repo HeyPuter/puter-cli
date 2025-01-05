@@ -5,8 +5,9 @@ import fetch from 'node-fetch';
 import { API_BASE, getHeaders } from './commons.js';
 import { formatDate, formatDateTime, formatSize } from './utils.js';
 import inquirer from 'inquirer';
-import { getCurrentUserName } from './auth.js';
+import { getCurrentDirectory, getCurrentUserName } from './auth.js';
 import { PROJECT_NAME } from './commons.js';
+import { updatePrompt } from './shell.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -15,8 +16,6 @@ const config = new Conf({ projectName: PROJECT_NAME });
  * @param {string} args Default current working directory
  */
 export async function listFiles(args = ['/']) {
-//   const username = getCurrentUserName();
-//   const path = `/${username}/${args.join('/')}`;
   const path = config.get('cwd');
   console.log(chalk.green(`Listing files in ${path}...\n`));
   try {
@@ -58,19 +57,15 @@ export async function makeDirectory(args = []) {
         return;
     }
 
-    const username = getCurrentUserName();
     const directoryName = args[0];
-    const parentDirectory = args[1] || `/${username}`; // Default to user's root directory
-    const path = `${parentDirectory}/${directoryName}`;
-
-    console.log(chalk.green(`Creating directory "${directoryName}" in "${parentDirectory}"...\n`));
+    console.log(chalk.green(`Creating directory "${directoryName}" in "${getCurrentDirectory()}"...\n`));
 
     try {
         const response = await fetch(`${API_BASE}/mkdir`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({
-                parent: parentDirectory,
+                parent: getCurrentDirectory(),
                 path: directoryName,
                 overwrite: false,
                 dedupe_name: true,
@@ -99,11 +94,11 @@ export async function makeDirectory(args = []) {
  */
 export async function renameFileOrDirectory(args = []) {
     if (args.length < 2) {
-        console.log(chalk.red('Usage: rename <old_name> <new_name>'));
+        console.log(chalk.red('Usage: mv <old_name> <new_name>'));
         return;
     }
 
-    const username = getCurrentUserName();
+    const currentPath = getCurrentDirectory();
     const oldName = args[0];
     const newName = args[1];
 
@@ -115,7 +110,7 @@ export async function renameFileOrDirectory(args = []) {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({
-                path: `/${username}/${oldName}`
+                path: `${currentPath}/${oldName}`
             })
         });
 
@@ -159,91 +154,90 @@ export async function renameFileOrDirectory(args = []) {
  */
 export async function removeFileOrDirectory(args = []) {
     if (args.length < 1) {
-        console.log(chalk.red('Usage: remove <name> [-f]'));
+        console.log(chalk.red('Usage: rm <name> [-f]'));
         return;
     }
 
-    const username = getCurrentUserName();
-    const name = args[0];
+    // const username = getCurrentUserName();
     const skipConfirmation = args.includes('-f'); // Check the flag if provided
+    const names = skipConfirmation? args.filter(option => option != '-f'):args;
 
-    console.log(chalk.green(`Preparing to remove "${name}"...\n`));
+    for (const name of names)
+        try {
+            console.log(chalk.green(`Preparing to remove "${name}"...\n`));
+            // Step 1: Get the UID of the file/directory using the name
+            const statResponse = await fetch(`${API_BASE}/stat`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    path: `${getCurrentDirectory()}/${name}`
+                })
+            });
 
-    try {
-        // Step 1: Get the UID of the file/directory using the name
-        const statResponse = await fetch(`${API_BASE}/stat`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                path: `/${username}/${name}`
-            })
-        });
-
-        const statData = await statResponse.json();
-        if (!statData || !statData.uid) {
-            console.log(chalk.red(`Could not find file or directory with name "${name}".`));
-            return;
-        }
-
-        const uid = statData.uid;
-        const originalPath = statData.path;
-
-        // Step 2: Prompt for confirmation (unless -f flag is provided)
-        if (!skipConfirmation) {
-            const { confirm } = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'confirm',
-                    message: `Are you sure you want to move "${name}" to Trash?`,
-                    default: false
-                }
-            ]);
-
-            if (!confirm) {
-                console.log(chalk.yellow('Operation canceled.'));
+            const statData = await statResponse.json();
+            if (!statData || !statData.uid) {
+                console.log(chalk.red(`Could not find file or directory with name "${name}".`));
                 return;
             }
-        }
 
-        // Step 3: Perform the move operation to Trash
-        const moveResponse = await fetch(`${API_BASE}/move`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                source: uid,
-                destination: `/${username}/Trash`,
-                overwrite: false,
-                new_name: uid, // Use the UID as the new name in Trash
-                create_missing_parents: false,
-                new_metadata: {
-                    original_name: name,
-                    original_path: originalPath,
-                    trashed_ts: Math.floor(Date.now() / 1000) // Current timestamp
+            const uid = statData.uid;
+            const originalPath = statData.path;
+
+            // Step 2: Prompt for confirmation (unless -f flag is provided)
+            if (!skipConfirmation) {
+                const { confirm } = await inquirer.prompt([
+                    {
+                        type: 'confirm',
+                        name: 'confirm',
+                        message: `Are you sure you want to move "${name}" to Trash?`,
+                        default: false
+                    }
+                ]);
+
+                if (!confirm) {
+                    console.log(chalk.yellow('Operation canceled.'));
+                    return;
                 }
-            })
-        });
+            }
 
-        const moveData = await moveResponse.json();
-        if (moveData && moveData.moved) {
-            console.log(chalk.green(`Successfully moved "${name}" to Trash!`));
-            console.log(chalk.dim(`New Path: ${moveData.moved.path}`));
-            console.log(chalk.dim(`UID: ${moveData.moved.uid}`));
-        } else {
-            console.log(chalk.red('Failed to move item to Trash. Please check your input.'));
+            // Step 3: Perform the move operation to Trash
+            const moveResponse = await fetch(`${API_BASE}/move`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    source: uid,
+                    destination: `/${getCurrentUserName()}/Trash`,
+                    overwrite: false,
+                    new_name: uid, // Use the UID as the new name in Trash
+                    create_missing_parents: false,
+                    new_metadata: {
+                        original_name: name,
+                        original_path: originalPath,
+                        trashed_ts: Math.floor(Date.now() / 1000) // Current timestamp
+                    }
+                })
+            });
+
+            const moveData = await moveResponse.json();
+            if (moveData && moveData.moved) {
+                console.log(chalk.green(`Successfully moved "${name}" to Trash!`));
+                console.log(chalk.dim(`Moved to: ${moveData.moved.path}`));
+                // console.log(chalk.dim(`UID: ${moveData.moved.uid}`));
+            } else {
+                console.log(chalk.red('Failed to move item to Trash. Please check your input.'));
+            }
+        } catch (error) {
+            console.log(chalk.red('Failed to remove item.'));
+            console.error(chalk.red(`Error: ${error.message}`));
         }
-    } catch (error) {
-        console.log(chalk.red('Failed to remove item.'));
-        console.error(chalk.red(`Error: ${error.message}`));
-    }
 }
-
 
 /**
  * Delete a folder and its contents (PREVENTED BY PUTER API)
  * @param {string} folderPath - The path of the folder to delete (defaults to Trash).
  * @param {boolean} skipConfirmation - Whether to skip the confirmation prompt.
  */
-export async function deleteFolder(folderPath = `/${getCurrentUserName()}/Trash`, skipConfirmation = false) {
+export async function deleteFolder(folderPath, skipConfirmation = false) {
     console.log(chalk.green(`Preparing to delete "${folderPath}"...\n`));
 
     try {
@@ -298,55 +292,91 @@ export async function emptyTrash(skipConfirmation = true) {
 }
 
 /**
+ * Show the current working directory
+ */
+export async function showCwd() {
+    console.log(chalk.green(`${config.get('cwd')}`));
+}
+
+/**
  * Change the current working directory
- * @param {Array} Path
+ * @param {Array} args - The path arguments
  * @returns void
  */
 export async function changeDirectory(args) {
-    if (!args.length) {
-        return '/';
-    }
-
     let currentPath = config.get('cwd');
-    
-    const path = args[0];
-    if (path === '..') {
-        const parts = currentPath.split('/').filter(p => p);
-        if (parts.length > 0) {
-            parts.pop();
-            currentPath = '/' + parts.join('/');
-            if (currentPath !== '/') currentPath += '/';
-        }
-        config.set('cwd', currentPath);
+
+    // If no arguments, print the current directory
+    if (!args.length) {
+        console.log(chalk.green(currentPath));
         return;
     }
 
+    const path = args[0];
+
+    // Handle ".." and deeper navigation
+    const newPath = resolvePath(currentPath, path);
+
     try {
-        console.log(`currentPath: ${currentPath}`);
-        console.log(`path: ${path}`);
-        console.log(`${currentPath +'/'+ path}`);
+        // Check if the new path is a valid directory
         const response = await fetch(`${API_BASE}/stat`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({
-                // method: "read",
-                // args: {
-                    path: currentPath +'/'+ path
-                // }
+                path: newPath
             })
         });
-        
+
         const data = await response.json();
-        console.log(data);
         if (data && data.is_dir) {
-            currentPath += '/' + path;
-            currentPath = currentPath.replace(/\/+/g, '/');
+            config.set('cwd', newPath); // Update the current working directory
+            updatePrompt(newPath); // Update the shell prompt
         } else {
-            console.log(chalk.red(`"${path}" is not a directory`));
+            console.log(chalk.red(`"${newPath}" is not a directory`));
         }
     } catch (error) {
-        console.log(chalk.red(`Cannot access "${path}": ${error.message}`));
+        console.log(chalk.red(`Cannot access "${newPath}": ${error.message}`));
     }
-    console.log(chalk.green(`cwd: "${currentPath}"`));
-    config.set('cwd', currentPath);
+}
+
+/**
+ * Resolve a relative path to an absolute path
+ * @param {string} currentPath - The current working directory
+ * @param {string} relativePath - The relative path to resolve
+ * @returns {string} The resolved absolute path
+ */
+function resolvePath(currentPath, relativePath) {
+    // Normalize the current path (remove trailing slashes)
+    currentPath = currentPath.replace(/\/+$/, '');
+
+    // Split the relative path into parts
+    const parts = relativePath.split('/').filter(p => p); // Remove empty parts
+
+    // Handle each part of the relative path
+    for (const part of parts) {
+        if (part === '..') {
+            // Move one level up
+            const currentParts = currentPath.split('/').filter(p => p);
+            if (currentParts.length > 0) {
+                currentParts.pop(); // Remove the last part
+            }
+            currentPath = '/' + currentParts.join('/');
+        } else if (part === '.') {
+            // Stay in the current directory (no change)
+            continue;
+        } else {
+            // Move into a subdirectory
+            currentPath += `/${part}`;
+        }
+    }
+
+    // Normalize the final path (remove duplicate slashes)
+    currentPath = currentPath.replace(/\/+/g, '/');
+
+    // Ensure the path ends with a slash if it's the root
+    if (currentPath === '') {
+        currentPath = '/';
+    }
+
+    return currentPath;
 }

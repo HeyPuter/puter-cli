@@ -7,6 +7,23 @@ import { PROJECT_NAME } from './commons.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: getPrompt()
+});
+
+/**
+ * Update the current shell prompt
+ */
+export function updatePrompt(currentPath) {
+  config.set('cwd', currentPath);
+  rl.setPrompt(getPrompt());
+}
+
+/**
+ * Start the interactive shell
+ */
 export function startShell() {
   if (!getAuthToken()) {
     console.log(chalk.red('Please login first using: puter login'));
@@ -14,12 +31,6 @@ export function startShell() {
   }
 
   try {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      prompt: getPrompt()
-    });
-
     console.log(chalk.green('Welcome to Puter-CLI! Type "help" for available commands.'));
     rl.prompt();
 

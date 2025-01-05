@@ -5,7 +5,7 @@ import path from 'path';
 import { formatDate } from './utils.js';
 import { listApps, createApp, deleteApp } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
-  removeFileOrDirectory, emptyTrash, changeDirectory } from './files.js';
+  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd } from './files.js';
 import { getCurrentUserName } from './auth.js';
 import { PROJECT_NAME } from './commons.js';
 import inquirer from 'inquirer';
@@ -66,9 +66,7 @@ const commands = {
   cd: async (args) => {
     await changeDirectory(args);
   },
-  pwd: () => {
-    console.log(`${config.get('cwd')}`);
-  },
+  pwd: showCwd,
   mkdir: makeDirectory,
   mv: renameFileOrDirectory,
   rm: removeFileOrDirectory,

@@ -3,6 +3,7 @@ import { getAuthToken } from './auth.js';
 
 export const PROJECT_NAME = 'puter-cli';
 export const API_BASE = 'https://api.puter.com';
+export const BASE_URL = 'https://puter.com';
 
 /**
  * Get headers with the correct Content-Type for multipart form data.

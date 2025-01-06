@@ -4,7 +4,7 @@ import Conf from 'conf';
 import path from 'path';
 import { listApps, createApp, deleteApp } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
-  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, getInfo, getDiskUsage, createFile, readFile, uploadFile } from './files.js';
+  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, getInfo, getDiskUsage, createFile, readFile, uploadFile, downloadFile } from './files.js';
 import { getUserInfo, getUsageInfo } from './auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
@@ -166,13 +166,6 @@ async function copyFile(args) {
     throw new Error('Source and destination required');
   }
   console.log(`Copying ${args[0]} to ${args[1]}...`);
-}
-
-async function downloadFile(args) {
-  if (!args.length) {
-    throw new Error('File name is required');
-  }
-  console.log(`Downloading ${args[0]}...`);
 }
 
 async function syncDirectory(args) {

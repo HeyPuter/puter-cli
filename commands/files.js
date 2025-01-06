@@ -3,10 +3,10 @@ import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
 import fetch from 'node-fetch';
-import { API_BASE, PROJECT_NAME, getHeaders } from './commons.js';
+import { API_BASE, BASE_URL, PROJECT_NAME, getHeaders } from './commons.js';
 import { formatDate, formatDateTime, formatSize } from './utils.js';
 import inquirer from 'inquirer';
-import { getCurrentDirectory, getCurrentUserName } from './auth.js';
+import { getAuthToken, getCurrentDirectory, getCurrentUserName } from './auth.js';
 import { updatePrompt } from './shell.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
@@ -718,5 +718,68 @@ export async function uploadFile(args = []) {
         }
     } catch (error) {
         console.error(chalk.red(`Failed to upload file.\nError: ${error.message}`));
+    }
+}
+
+/**
+ * Download a file from the Puter server to the host machine (similar to FTP "get" command).
+ * @param {Array} args - The arguments passed to the command (remote file path, local path).
+ */
+export async function downloadFile(args = []) {
+    if (args.length < 1) {
+        console.log(chalk.red('Usage: get <remote_file_path> [local_path]'));
+        return;
+    }
+
+    const remoteFilePath = resolvePath(getCurrentDirectory(), args[0]); // Resolve the remote file path
+    const localFilePath = args.length > 1 ? args[1] : remoteFilePath.split('/').pop(); // Default to the file name
+
+    console.log(chalk.green(`Downloading file "${remoteFilePath}" to "${localFilePath}"...\n`));
+
+    try {
+        // Step 1: Fetch the anti-CSRF token
+        const csrfResponse = await fetch(`${BASE_URL}/get-anticsrf-token`, {
+            method: 'GET',
+            headers: getHeaders()
+        });
+
+        if (!csrfResponse.ok) {
+            console.error(chalk.red('Failed to fetch anti-CSRF token.'));
+            return;
+        }
+
+        const csrfData = await csrfResponse.json();
+        // check for token
+        if (!csrfData || !csrfData.token) {
+            console.error(chalk.red('Failed to fetch anti-CSRF token.'));
+            return;
+        }
+
+        const antiCsrfToken = csrfData.token;
+
+        // Step 2: Download the file using the anti-CSRF token
+        const downloadResponse = await fetch(`${BASE_URL}/down?path=${encodeURIComponent(remoteFilePath)}`, {
+        // const downloadResponse = await fetch(`${BASE_URL}/down?path=${remoteFilePath}`, {
+            method: 'POST',
+            headers: {
+                ...getHeaders('application/x-www-form-urlencoded'),
+                "cookie": `puter_auth_token=${getAuthToken()};`
+            },
+            "referrerPolicy": "strict-origin-when-cross-origin",
+            body: `anti_csrf=${antiCsrfToken}`
+        });
+
+        if (!downloadResponse.ok) {
+            console.error(chalk.red(`Failed to download file. Server response: ${downloadResponse.statusText}`));
+            return;
+        }
+
+        // Step 3: Save the file content to the local filesystem
+        const fileContent = await downloadResponse.text();
+        fs.writeFileSync(localFilePath, fileContent, 'utf8');
+        const fileSize = fs.statSync(localFilePath).size;
+        console.log(chalk.green(`File: "${remoteFilePath}" downloaded to "${localFilePath}" (size: ${formatSize(fileSize)})`));
+    } catch (error) {
+        console.error(chalk.red(`Failed to download file.\nError: ${error.message}`));
     }
 }

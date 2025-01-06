@@ -722,8 +722,8 @@ export async function uploadFile(args = []) {
 }
 
 /**
- * Download a file from the Puter server to the host machine (similar to FTP "get" command).
- * @param {Array} args - The arguments passed to the command (remote file path, local path).
+ * Download a file from the Puter server to the host machine 
+ * @param {Array} args - The arguments passed to the command (remote file path, Optional: local path).
  */
 export async function downloadFile(args = []) {
     if (args.length < 1) {
@@ -744,7 +744,7 @@ export async function downloadFile(args = []) {
         });
 
         if (!csrfResponse.ok) {
-            console.error(chalk.red('Failed to fetch anti-CSRF token.'));
+            console.error(chalk.red('Failed to fetch CSRF token.'));
             return;
         }
 
@@ -758,8 +758,7 @@ export async function downloadFile(args = []) {
         const antiCsrfToken = csrfData.token;
 
         // Step 2: Download the file using the anti-CSRF token
-        const downloadResponse = await fetch(`${BASE_URL}/down?path=${encodeURIComponent(remoteFilePath)}`, {
-        // const downloadResponse = await fetch(`${BASE_URL}/down?path=${remoteFilePath}`, {
+        const downloadResponse = await fetch(`${BASE_URL}/down?path=${remoteFilePath}`, {
             method: 'POST',
             headers: {
                 ...getHeaders('application/x-www-form-urlencoded'),
@@ -781,5 +780,54 @@ export async function downloadFile(args = []) {
         console.log(chalk.green(`File: "${remoteFilePath}" downloaded to "${localFilePath}" (size: ${formatSize(fileSize)})`));
     } catch (error) {
         console.error(chalk.red(`Failed to download file.\nError: ${error.message}`));
+    }
+}
+
+/**
+ * Copy a file from one location to another on the Puter server (similar to Unix "cp" command).
+ * @param {Array} args - The arguments passed to the command (source path, destination path).
+ */
+export async function copyFile(args = []) {
+    if (args.length < 2) {
+        console.log(chalk.red('Usage: cp <source_path> <destination_path>'));
+        return;
+    }
+
+    const sourcePath = resolvePath(getCurrentDirectory(), args[0]); // Resolve the source path
+    const destinationPath = resolvePath(getCurrentDirectory(), args[1]); // Resolve the destination path
+
+    console.log(chalk.green(`Copying file "${sourcePath}" to "${destinationPath}"...\n`));
+
+    try {
+        // Step 1: Prepare the copy request
+        // const socketId = 'undefined'; // Placeholder socket ID
+
+        const copyResponse = await fetch(`${API_BASE}/copy`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                // original_client_socket_id: socketId,
+                // socket_id: socketId,
+                source: sourcePath,
+                destination: destinationPath
+            })
+        });
+
+        if (!copyResponse.ok) {
+            const errorText = await copyResponse.text();
+            console.error(chalk.red(`Failed to copy file. Server response: ${errorText}`));
+            return;
+        }
+
+        const copyData = await copyResponse.json();
+        if (copyData && copyData.length > 0 && copyData[0].copied) {
+            const copiedFile = copyData[0].copied;
+            console.log(chalk.green(`File "${sourcePath}" copied successfully to "${copiedFile.path}"!`));
+            console.log(chalk.dim(`UID: ${copiedFile.uid}`));
+        } else {
+            console.error(chalk.red('Failed to copy file. Invalid response from server.'));
+        }
+    } catch (error) {
+        console.error(chalk.red(`Failed to copy file.\nError: ${error.message}`));
     }
 }

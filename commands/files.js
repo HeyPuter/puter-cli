@@ -18,7 +18,7 @@ export async function listFiles(args = []) {
   const names = args.length > 0 ? args : ['.'];
   for (let path of names)
     try {
-        path = `${getCurrentDirectory()}/${path}`
+        path = resolvePath(getCurrentDirectory(), path);
         console.log(chalk.green(`Listing files in ${path}:\n`));
         const response = await fetch(`${API_BASE}/readdir`, {
             method: 'POST',
@@ -467,18 +467,16 @@ export async function getDiskUsage(body = null) {
  */
 export async function createFile(args = []) {
     if (args.length < 1) {
-        console.log(chalk.red('Usage: touch <file_name> [path] [content] [dedupe_name] [overwrite]'));
+        console.log(chalk.red('Usage: touch <file_name> [content]'));
         return;
     }
 
     const fileName = args[0];
-    const path = args.length > 1 ? `/${getCurrentUserName()}/${args.slice(1).join('/')}` : getCurrentDirectory();
-    const content = args.length > 2 ? args[2] : ''; // Optional content
-    const dedupeName = args.length > 3 ? args[3] === 'true' : false; // Default: false
-    const overwrite = args.length > 4 ? args[4] === 'true' : true; // Default: true
-
-    console.log(chalk.green(`Creating file "${fileName}" in "${path}"...\n`));
-
+    const content = args.length > 1 ? args[1] : ''; // Optional content
+    const path = resolvePath(getCurrentDirectory(), '.');
+    const dedupeName = false; // Default: false
+    const overwrite = true; // Default: true
+    console.log(chalk.green(`Creating file "${fileName}" in "${path}" ${content.length > 0?`with content: '${content}'`:''}...\n`));
     try {
         // Step 1: Check if the file already exists
         const statResponse = await fetch(`${API_BASE}/stat`, {
@@ -525,41 +523,47 @@ export async function createFile(args = []) {
         // Step 3: Create the file using /batch
         const operationId = crypto.randomUUID(); // Generate a unique operation ID
         const socketId = 'undefined'; // Placeholder socket ID
-
+        const boundary = `----WebKitFormBoundary${crypto.randomUUID().replace(/-/g, '')}`;
         // Prepare the file as a Blob
         const fileBlob = new Blob([content || ''], { type: 'text/plain' });
-
         // Prepare FormData
-        const formData = new FormData();
-        formData.append('operation_id', operationId);
-        formData.append('socket_id', socketId);
-        formData.append('original_client_socket_id', socketId);
-        formData.append('fileinfo', JSON.stringify({
-            name: fileName,
-            type: 'text/plain',
-            size: fileBlob.size
-        }));
-        formData.append('operation', JSON.stringify({
-            op: 'write',
-            dedupe_name: dedupeName,
-            overwrite: overwrite,
-            operation_id: operationId,
-            path: path,
-            name: fileName,
-            item_upload_id: 0
-        }));
-        formData.append('file', fileBlob, fileName);
-
+        const formData = `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="operation_id"\r\n\r\n${operationId}\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="socket_id"\r\n\r\n${socketId}\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="original_client_socket_id"\r\n\r\n${socketId}\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="fileinfo"\r\n\r\n${JSON.stringify({
+                name: fileName,
+                type: 'text/plain',
+                size: fileBlob.size
+            })}\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="operation"\r\n\r\n${JSON.stringify({
+                op: 'write',
+                dedupe_name: dedupeName,
+                overwrite: overwrite,
+                operation_id: operationId,
+                path: path,
+                name: fileName,
+                item_upload_id: 0
+            })}\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+            `Content-Type: text/plain\r\n\r\n${content || ''}\r\n` +
+            `--${boundary}--\r\n`;
+        
         // Send the request
         const createResponse = await fetch(`${API_BASE}/batch`, {
             method: 'POST',
-            headers: getHeaders(),
+            headers: getHeaders(`multipart/form-data; boundary=${boundary}`),
             body: formData
         });
 
         if (!createResponse.ok) {
             const errorText = await createResponse.text();
-            console.error(chalk.red(`Failed to create file. Server response: ${errorText}`));
+            console.error(chalk.red(`Failed to create file. Server response: ${errorText}. status: ${createResponse.status}`));
             return;
         }
 

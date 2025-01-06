@@ -5,16 +5,19 @@ export const PROJECT_NAME = 'puter-cli';
 export const API_BASE = 'https://api.puter.com';
 
 /**
- * Default Headers data
+ * Get headers with the correct Content-Type for multipart form data.
+ * @param {string} contentType - The "Content-Type" argument for the header ('application/json' is the default)
+ * Use the multipart form data for upload a file.
+ * @returns {Object} The headers object.
  */
-export function getHeaders() {
+export function getHeaders(contentType = 'application/json') {
     return {
       'Accept': '*/*',
       'Accept-Language': 'en-US,en;q=0.9',
       'Authorization': `Bearer ${getAuthToken()}`,
       'Connection': 'keep-alive',
       // 'Host': 'api.puter.com',
-      'Content-Type': 'application/json',
+      'Content-Type': contentType,
       'Origin': 'https://puter.com',
       'Referer': 'https://puter.com/',
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'

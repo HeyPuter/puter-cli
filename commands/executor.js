@@ -17,7 +17,7 @@ const config = new Conf({ projectName: PROJECT_NAME });
  * @returns The current prompt
  */
 export function getPrompt() {
-  return chalk.cyan(`puter@${config.get('cwd')}> `);
+  return chalk.cyan(`puter@${config.get('cwd').slice(1)}> `);
 }
 
 const commands = {

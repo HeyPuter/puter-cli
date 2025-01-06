@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { generateAppName } from './commons.js';
 
 export async function init() {
   const answers = await inquirer.prompt([
@@ -10,7 +11,7 @@ export async function init() {
       type: 'input',
       name: 'name',
       message: 'What is your app name?',
-      default: path.basename(process.cwd())
+      default: `${generateAppName()}`
     },
     {
       type: 'list',

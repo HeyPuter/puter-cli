@@ -143,7 +143,8 @@ function showHelp() {
   ${chalk.cyan('app:create')}        Create a new app: app:create <name> [url]
   ${chalk.cyan('app:delete')}        Delete an app: app:delete <name>
   ${chalk.cyan('ls')}       List files and directories
-  ${chalk.cyan('cd')}       Change the current working directory
+  ${chalk.cyan('cd [dir]')} Change the current working directory
+  ${chalk.cyan('cd ..')}    Go up one directory
   ${chalk.cyan('pwd')}      Print the current working directory
   ${chalk.cyan('mkdir')}    Create a new directory
   ${chalk.cyan('mv')}       Rename a file or directory

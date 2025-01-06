@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
@@ -617,5 +618,105 @@ export async function readFile(args = []) {
         }
     } catch (error) {
         console.error(chalk.red(`Failed to read file.\nError: ${error.message}`));
+    }
+}
+
+/**
+ * Upload a file from the host machine to the Puter server (similar to FTP "put" command).
+ * @param {Array} args - The arguments passed to the command (local file path, remote path, dedupe_name, overwrite).
+ */
+export async function uploadFile(args = []) {
+    if (args.length < 2) {
+        console.log(chalk.red('Usage: put <local_file_path> [<remote_path>]'));
+        return;
+    }
+
+    const localFilePath = args[0];
+    const remotePath = resolvePath(getCurrentDirectory(), args.length > 1 ? args[1] : '.');
+    const dedupeName = true; // Default: true
+    const overwrite = false; // Default: false
+
+    console.log(chalk.green(`Uploading file "${localFilePath}" to "${remotePath}"...\n`));
+    try {
+        // Step 1: Read the file from the local filesystem
+        const fileContent = fs.readFileSync(localFilePath, 'utf8');
+        const fileName = localFilePath.split('/').pop(); // Extract the file name from the path
+
+        // Step 2: Check disk space
+        const dfResponse = await fetch(`${API_BASE}/df`, {
+            method: 'POST',
+            headers: getHeaders(), // Use a dummy boundary for non-multipart requests
+            body: null
+        });
+
+        if (!dfResponse.ok) {
+            console.error(chalk.red('Unable to check disk space.'));
+            return;
+        }
+
+        const dfData = await dfResponse.json();
+        if (dfData.used >= dfData.capacity) {
+            console.error(chalk.red('Not enough disk space to upload the file.'));
+            showDiskSpaceUsage(dfData); // Display disk usage info
+            return;
+        }
+
+        // Step 3: Prepare the upload request
+        const operationId = crypto.randomUUID(); // Generate a unique operation ID
+        const socketId = 'undefined'; // Placeholder socket ID
+        const boundary = `----WebKitFormBoundary${crypto.randomUUID().replace(/-/g, '')}`;
+
+        // Prepare FormData
+        const formData = `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="operation_id"\r\n\r\n${operationId}\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="socket_id"\r\n\r\n${socketId}\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="original_client_socket_id"\r\n\r\n${socketId}\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="fileinfo"\r\n\r\n${JSON.stringify({
+                name: fileName,
+                type: 'text/plain',
+                size: Buffer.byteLength(fileContent, 'utf8')
+            })}\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="operation"\r\n\r\n${JSON.stringify({
+                op: 'write',
+                dedupe_name: dedupeName,
+                overwrite: overwrite,
+                operation_id: operationId,
+                path: remotePath,
+                name: fileName,
+                item_upload_id: 0
+            })}\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+            `Content-Type: text/plain\r\n\r\n${fileContent}\r\n` +
+            `--${boundary}--\r\n`;
+
+        // Step 4: Send the upload request
+        const uploadResponse = await fetch(`${API_BASE}/batch`, {
+            method: 'POST',
+            headers: getHeaders(`multipart/form-data; boundary=${boundary}`),
+            body: formData
+        });
+
+        if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text();
+            console.error(chalk.red(`Failed to upload file. Server response: ${errorText}`));
+            return;
+        }
+
+        const uploadData = await uploadResponse.json();
+        if (uploadData && uploadData.results && uploadData.results.length > 0) {
+            const file = uploadData.results[0];
+            console.log(chalk.green(`File "${fileName}" uploaded successfully!`));
+            console.log(chalk.dim(`Path: ${file.path}`));
+            console.log(chalk.dim(`UID: ${file.uid}`));
+        } else {
+            console.error(chalk.red('Failed to upload file. Invalid response from server.'));
+        }
+    } catch (error) {
+        console.error(chalk.red(`Failed to upload file.\nError: ${error.message}`));
     }
 }

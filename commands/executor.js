@@ -4,7 +4,7 @@ import Conf from 'conf';
 import path from 'path';
 import { listApps, createApp, deleteApp } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
-  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, getInfo, getDiskUsage, createFile, readFile } from './files.js';
+  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, getInfo, getDiskUsage, createFile, readFile, uploadFile } from './files.js';
 import { getUserInfo, getUsageInfo } from './auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
@@ -153,7 +153,7 @@ function showHelp() {
   ${chalk.cyan('clean')}    Empty the system's Trash
   ${chalk.cyan('cp')}       Copy files or directories
   ${chalk.cyan('touch')}    Create a new empty file
-  ${chalk.cyan('cat')}      Read a file
+  ${chalk.cyan('cat')}      Output file content to the console
   ${chalk.cyan('put')}      Upload file to Puter cloud
   ${chalk.cyan('get')}      Download file from Puter cloud
   ${chalk.cyan('update')}   Sync local directory with cloud
@@ -166,13 +166,6 @@ async function copyFile(args) {
     throw new Error('Source and destination required');
   }
   console.log(`Copying ${args[0]} to ${args[1]}...`);
-}
-
-async function uploadFile(args) {
-  if (!args.length) {
-    throw new Error('File name is required');
-  }
-  console.log(`Uploading ${args[0]}...`);
 }
 
 async function downloadFile(args) {

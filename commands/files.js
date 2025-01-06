@@ -472,7 +472,8 @@ export async function createFile(args = []) {
     }
 
     const fileName = args[0];
-    const content = args.length > 1 ? args[1] : ''; // Optional content
+    // Extract all the other values from "args" starting from 1 to the length of args:
+    const content = args.length > 1 ? args.slice(1).join(' ') : ''; // Optional content
     const path = resolvePath(getCurrentDirectory(), '.');
     const dedupeName = false; // Default: false
     const overwrite = true; // Default: true
@@ -578,5 +579,43 @@ export async function createFile(args = []) {
         }
     } catch (error) {
         console.error(chalk.red(`Failed to create file.\nError: ${error.message}`));
+    }
+}
+
+/**
+ * Read and display the content of a file (similar to Unix "cat" command).
+ * @param {Array} args - The arguments passed to the command (file path).
+ */
+export async function readFile(args = []) {
+    if (args.length < 1) {
+        console.log(chalk.red('Usage: cat <file_path>'));
+        return;
+    }
+
+    const filePath = resolvePath(getCurrentDirectory(), args[0]);
+    console.log(chalk.green(`Reading file "${filePath}"...\n`));
+
+    try {
+        // Step 1: Fetch the file content
+        const response = await fetch(`${API_BASE}/read?file=${encodeURIComponent(filePath)}`, {
+            method: 'GET',
+            headers: getHeaders()
+        });
+
+        if (!response.ok) {
+            console.error(chalk.red(`Failed to read file. Server response: ${response.statusText}`));
+            return;
+        }
+
+        const data = await response.text();
+
+        // Step 2: Dispaly the content
+        if (data.length) {
+            console.log(chalk.cyan(data));
+        } else {
+            console.error(chalk.red('File is empty.'));
+        }
+    } catch (error) {
+        console.error(chalk.red(`Failed to read file.\nError: ${error.message}`));
     }
 }

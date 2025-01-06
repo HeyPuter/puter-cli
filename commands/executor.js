@@ -4,7 +4,7 @@ import Conf from 'conf';
 import path from 'path';
 import { listApps, createApp, deleteApp } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
-  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, getInfo, getDiskUsage, createFile } from './files.js';
+  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, getInfo, getDiskUsage, createFile, readFile } from './files.js';
 import { getUserInfo, getUsageInfo } from './auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
@@ -78,6 +78,7 @@ const commands = {
   usage: getUsageInfo,
   cp: copyFile,
   touch: createFile,
+  cat: readFile,
   put: uploadFile,
   get: downloadFile,
   update: syncDirectory
@@ -152,6 +153,7 @@ function showHelp() {
   ${chalk.cyan('clean')}    Empty the system's Trash
   ${chalk.cyan('cp')}       Copy files or directories
   ${chalk.cyan('touch')}    Create a new empty file
+  ${chalk.cyan('cat')}      Read a file
   ${chalk.cyan('put')}      Upload file to Puter cloud
   ${chalk.cyan('get')}      Download file from Puter cloud
   ${chalk.cyan('update')}   Sync local directory with cloud

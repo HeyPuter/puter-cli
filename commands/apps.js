@@ -5,6 +5,7 @@ import { formatDate } from './utils.js';
 import Table from 'cli-table3';
 
 /**
+ * List all apps
  * 
  * @param {object} options 
  * ```json

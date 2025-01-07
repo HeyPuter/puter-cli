@@ -1,7 +1,6 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
-import path from 'path';
 import { listApps, createApp, deleteApp } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
@@ -32,8 +31,7 @@ const commands = {
   stat: getInfo,
   apps: async (args) => {
       await listApps({
-        statsPeriod: args[0] || 'all',
-        iconSize: parseInt(args[1]) || 64
+        statsPeriod: args[0] || 'all'
     });
   },
   'app:create': async (args) => {
@@ -131,33 +129,32 @@ export async function execCommand(input) {
 function showHelp() {
   console.log(chalk.yellow('\nAvailable commands:'));
   console.log(`
-  ${chalk.cyan('help')}     Show this help message
-  ${chalk.cyan('exit')}     Exit the shell
-  ${chalk.cyan('logout')}   Logout from Puter account
-  ${chalk.cyan('whoami')}   Show user informations
-  ${chalk.cyan('stat')}     Show statistical informations
-  ${chalk.cyan('df')}       Show disk usage informations
-  ${chalk.cyan('usage')}    Show usage informations
-  ${chalk.cyan('stat')}     Show statistical informations
-  ${chalk.cyan('apps [period] [iconSize]')}  List all your apps
+  ${chalk.cyan('help')}              Show this help message
+  ${chalk.cyan('exit')}              Exit the shell
+  ${chalk.cyan('logout')}            Logout from Puter account
+  ${chalk.cyan('whoami')}            Show user informations
+  ${chalk.cyan('stat')}              Show statistical informations
+  ${chalk.cyan('df')}                Show disk usage informations
+  ${chalk.cyan('usage')}             Show usage informations
+  ${chalk.cyan('stat')}              Show statistical informations
+  ${chalk.cyan('apps [period]')}     List all your apps
                       period: today, yesterday, 7d, 30d, this_month, last_month
-                      iconSize: 16, 32, 64, 128, 256, 512
   ${chalk.cyan('app:create')}        Create a new app: app:create <name> [url]
   ${chalk.cyan('app:delete')}        Delete an app: app:delete <name>
-  ${chalk.cyan('ls')}       List files and directories
-  ${chalk.cyan('cd [dir]')} Change the current working directory
-  ${chalk.cyan('cd ..')}    Go up one directory
-  ${chalk.cyan('pwd')}      Print the current working directory
-  ${chalk.cyan('mkdir')}    Create a new directory
-  ${chalk.cyan('mv')}       Rename a file or directory
-  ${chalk.cyan('rm')}       Move a file or directory to the system's Trash
-  ${chalk.cyan('clean')}    Empty the system's Trash
-  ${chalk.cyan('cp')}       Copy files or directories
-  ${chalk.cyan('touch')}    Create a new empty file
-  ${chalk.cyan('cat')}      Output file content to the console
-  ${chalk.cyan('put')}      Upload file to Puter cloud
-  ${chalk.cyan('get')}      Download file from Puter cloud
-  ${chalk.cyan('update')}   Sync local directory with cloud
+  ${chalk.cyan('ls')}                List files and directories
+  ${chalk.cyan('cd [dir]')}          Change the current working directory
+  ${chalk.cyan('cd ..')}             Go up one directory
+  ${chalk.cyan('pwd')}               Print the current working directory
+  ${chalk.cyan('mkdir')}             Create a new directory
+  ${chalk.cyan('mv')}                Rename a file or directory
+  ${chalk.cyan('rm')}                Move a file or directory to the system's Trash
+  ${chalk.cyan('clean')}             Empty the system's Trash
+  ${chalk.cyan('cp')}                Copy files or directories
+  ${chalk.cyan('touch')}             Create a new empty file
+  ${chalk.cyan('cat')}               Output file content to the console
+  ${chalk.cyan('put')}               Upload file to Puter cloud
+  ${chalk.cyan('get')}               Download file from Puter cloud
+  ${chalk.cyan('update')}            Sync local directory with cloud
   `);
 }
 

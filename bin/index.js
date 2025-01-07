@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-import { program } from 'commander';
+import { Command } from 'commander';
 import { login, logout } from '../commands/auth.js';
 import { init } from '../commands/init.js';
 import { startShell } from '../commands/shell.js';
+
+const program = new Command();
 
 program
   .name('puter')

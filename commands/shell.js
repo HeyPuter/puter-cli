@@ -10,7 +10,7 @@ const config = new Conf({ projectName: PROJECT_NAME });
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
-  prompt: getPrompt()
+  prompt: null
 });
 
 /**
@@ -29,6 +29,8 @@ export function startShell() {
     console.log(chalk.red('Please login first using: puter login'));
     process.exit(1);
   }
+
+  rl.setPrompt(getPrompt());
 
   try {
     console.log(chalk.green('Welcome to Puter-CLI! Type "help" for available commands.'));

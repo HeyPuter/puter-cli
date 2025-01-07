@@ -60,7 +60,6 @@ const commands = {
         console.log(chalk.yellow('Operation cancelled.'));
         return false;
     } 
-    // return await deleteApp(name);
     await deleteApp(name);
   },
   ls: listFiles,

@@ -220,7 +220,6 @@ export async function deleteApp(name) {
                 interface: "puter-apps",
                 method: "read",
                 args: {
-                    params: { icon_size: 16 },
                     id: { name }
                 }
             })
@@ -262,7 +261,7 @@ export async function deleteApp(name) {
             console.log(chalk.green(`App "${name}" deleted successfully!`));
             // return true;
         } else {
-            console.error(chalk.red(`Failed to delete app "${name}"`));
+            console.error(chalk.red(`Failed to delete app "${name}".\nP.S. You may need to provide the 'name' not the 'title'.`));
             // return false;
         }
     } catch (error) {

@@ -22,7 +22,9 @@ export async function listFiles(args = []) {
   const names = args.length > 0 ? args : ['.'];
   for (let path of names)
     try {
-        path = resolvePath(getCurrentDirectory(), path);
+        if (!path.startsWith('/')){
+            path =  resolvePath(getCurrentDirectory(), path);
+        }
         console.log(chalk.green(`Listing files in ${path}:\n`));
         const response = await fetch(`${API_BASE}/readdir`, {
             method: 'POST',
@@ -152,6 +154,44 @@ export async function renameFileOrDirectory(args = []) {
     }
 }
 
+
+/**
+ * Helper function to recursively find files matching the pattern
+ * @param {Array} files List of files
+ * @param {string} pattern The pattern to find
+ * @param {string} basePath the base path
+ * @returns array of matching files
+ */
+async function findMatchingFiles(files, pattern, basePath) {
+    const matchedPaths = [];
+
+    for (const file of files) {
+        const filePath = path.join(basePath, file.name);
+
+        // Check if the current file/directory matches the pattern
+        if (minimatch(filePath, pattern, { dot: true })) {
+            matchedPaths.push(filePath);
+        }
+
+        // If it's a directory, recursively search its contents
+        if (file.is_dir) {
+            const dirResponse = await fetch(`${API_BASE}/readdir`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ path: filePath })
+            });
+
+            if (dirResponse.ok) {
+                const dirFiles = await dirResponse.json();
+                const dirMatches = await findMatchingFiles(dirFiles, pattern, filePath);
+                matchedPaths.push(...dirMatches);
+            }
+        }
+    }
+
+    return matchedPaths;
+}
+
 /**
  * Move a file/directory to the Trash
  * @param {Array} args Options:
@@ -164,78 +204,116 @@ export async function removeFileOrDirectory(args = []) {
         return;
     }
 
-    // const username = getCurrentUserName();
     const skipConfirmation = args.includes('-f'); // Check the flag if provided
-    const names = skipConfirmation? args.filter(option => option != '-f'):args;
+    const names = skipConfirmation ? args.filter(option => option !== '-f') : args;
 
-    for (const name of names)
-        try {
-            console.log(chalk.green(`Preparing to remove "${name}"...\n`));
-            // Step 1: Get the UID of the file/directory using the name
-            const statResponse = await fetch(`${API_BASE}/stat`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({
-                    path: `${getCurrentDirectory()}/${name}`
-                })
-            });
+    try {
+        // Step 1: Fetch the list of files and directories from the server
+        const listResponse = await fetch(`${API_BASE}/readdir`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ path: getCurrentDirectory() })
+        });
 
-            const statData = await statResponse.json();
-            if (!statData || !statData.uid) {
-                console.log(chalk.red(`Could not find file or directory with name "${name}".`));
+        if (!listResponse.ok) {
+            console.error(chalk.red('Failed to list files from the server.'));
+            return;
+        }
+
+        const files = await listResponse.json();
+        if (!Array.isArray(files) || files.length === 0) {
+            console.error(chalk.red('No files or directories found on the server.'));
+            return;
+        }
+
+        // Step 2: Find all files/directories matching the provided patterns
+        const matchedPaths = [];
+        for (const name of names) {
+            const pattern = resolvePath(getCurrentDirectory(), name);
+            const matches = await findMatchingFiles(files, pattern, getCurrentDirectory());
+            matchedPaths.push(...matches);
+        }
+
+        if (matchedPaths.length === 0) {
+            console.error(chalk.red('No files or directories found matching the pattern.'));
+            return;
+        }
+
+        // Step 3: Prompt for confirmation (unless -f flag is provided)
+        if (!skipConfirmation) {
+            console.log(chalk.yellow(`The following items will be moved to Trash:`));
+            matchedPaths.forEach(path => console.log(chalk.dim(`- ${path}`)));
+
+            const { confirm } = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'confirm',
+                    message: `Are you sure you want to move these ${matchedPaths.length} item(s) to Trash?`,
+                    default: false
+                }
+            ]);
+
+            if (!confirm) {
+                console.log(chalk.yellow('Operation canceled.'));
                 return;
             }
-
-            const uid = statData.uid;
-            const originalPath = statData.path;
-
-            // Step 2: Prompt for confirmation (unless -f flag is provided)
-            if (!skipConfirmation) {
-                const { confirm } = await inquirer.prompt([
-                    {
-                        type: 'confirm',
-                        name: 'confirm',
-                        message: `Are you sure you want to move "${name}" to Trash?`,
-                        default: false
-                    }
-                ]);
-
-                if (!confirm) {
-                    console.log(chalk.yellow('Operation canceled.'));
-                    return;
-                }
-            }
-
-            // Step 3: Perform the move operation to Trash
-            const moveResponse = await fetch(`${API_BASE}/move`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({
-                    source: uid,
-                    destination: `/${getCurrentUserName()}/Trash`,
-                    overwrite: false,
-                    new_name: uid, // Use the UID as the new name in Trash
-                    create_missing_parents: false,
-                    new_metadata: {
-                        original_name: name,
-                        original_path: originalPath,
-                        trashed_ts: Math.floor(Date.now() / 1000) // Current timestamp
-                    }
-                })
-            });
-
-            const moveData = await moveResponse.json();
-            if (moveData && moveData.moved) {
-                console.log(chalk.green(`Successfully moved "${name}" to Trash!`));
-                console.log(chalk.dim(`Moved to: ${moveData.moved.path}`));
-                // console.log(chalk.dim(`UID: ${moveData.moved.uid}`));
-            } else {
-                console.log(chalk.red('Failed to move item to Trash. Please check your input.'));
-            }
-        } catch (error) {
-            console.log(chalk.red('Failed to remove item.'));
-            console.error(chalk.red(`Error: ${error.message}`));
         }
+
+        // Step 4: Move each matched file/directory to Trash
+        for (const path of matchedPaths) {
+            try {
+                console.log(chalk.green(`Preparing to remove "${path}"...`));
+
+                // Step 4.1: Get the UID of the file/directory
+                const statResponse = await fetch(`${API_BASE}/stat`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ path })
+                });
+
+                const statData = await statResponse.json();
+                if (!statData || !statData.uid) {
+                    console.error(chalk.red(`Could not find file or directory with path "${path}".`));
+                    continue;
+                }
+
+                const uid = statData.uid;
+                const originalPath = statData.path;
+
+                // Step 4.2: Perform the move operation to Trash
+                const moveResponse = await fetch(`${API_BASE}/move`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        source: uid,
+                        destination: `/${getCurrentUserName()}/Trash`,
+                        overwrite: false,
+                        new_name: uid, // Use the UID as the new name in Trash
+                        create_missing_parents: false,
+                        new_metadata: {
+                            original_name: path.split('/').pop(),
+                            original_path: originalPath,
+                            trashed_ts: Math.floor(Date.now() / 1000) // Current timestamp
+                        }
+                    })
+                });
+
+                const moveData = await moveResponse.json();
+                if (moveData && moveData.moved) {
+                    console.log(chalk.green(`Successfully moved "${path}" to Trash!`));
+                    console.log(chalk.dim(`Moved to: ${moveData.moved.path}`));
+                } else {
+                    console.error(chalk.red(`Failed to move "${path}" to Trash.`));
+                }
+            } catch (error) {
+                console.error(chalk.red(`Failed to remove "${path}".`));
+                console.error(chalk.red(`Error: ${error.message}`));
+            }
+        }
+    } catch (error) {
+        console.error(chalk.red('Failed to remove items.'));
+        console.error(chalk.red(`Error: ${error.message}`));
+    }
 }
 
 /**
@@ -677,41 +755,6 @@ export async function uploadFile(args = []) {
     } catch (error) {
         console.error(chalk.red(`Failed to upload files.\nError: ${error.message}`));
     }
-}
-
-/**
- * Helper function to recursively find files matching the pattern
- * @param {Array} files List of files
- * @param {string} pattern The pattern to find
- * @param {string} basePath the base path
- * @returns array of matching files
- */
-async function findMatchingFiles(files, pattern, basePath) {
-    const matchedFiles = [];
-
-    for (const file of files) {
-        const filePath = path.join(basePath, file.name);
-
-        if (file.is_dir) {
-            // Recursively list files in the directory
-            const dirResponse = await fetch(`${API_BASE}/readdir`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({ path: filePath })
-            });
-
-            if (dirResponse.ok) {
-                const dirFiles = await dirResponse.json();
-                const dirMatches = await findMatchingFiles(dirFiles, pattern, filePath);
-                matchedFiles.push(...dirMatches);
-            }
-        } else if (minimatch(filePath, pattern, { dot: true })) {
-            // Match files against the pattern (including hidden files)
-            matchedFiles.push(filePath);
-        }
-    }
-
-    return matchedFiles;
 }
 
 /**

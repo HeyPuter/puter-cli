@@ -77,8 +77,8 @@ const commands = {
   cp: copyFile,
   touch: createFile,
   cat: readFile,
-  put: uploadFile,
-  get: downloadFile,
+  push: uploadFile,
+  pull: downloadFile,
   update: syncDirectory
 };
 
@@ -103,7 +103,7 @@ export async function execCommand(input) {
               return;
           }
           console.log(stdout);
-          console.log(chalk.cyan(`Press <Enter> to return.`));
+          console.log(chalk.green(`Press <Enter> to return.`));
       });
   } else if (commands[cmd]) {
     // const spinner = ora(chalk.green(`Executing command: ${cmd}...\n`)).start();
@@ -151,8 +151,8 @@ function showHelp() {
   ${chalk.cyan('cp')}                Copy files or directories
   ${chalk.cyan('touch')}             Create a new empty file
   ${chalk.cyan('cat')}               Output file content to the console
-  ${chalk.cyan('put')}               Upload file to Puter cloud
-  ${chalk.cyan('get')}               Download file from Puter cloud
+  ${chalk.cyan('push')}              Upload file to Puter cloud
+  ${chalk.cyan('pull')}              Download file from Puter cloud
   ${chalk.cyan('update')}            Sync local directory with cloud
   `);
 }

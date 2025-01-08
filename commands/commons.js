@@ -82,3 +82,62 @@ export function displayTable(data, options = {}) {
       console.log(row);
   });
 }
+
+/**
+ * Display structured ouput of disk usage informations
+ */
+export function showDiskSpaceUsage(data) {
+  const freeSpace = parseInt(data.capacity) - parseInt(data.used);
+  const usagePercentage = (parseInt(data.used) / parseInt(data.capacity)) * 100;
+  console.log(chalk.cyan('Disk Usage Information:'));
+  console.log(chalk.dim('----------------------------------------'));
+  console.log(chalk.cyan(`Total Capacity: `) + chalk.white(formatSize(data.capacity)));
+  console.log(chalk.cyan(`Used Space: `) + chalk.white(formatSize(data.used)));
+  console.log(chalk.cyan(`Free Space: `) + chalk.white(formatSize(freeSpace)));
+  // format the usagePercentage with 2 decimal floating point value:
+  console.log(chalk.cyan(`Usage Percentage: `) + chalk.white(`${usagePercentage.toFixed(2)}%`));
+  console.log(chalk.dim('----------------------------------------'));
+  console.log(chalk.green('Done.'));
+}
+ 
+/**
+ * Resolve a relative path to an absolute path
+ * @param {string} currentPath - The current working directory
+ * @param {string} relativePath - The relative path to resolve
+ * @returns {string} The resolved absolute path
+ */
+export function resolvePath(currentPath, relativePath) {
+    // Normalize the current path (remove trailing slashes)
+    currentPath = currentPath.replace(/\/+$/, '');
+
+    // Split the relative path into parts
+    const parts = relativePath.split('/').filter(p => p); // Remove empty parts
+
+    // Handle each part of the relative path
+    for (const part of parts) {
+        if (part === '..') {
+            // Move one level up
+            const currentParts = currentPath.split('/').filter(p => p);
+            if (currentParts.length > 0) {
+                currentParts.pop(); // Remove the last part
+            }
+            currentPath = '/' + currentParts.join('/');
+        } else if (part === '.') {
+            // Stay in the current directory (no change)
+            continue;
+        } else {
+            // Move into a subdirectory
+            currentPath += `/${part}`;
+        }
+    }
+
+    // Normalize the final path (remove duplicate slashes)
+    currentPath = currentPath.replace(/\/+/g, '/');
+
+    // Ensure the path ends with a slash if it's the root
+    if (currentPath === '') {
+        currentPath = '/';
+    }
+
+    return currentPath;
+}

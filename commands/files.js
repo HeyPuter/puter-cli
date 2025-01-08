@@ -1,9 +1,12 @@
 import fs from 'node:fs';
+import { glob } from 'glob';
+import path from 'path';
+import { minimatch } from 'minimatch';
 import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
 import fetch from 'node-fetch';
-import { API_BASE, BASE_URL, PROJECT_NAME, getHeaders } from './commons.js';
+import { API_BASE, BASE_URL, PROJECT_NAME, getHeaders, showDiskSpaceUsage, resolvePath } from './commons.js';
 import { formatDate, formatDateTime, formatSize } from './utils.js';
 import inquirer from 'inquirer';
 import { getAuthToken, getCurrentDirectory, getCurrentUserName } from './auth.js';
@@ -382,62 +385,6 @@ export async function changeDirectory(args) {
 }
 
 /**
- * Resolve a relative path to an absolute path
- * @param {string} currentPath - The current working directory
- * @param {string} relativePath - The relative path to resolve
- * @returns {string} The resolved absolute path
- */
-function resolvePath(currentPath, relativePath) {
-    // Normalize the current path (remove trailing slashes)
-    currentPath = currentPath.replace(/\/+$/, '');
-
-    // Split the relative path into parts
-    const parts = relativePath.split('/').filter(p => p); // Remove empty parts
-
-    // Handle each part of the relative path
-    for (const part of parts) {
-        if (part === '..') {
-            // Move one level up
-            const currentParts = currentPath.split('/').filter(p => p);
-            if (currentParts.length > 0) {
-                currentParts.pop(); // Remove the last part
-            }
-            currentPath = '/' + currentParts.join('/');
-        } else if (part === '.') {
-            // Stay in the current directory (no change)
-            continue;
-        } else {
-            // Move into a subdirectory
-            currentPath += `/${part}`;
-        }
-    }
-
-    // Normalize the final path (remove duplicate slashes)
-    currentPath = currentPath.replace(/\/+/g, '/');
-
-    // Ensure the path ends with a slash if it's the root
-    if (currentPath === '') {
-        currentPath = '/';
-    }
-
-    return currentPath;
-}
-
-function showDiskSpaceUsage(data) {
-    const freeSpace = parseInt(data.capacity) - parseInt(data.used);
-    const usagePercentage = (parseInt(data.used) / parseInt(data.capacity)) * 100;
-    console.log(chalk.cyan('Disk Usage Information:'));
-    console.log(chalk.dim('----------------------------------------'));
-    console.log(chalk.cyan(`Total Capacity: `) + chalk.white(formatSize(data.capacity)));
-    console.log(chalk.cyan(`Used Space: `) + chalk.white(formatSize(data.used)));
-    console.log(chalk.cyan(`Free Space: `) + chalk.white(formatSize(freeSpace)));
-    // format the usagePercentage with 2 decimal floating point value:
-    console.log(chalk.cyan(`Usage Percentage: `) + chalk.white(`${usagePercentage.toFixed(2)}%`));
-    console.log(chalk.dim('----------------------------------------'));
-    console.log(chalk.green('Done.'));
-}
-
-/**
  * Fetch disk usage information
  * @param {Object} body - Optional arguments to include in the request body.
  */
@@ -626,21 +573,26 @@ export async function readFile(args = []) {
  * @param {Array} args - The arguments passed to the command (local file path, remote path, dedupe_name, overwrite).
  */
 export async function uploadFile(args = []) {
-    if (args.length < 2) {
-        console.log(chalk.red('Usage: put <local_file_path> [<remote_path>]'));
+    if (args.length < 1) {
+        console.log(chalk.red('Usage: push <local_path> [remote_path]'));
         return;
     }
 
-    const localFilePath = args[0];
+    const localPath = args[0];
     const remotePath = resolvePath(getCurrentDirectory(), args.length > 1 ? args[1] : '.');
     const dedupeName = true; // Default: true
     const overwrite = false; // Default: false
 
-    console.log(chalk.green(`Uploading file "${localFilePath}" to "${remotePath}"...\n`));
+    console.log(chalk.green(`Uploading files from "${localPath}" to "${remotePath}"...\n`));
+
     try {
-        // Step 1: Read the file from the local filesystem
-        const fileContent = fs.readFileSync(localFilePath, 'utf8');
-        const fileName = localFilePath.split('/').pop(); // Extract the file name from the path
+        // Step 1: Find all matching files (excluding hidden files)
+        const files = glob.sync(localPath, { nodir: true, dot: false });
+
+        if (files.length === 0) {
+            console.error(chalk.red('No files found to upload.'));
+            return;
+        }
 
         // Step 2: Check disk space
         const dfResponse = await fetch(`${API_BASE}/df`, {
@@ -656,69 +608,134 @@ export async function uploadFile(args = []) {
 
         const dfData = await dfResponse.json();
         if (dfData.used >= dfData.capacity) {
-            console.error(chalk.red('Not enough disk space to upload the file.'));
+            console.error(chalk.red('Not enough disk space to upload the files.'));
             showDiskSpaceUsage(dfData); // Display disk usage info
             return;
         }
 
-        // Step 3: Prepare the upload request
-        const operationId = crypto.randomUUID(); // Generate a unique operation ID
-        const socketId = 'undefined'; // Placeholder socket ID
-        const boundary = `----WebKitFormBoundary${crypto.randomUUID().replace(/-/g, '')}`;
+        // Step 3: Upload each file
+        for (const filePath of files) {
+            const fileName = path.basename(filePath);
+            const fileContent = fs.readFileSync(filePath, 'utf8');
 
-        // Prepare FormData
-        const formData = `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="operation_id"\r\n\r\n${operationId}\r\n` +
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="socket_id"\r\n\r\n${socketId}\r\n` +
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="original_client_socket_id"\r\n\r\n${socketId}\r\n` +
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="fileinfo"\r\n\r\n${JSON.stringify({
-                name: fileName,
-                type: 'text/plain',
-                size: Buffer.byteLength(fileContent, 'utf8')
-            })}\r\n` +
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="operation"\r\n\r\n${JSON.stringify({
-                op: 'write',
-                dedupe_name: dedupeName,
-                overwrite: overwrite,
-                operation_id: operationId,
-                path: remotePath,
-                name: fileName,
-                item_upload_id: 0
-            })}\r\n` +
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
-            `Content-Type: text/plain\r\n\r\n${fileContent}\r\n` +
-            `--${boundary}--\r\n`;
+            // Prepare the upload request
+            const operationId = crypto.randomUUID(); // Generate a unique operation ID
+            const socketId = 'undefined'; // Placeholder socket ID
+            const boundary = `----WebKitFormBoundary${crypto.randomUUID().replace(/-/g, '')}`;
 
-        // Step 4: Send the upload request
-        const uploadResponse = await fetch(`${API_BASE}/batch`, {
-            method: 'POST',
-            headers: getHeaders(`multipart/form-data; boundary=${boundary}`),
-            body: formData
-        });
+            // Prepare FormData
+            const formData = `--${boundary}\r\n` +
+                `Content-Disposition: form-data; name="operation_id"\r\n\r\n${operationId}\r\n` +
+                `--${boundary}\r\n` +
+                `Content-Disposition: form-data; name="socket_id"\r\n\r\n${socketId}\r\n` +
+                `--${boundary}\r\n` +
+                `Content-Disposition: form-data; name="original_client_socket_id"\r\n\r\n${socketId}\r\n` +
+                `--${boundary}\r\n` +
+                `Content-Disposition: form-data; name="fileinfo"\r\n\r\n${JSON.stringify({
+                    name: fileName,
+                    type: 'text/plain',
+                    size: Buffer.byteLength(fileContent, 'utf8')
+                })}\r\n` +
+                `--${boundary}\r\n` +
+                `Content-Disposition: form-data; name="operation"\r\n\r\n${JSON.stringify({
+                    op: 'write',
+                    dedupe_name: dedupeName,
+                    overwrite: overwrite,
+                    operation_id: operationId,
+                    path: remotePath,
+                    name: fileName,
+                    item_upload_id: 0
+                })}\r\n` +
+                `--${boundary}\r\n` +
+                `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+                `Content-Type: text/plain\r\n\r\n${fileContent}\r\n` +
+                `--${boundary}--\r\n`;
 
-        if (!uploadResponse.ok) {
-            const errorText = await uploadResponse.text();
-            console.error(chalk.red(`Failed to upload file. Server response: ${errorText}`));
-            return;
-        }
+            // Send the upload request
+            const uploadResponse = await fetch(`${API_BASE}/batch`, {
+                method: 'POST',
+                headers: getHeaders(`multipart/form-data; boundary=${boundary}`),
+                body: formData
+            });
 
-        const uploadData = await uploadResponse.json();
-        if (uploadData && uploadData.results && uploadData.results.length > 0) {
-            const file = uploadData.results[0];
-            console.log(chalk.green(`File "${fileName}" uploaded successfully!`));
-            console.log(chalk.dim(`Path: ${file.path}`));
-            console.log(chalk.dim(`UID: ${file.uid}`));
-        } else {
-            console.error(chalk.red('Failed to upload file. Invalid response from server.'));
+            if (!uploadResponse.ok) {
+                const errorText = await uploadResponse.text();
+                console.error(chalk.red(`Failed to upload file "${fileName}". Server response: ${errorText}`));
+                continue;
+            }
+
+            const uploadData = await uploadResponse.json();
+            if (uploadData && uploadData.results && uploadData.results.length > 0) {
+                const file = uploadData.results[0];
+                console.log(chalk.green(`File "${fileName}" uploaded successfully!`));
+                console.log(chalk.dim(`Path: ${file.path}`));
+                console.log(chalk.dim(`UID: ${file.uid}`));
+            } else {
+                console.error(chalk.red(`Failed to upload file "${fileName}". Invalid response from server.`));
+            }
         }
     } catch (error) {
-        console.error(chalk.red(`Failed to upload file.\nError: ${error.message}`));
+        console.error(chalk.red(`Failed to upload files.\nError: ${error.message}`));
     }
+}
+
+/**
+ * Helper function to recursively find files matching the pattern
+ * @param {Array} files List of files
+ * @param {string} pattern The pattern to find
+ * @param {string} basePath the base path
+ * @returns array of matching files
+ */
+async function findMatchingFiles(files, pattern, basePath) {
+    const matchedFiles = [];
+
+    for (const file of files) {
+        const filePath = path.join(basePath, file.name);
+
+        if (file.is_dir) {
+            // Recursively list files in the directory
+            const dirResponse = await fetch(`${API_BASE}/readdir`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ path: filePath })
+            });
+
+            if (dirResponse.ok) {
+                const dirFiles = await dirResponse.json();
+                const dirMatches = await findMatchingFiles(dirFiles, pattern, filePath);
+                matchedFiles.push(...dirMatches);
+            }
+        } else if (minimatch(filePath, pattern, { dot: true })) {
+            // Match files against the pattern (including hidden files)
+            matchedFiles.push(filePath);
+        }
+    }
+
+    return matchedFiles;
+}
+
+/**
+ * Get a temporary CSRF Token
+ * @returns The CSRF token
+ */
+async function getCsrfToken() {
+    const csrfResponse = await fetch(`${BASE_URL}/get-anticsrf-token`, {
+        method: 'GET',
+        headers: getHeaders()
+    });
+
+    if (!csrfResponse.ok) {
+        console.error(chalk.red('Failed to fetch CSRF token.'));
+        return;
+    }
+
+    const csrfData = await csrfResponse.json();
+    if (!csrfData || !csrfData.token) {
+        console.error(chalk.red('Failed to fetch anti-CSRF token.'));
+        return;
+    }
+
+    return csrfData.token;
 }
 
 /**
@@ -727,59 +744,78 @@ export async function uploadFile(args = []) {
  */
 export async function downloadFile(args = []) {
     if (args.length < 1) {
-        console.log(chalk.red('Usage: get <remote_file_path> [local_path]'));
+        console.log(chalk.red('Usage: pull <remote_file_path> [local_path]'));
         return;
     }
 
-    const remoteFilePath = resolvePath(getCurrentDirectory(), args[0]); // Resolve the remote file path
-    const localFilePath = args.length > 1 ? args[1] : remoteFilePath.split('/').pop(); // Default to the file name
+    const remotePathPattern = resolvePath(getCurrentDirectory(), args[0]); // Resolve the remote file path pattern
+    const localBasePath = args.length > 1 ? args[1] : '.'; // Default to the current directory
 
-    console.log(chalk.green(`Downloading file "${remoteFilePath}" to "${localFilePath}"...\n`));
+    console.log(chalk.green(`Downloading files matching "${remotePathPattern}" to "${localBasePath}"...\n`));
 
     try {
-        // Step 1: Fetch the anti-CSRF token
-        const csrfResponse = await fetch(`${BASE_URL}/get-anticsrf-token`, {
-            method: 'GET',
-            headers: getHeaders()
-        });
-
-        if (!csrfResponse.ok) {
-            console.error(chalk.red('Failed to fetch CSRF token.'));
-            return;
-        }
-
-        const csrfData = await csrfResponse.json();
-        // check for token
-        if (!csrfData || !csrfData.token) {
-            console.error(chalk.red('Failed to fetch anti-CSRF token.'));
-            return;
-        }
-
-        const antiCsrfToken = csrfData.token;
-
-        // Step 2: Download the file using the anti-CSRF token
-        const downloadResponse = await fetch(`${BASE_URL}/down?path=${remoteFilePath}`, {
+        // Step 1: Fetch the list of files and directories from the server
+        const listResponse = await fetch(`${API_BASE}/readdir`, {
             method: 'POST',
-            headers: {
-                ...getHeaders('application/x-www-form-urlencoded'),
-                "cookie": `puter_auth_token=${getAuthToken()};`
-            },
-            "referrerPolicy": "strict-origin-when-cross-origin",
-            body: `anti_csrf=${antiCsrfToken}`
+            headers: getHeaders(),
+            body: JSON.stringify({ path: getCurrentDirectory() })
         });
 
-        if (!downloadResponse.ok) {
-            console.error(chalk.red(`Failed to download file. Server response: ${downloadResponse.statusText}`));
+        if (!listResponse.ok) {
+            console.error(chalk.red('Failed to list files from the server.'));
             return;
         }
 
-        // Step 3: Save the file content to the local filesystem
-        const fileContent = await downloadResponse.text();
-        fs.writeFileSync(localFilePath, fileContent, 'utf8');
-        const fileSize = fs.statSync(localFilePath).size;
-        console.log(chalk.green(`File: "${remoteFilePath}" downloaded to "${localFilePath}" (size: ${formatSize(fileSize)})`));
+        const files = await listResponse.json();
+        if (!Array.isArray(files) || files.length === 0) {
+            console.error(chalk.red('No files or directories found on the server.'));
+            return;
+        }
+
+        // Step 2: Recursively find files matching the pattern
+        const matchedFiles = await findMatchingFiles(files, remotePathPattern, getCurrentDirectory());
+
+        if (matchedFiles.length === 0) {
+            console.error(chalk.red('No files found matching the pattern.'));
+            return;
+        }
+
+        // Step 3: Download each matched file
+        for (const remoteFilePath of matchedFiles) {
+            const relativePath = path.relative(getCurrentDirectory(), remoteFilePath);
+            const localFilePath = path.join(localBasePath, relativePath);
+
+            // Ensure the local directory exists
+            fs.mkdirSync(path.dirname(localFilePath), { recursive: true });
+
+            console.log(chalk.green(`Downloading file "${remoteFilePath}" to "${localFilePath}"...`));
+
+                    // Fetch the anti-CSRF token
+            const antiCsrfToken = await getCsrfToken();
+
+            const downloadResponse = await fetch(`${BASE_URL}/down?path=${remoteFilePath}`, {
+                method: 'POST',
+                headers: {
+                    ...getHeaders('application/x-www-form-urlencoded'),
+                    "cookie": `puter_auth_token=${getAuthToken()};`
+                },
+                "referrerPolicy": "strict-origin-when-cross-origin",
+                body: `anti_csrf=${antiCsrfToken}`
+            });
+
+            if (!downloadResponse.ok) {
+                console.error(chalk.red(`Failed to download file "${remoteFilePath}". Server response: ${downloadResponse.statusText}`));
+                continue;
+            }
+
+            // Step 5: Save the file content to the local filesystem
+            const fileContent = await downloadResponse.text();
+            fs.writeFileSync(localFilePath, fileContent, 'utf8');
+            const fileSize = fs.statSync(localFilePath).size;
+            console.log(chalk.green(`File: "${remoteFilePath}" downloaded to "${localFilePath}" (size: ${formatSize(fileSize)})`));
+        }
     } catch (error) {
-        console.error(chalk.red(`Failed to download file.\nError: ${error.message}`));
+        console.error(chalk.red(`Failed to download files.\nError: ${error.message}`));
     }
 }
 

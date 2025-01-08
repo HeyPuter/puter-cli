@@ -26,7 +26,9 @@
     "commander": "^11.1.0",
     "conf": "^12.0.0",
     "cross-spawn": "^7.0.3",
+    "glob": "^11.0.0",
     "inquirer": "^9.2.12",
+    "minimatch": "^10.0.1",
     "node-fetch": "^3.3.2",
     "ora": "^8.0.1"
   },

@@ -155,5 +155,6 @@ function showHelp() {
   ${chalk.cyan('push')}              Upload file to Puter cloud
   ${chalk.cyan('pull')}              Download file from Puter cloud
   ${chalk.cyan('update')}            Sync local directory with remote cloud
+  ${chalk.cyan('deploy')}            Sync local directory with remote cloud
   `);
 }

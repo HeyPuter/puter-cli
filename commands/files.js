@@ -807,12 +807,13 @@ async function getCsrfToken() {
  */
 export async function downloadFile(args = []) {
     if (args.length < 1) {
-        console.log(chalk.red('Usage: pull <remote_file_path> [local_path]'));
+        console.log(chalk.red('Usage: pull <remote_file_path> [local_path] [overwrite]'));
         return;
     }
 
     const remotePathPattern = resolvePath(getCurrentDirectory(), args[0]); // Resolve the remote file path pattern
-    const localBasePath = args.length > 1 ? args[1] : '.'; // Default to the current directory
+    const localBasePath = path.dirname(args.length > 1 ? args[1] : '.'); // Default to the current directory
+    const overwrite = args.length > 2 ? args[2] === 'true' : false; // Default: false
 
     console.log(chalk.green(`Downloading files matching "${remotePathPattern}" to "${localBasePath}"...\n`));
 
@@ -849,7 +850,9 @@ export async function downloadFile(args = []) {
             const localFilePath = path.join(localBasePath, relativePath);
 
             // Ensure the local directory exists
-            fs.mkdirSync(path.dirname(localFilePath), { recursive: true });
+            if (!fs.existsSync(path.dirname(localFilePath))){
+                fs.mkdirSync(path.dirname(localFilePath), { recursive: true });
+            }
 
             console.log(chalk.green(`Downloading file "${remoteFilePath}" to "${localFilePath}"...`));
 
@@ -873,6 +876,13 @@ export async function downloadFile(args = []) {
 
             // Step 5: Save the file content to the local filesystem
             const fileContent = await downloadResponse.text();
+
+            // Check if the file exists, if so then delete it before writing.
+            if (overwrite && fs.existsSync(localFilePath)) {
+                fs.unlinkSync(localFilePath);
+                console.log(chalk.yellow(`File "${localFilePath}" already exists. Overwriting...`));
+            }
+
             fs.writeFileSync(localFilePath, fileContent, 'utf8');
             const fileSize = fs.statSync(localFilePath).size;
             console.log(chalk.green(`File: "${remoteFilePath}" downloaded to "${localFilePath}" (size: ${formatSize(fileSize)})`));
@@ -992,9 +1002,13 @@ function compareFiles(localFiles, remoteFiles, localDir, remoteDir) {
     // Check remote files
     for (const file of remoteFiles) {
         const localFile = localFiles.find(f => f.relativePath === file.name);
+        if (localFile){
+            console.log(`localFile: ${localFile.relativePath}, modified: ${localFile.modified}`);
+        }
+        console.log(`file: ${file.name}, modified: ${file.modified}`);
         if (!localFile) {
             toDelete.push({ relativePath: file.name }); // Extra file in remote
-        } else if (file.modified > localFile.modified) {
+        } else if (file.modified > parseInt(localFile.modified / 1000)) {
             toDownload.push(localFile); // New or updated file in remote
         }
     }
@@ -1079,7 +1093,7 @@ export async function syncDirectory(args = []) {
         const localFiles = listLocalFiles(localDir);
 
         // Step 4: Compare local and remote files
-        const { toUpload, toDownload, toDelete } = compareFiles(localFiles, remoteFiles, localDir, remoteDir);
+        let { toUpload, toDownload, toDelete } = compareFiles(localFiles, remoteFiles, localDir, remoteDir);
 
         // Step 5: Handle conflicts (if any)
         const conflicts = findConflicts(toUpload, toDownload);
@@ -1124,7 +1138,8 @@ export async function syncDirectory(args = []) {
         // Download new/updated files
         for (const file of toDownload) {
             console.log(chalk.cyan(`Downloading "${file.relativePath}"...`));
-            await downloadFile([path.join(remoteDir, file.relativePath), file.localPath]);
+            const overwrite = 'true';
+            await downloadFile([file.relativePath, file.localPath, overwrite]);
         }
 
         // Delete extra files (if --delete flag is set)

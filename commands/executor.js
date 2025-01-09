@@ -4,7 +4,8 @@ import Conf from 'conf';
 import { listApps, createApp, deleteApp } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
-  getInfo, getDiskUsage, createFile, readFile, uploadFile, downloadFile, copyFile } from './files.js';
+  getInfo, getDiskUsage, createFile, readFile, uploadFile, 
+  downloadFile, copyFile, syncDirectory } from './files.js';
 import { getUserInfo, getUsageInfo } from './auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
@@ -153,11 +154,6 @@ function showHelp() {
   ${chalk.cyan('cat')}               Output file content to the console
   ${chalk.cyan('push')}              Upload file to Puter cloud
   ${chalk.cyan('pull')}              Download file from Puter cloud
-  ${chalk.cyan('update')}            Sync local directory with cloud
+  ${chalk.cyan('update')}            Sync local directory with remote cloud
   `);
-}
-
-
-async function syncDirectory(args) {
-  console.log('Syncing directory...');
 }

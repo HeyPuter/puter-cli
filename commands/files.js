@@ -14,6 +14,21 @@ import { updatePrompt } from './shell.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
+
+/**
+ * List files in given path
+ * @param {string} path Path to the file or directory
+ * @returns List of files found
+ */
+async function listRemoteFiles(path) {
+    const response = await fetch(`${API_BASE}/readdir`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ path })
+    });
+    return await response.json();
+}
+
 /**
  * List files in the current working directory.
  * @param {string} args Default current working directory
@@ -24,18 +39,13 @@ export async function listFiles(args = []) {
     try {
         if (!path.startsWith('/')){
             path =  resolvePath(getCurrentDirectory(), path);
-        }
+        }        
         console.log(chalk.green(`Listing files in ${path}:\n`));
-        const response = await fetch(`${API_BASE}/readdir`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({ path })
-        });
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
+        const files = await listRemoteFiles(path);
+        if (Array.isArray(files) && files.length > 0) {
             console.log(chalk.cyan(`Type  Name                 Size    Modified          UID`));
             console.log(chalk.dim('----------------------------------------------------------------------------------'));
-            data.forEach(file => {
+            files.forEach(file => {
                 const type = file.is_dir ? 'd' : '-';
                 const write = file.writable ? 'w' : '-';
                 const name = file.name.padEnd(20);
@@ -44,7 +54,7 @@ export async function listFiles(args = []) {
                 const uid = file.uid;
                 console.log(`${type}${write}   ${name} ${size.padEnd(8)} ${modified}  ${uid}`);
             });
-            console.log(chalk.green(`There are ${data.length} object(s).`));
+            console.log(chalk.green(`There are ${files.length} object(s).`));
         } else {
             console.log(chalk.red('No files or directories found.'));
         }
@@ -154,7 +164,6 @@ export async function renameFileOrDirectory(args = []) {
     }
 }
 
-
 /**
  * Helper function to recursively find files matching the pattern
  * @param {Array} files List of files
@@ -221,7 +230,7 @@ export async function removeFileOrDirectory(args = []) {
         }
 
         const files = await listResponse.json();
-        if (!Array.isArray(files) || files.length === 0) {
+        if (!Array.isArray(files) || files.length == 0) {
             console.error(chalk.red('No files or directories found on the server.'));
             return;
         }
@@ -229,6 +238,11 @@ export async function removeFileOrDirectory(args = []) {
         // Step 2: Find all files/directories matching the provided patterns
         const matchedPaths = [];
         for (const name of names) {
+            if (name.startsWith('/')){
+                const pattern = resolvePath('/', name);
+                matchedPaths.push(pattern);
+                continue;
+            }
             const pattern = resolvePath(getCurrentDirectory(), name);
             const matches = await findMatchingFiles(files, pattern, getCurrentDirectory());
             matchedPaths.push(...matches);
@@ -242,6 +256,7 @@ export async function removeFileOrDirectory(args = []) {
         // Step 3: Prompt for confirmation (unless -f flag is provided)
         if (!skipConfirmation) {
             console.log(chalk.yellow(`The following items will be moved to Trash:`));
+            console.log(chalk.cyan('Hint: Execute "clean" to empty the Trash.'));
             matchedPaths.forEach(path => console.log(chalk.dim(`- ${path}`)));
 
             const { confirm } = await inquirer.prompt([
@@ -647,19 +662,24 @@ export async function readFile(args = []) {
 }
 
 /**
- * Upload a file from the host machine to the Puter server (similar to FTP "put" command).
- * @param {Array} args - The arguments passed to the command (local file path, remote path, dedupe_name, overwrite).
+ * Upload a file from the host machine to the Puter server
+ * @param {Array} args - The arguments passed to the command: (<local_path> [remote_path] [dedupe_name] [overwrite])
  */
 export async function uploadFile(args = []) {
     if (args.length < 1) {
-        console.log(chalk.red('Usage: push <local_path> [remote_path]'));
+        console.log(chalk.red('Usage: push <local_path> [remote_path] [dedupe_name] [overwrite]'));
         return;
     }
 
     const localPath = args[0];
-    const remotePath = resolvePath(getCurrentDirectory(), args.length > 1 ? args[1] : '.');
-    const dedupeName = true; // Default: true
-    const overwrite = false; // Default: false
+    let remotePath = '';
+    if (args.length > 1){
+        remotePath = args[1].startsWith('/')? args[1]: resolvePath(getCurrentDirectory(), args[1]);
+    } else {
+        remotePath = resolvePath(getCurrentDirectory(), '.');
+    }
+    const dedupeName = args.length > 2 ? args[2] === 'true' : true; // Default: true
+    const overwrite = args.length > 3 ? args[3] === 'true' : false; // Default: false
 
     console.log(chalk.green(`Uploading files from "${localPath}" to "${remotePath}"...\n`));
 
@@ -908,5 +928,216 @@ export async function copyFile(args = []) {
         }
     } catch (error) {
         console.error(chalk.red(`Failed to copy file.\nError: ${error.message}`));
+    }
+}
+
+/**
+ * List all files in a local directory.
+ * @param {string} localDir - The local directory path.
+ * @returns {Array} - Array of local file objects.
+ */
+function listLocalFiles(localDir) {
+    const files = [];
+    const walkDir = (dir) => {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                walkDir(fullPath);
+            } else {
+                files.push({
+                    relativePath: path.relative(localDir, fullPath),
+                    localPath: fullPath,
+                    size: fs.statSync(fullPath).size,
+                    modified: fs.statSync(fullPath).mtime.getTime()
+                });
+            }
+        }
+    };
+
+    walkDir(localDir);
+    return files;
+}
+
+/**
+ * Compare local and remote files to determine actions.
+ * @param {Array} localFiles - Array of local file objects.
+ * @param {Array} remoteFiles - Array of remote file objects.
+ * @param {string} localDir - Local directory path.
+ * @param {string} remoteDir - Remote directory path.
+ * @returns {Object} - Object containing files to upload, download, and delete.
+ */
+function compareFiles(localFiles, remoteFiles, localDir, remoteDir) {
+    const toUpload = []; // Files to upload to remote
+    const toDownload = []; // Files to download from remote
+    const toDelete = []; // Files to delete from remote
+
+    // Create a map of remote files for quick lookup
+    const remoteFileMap = new Map();
+    remoteFiles.forEach(file => {
+        remoteFileMap.set(file.name, {
+            size: file.size,
+            modified: new Date(file.modified).getTime()
+        });
+    });
+
+    // Check local files
+    for (const file of localFiles) {
+        const remoteFile = remoteFileMap.get(file.relativePath);
+        if (!remoteFile || file.modified > remoteFile.modified) {
+            toUpload.push(file); // New or updated file
+        }
+    }
+
+    // Check remote files
+    for (const file of remoteFiles) {
+        const localFile = localFiles.find(f => f.relativePath === file.name);
+        if (!localFile) {
+            toDelete.push({ relativePath: file.name }); // Extra file in remote
+        } else if (file.modified > localFile.modified) {
+            toDownload.push(localFile); // New or updated file in remote
+        }
+    }
+
+    return { toUpload, toDownload, toDelete };
+}
+
+/**
+ * Find conflicts where the same file has been modified in both locations.
+ * @param {Array} toUpload - Files to upload.
+ * @param {Array} toDownload - Files to download.
+ * @returns {Array} - Array of conflicting file paths.
+ */
+function findConflicts(toUpload, toDownload) {
+    const conflicts = [];
+    const uploadPaths = toUpload.map(file => file.relativePath);
+    const downloadPaths = toDownload.map(file => file.relativePath);
+
+    for (const path of uploadPaths) {
+        if (downloadPaths.includes(path)) {
+            conflicts.push(path);
+        }
+    }
+
+    return conflicts;
+}
+
+/**
+ * Resolve given local path directory
+ * @param {string} localPath The local path to resolve
+ * @returns {Promise<string>} The resolved absolute path
+ * @throws {Error} If the path does not exist or is not a directory
+ */
+async function resolveLocalDirectory(localPath) {
+    // Resolve the path to an absolute path
+    const absolutePath = path.resolve(localPath);
+  
+    // Check if the path exists
+    if (!fs.existsSync(absolutePath)) {
+      throw new Error(`Path does not exist: ${absolutePath}`);
+    }
+  
+    // Check if the path is a directory
+    const stats = await fs.promises.stat(absolutePath);
+    if (!stats.isDirectory()) {
+      throw new Error(`Path is not a directory: ${absolutePath}`);
+    }
+    return absolutePath;
+}
+
+/**
+ * Synchronize a local directory with a remote directory on Puter.
+ * @param {string[]} args - Command-line arguments (e.g., [localDir, remoteDir]).
+ */
+export async function syncDirectory(args = []) {
+    if (args.length < 2) {
+        console.log(chalk.red('Usage: update <local_directory> <remote_directory> [--delete]'));
+        return;
+    }
+
+    const localDir = await resolveLocalDirectory(args[0]);
+    const remoteDir = resolvePath(getCurrentDirectory(), args[1]);
+    const deleteFlag = args.includes('--delete'); // Whether to delete extra files
+
+    console.log(chalk.green(`Syncing local directory "${localDir}" with remote directory "${remoteDir}"...\n`));
+
+    try {
+        // Step 1: Validate local directory
+        if (!fs.existsSync(localDir)) {
+            console.error(chalk.red(`Local directory "${localDir}" does not exist.`));
+            return;
+        }
+
+        // Step 2: Fetch remote directory contents
+        const remoteFiles = await listRemoteFiles(remoteDir);
+        if (!Array.isArray(remoteFiles)) {
+            console.error(chalk.red('Failed to fetch remote directory contents.'));
+            return;
+        }
+
+        // Step 3: List local files
+        const localFiles = listLocalFiles(localDir);
+
+        // Step 4: Compare local and remote files
+        const { toUpload, toDownload, toDelete } = compareFiles(localFiles, remoteFiles, localDir, remoteDir);
+
+        // Step 5: Handle conflicts (if any)
+        const conflicts = findConflicts(toUpload, toDownload);
+        if (conflicts.length > 0) {
+            console.log(chalk.yellow('The following files have conflicts:'));
+            conflicts.forEach(file => console.log(chalk.dim(`- ${file}`)));
+
+            const { resolve } = await inquirer.prompt([
+                {
+                    type: 'list',
+                    name: 'resolve',
+                    message: 'How would you like to resolve conflicts?',
+                    choices: [
+                        { name: 'Keep local version', value: 'local' },
+                        { name: 'Keep remote version', value: 'remote' },
+                        { name: 'Skip conflicting files', value: 'skip' }
+                    ]
+                }
+            ]);
+
+            if (resolve === 'local') {
+                toDownload = toDownload.filter(file => !conflicts.includes(file.relativePath));
+            } else if (resolve === 'remote') {
+                toUpload = toUpload.filter(file => !conflicts.includes(file.relativePath));
+            } else {
+                toUpload = toUpload.filter(file => !conflicts.includes(file.relativePath));
+                toDownload = toDownload.filter(file => !conflicts.includes(file.relativePath));
+            }
+        }
+
+        // Step 6: Perform synchronization
+        console.log(chalk.green('Starting synchronization...'));
+
+        // Upload new/updated files
+        for (const file of toUpload) {
+            console.log(chalk.cyan(`Uploading "${file.relativePath}"...`));
+            const dedupeName = 'false';
+            const overwrite = 'true';
+            await uploadFile([file.localPath, remoteDir, dedupeName, overwrite]);
+        }
+
+        // Download new/updated files
+        for (const file of toDownload) {
+            console.log(chalk.cyan(`Downloading "${file.relativePath}"...`));
+            await downloadFile([path.join(remoteDir, file.relativePath), file.localPath]);
+        }
+
+        // Delete extra files (if --delete flag is set)
+        if (deleteFlag) {
+            for (const file of toDelete) {
+                console.log(chalk.yellow(`Deleting "${file.relativePath}"...`));
+                await removeFileOrDirectory([path.join(remoteDir, file.relativePath), '-f']);
+            }
+        }
+
+        console.log(chalk.green('Synchronization complete!'));
+    } catch (error) {
+        console.error(chalk.red('Failed to synchronize directories.'));
+        console.error(chalk.red(`Error: ${error.message}`));
     }
 }

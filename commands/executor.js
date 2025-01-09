@@ -5,7 +5,7 @@ import { listApps, createApp, deleteApp } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
   getInfo, getDiskUsage, createFile, readFile, uploadFile, 
-  downloadFile, copyFile, syncDirectory } from './files.js';
+  downloadFile, copyFile, syncDirectory, deployApp } from './files.js';
 import { getUserInfo, getUsageInfo } from './auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
@@ -80,7 +80,8 @@ const commands = {
   cat: readFile,
   push: uploadFile,
   pull: downloadFile,
-  update: syncDirectory
+  update: syncDirectory,
+  deploy: deployApp
 };
 
 /**

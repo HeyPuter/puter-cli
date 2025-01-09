@@ -442,7 +442,6 @@ export async function showCwd() {
  */
 export async function changeDirectory(args) {
     let currentPath = config.get('cwd');
-
     // If no arguments, print the current directory
     if (!args.length) {
         console.log(chalk.green(currentPath));
@@ -451,7 +450,7 @@ export async function changeDirectory(args) {
 
     const path = args[0];
     // Handle ".." and deeper navigation
-    const newPath = resolvePath(currentPath, path);
+    const newPath = path.startsWith('/')? path: resolvePath(currentPath, path);
     try {
         // Check if the new path is a valid directory
         const response = await fetch(`${API_BASE}/stat`, {
@@ -1155,4 +1154,8 @@ export async function syncDirectory(args = []) {
         console.error(chalk.red('Failed to synchronize directories.'));
         console.error(chalk.red(`Error: ${error.message}`));
     }
+}
+
+export async function deployApp(args = []) {
+    
 }

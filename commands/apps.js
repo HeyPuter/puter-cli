@@ -95,7 +95,7 @@ export async function createApp(name, description = '', url = 'https://dev-cente
                 method: "create",
                 args: {
                     object: {
-                        name,
+                        name: name,
                         index_url: url,
                         title: name,
                         description: description,
@@ -113,10 +113,11 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         });
         const createAppData = await createAppResponse.json();
         if (!createAppData || !createAppData.success) {
-            spinner.fail(chalk.red(`Failed to create app "${name}"`));
+            console.error(chalk.red(`Failed to create app "${name}"`));
             return;
         }
         const appUid = createAppData.result.uid;
+        const appName = createAppData.result.name;
         console.log(chalk.green(`App "${name}" created successfully!`));
         console.log(chalk.dim(`UID: ${appUid}`));
 
@@ -167,8 +168,8 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         console.log(chalk.green(`Subdomain created successfully!`));
         console.log(chalk.dim(`Subdomain: ${subdomainName}`));
 
-        /*/ Step 4: Update the app's index_url to point to the subdomain
-        console.log(chalk.green(`Updating app "${name}" with new subdomain...\n`)));
+        // Step 4: Update the app's index_url to point to the subdomain
+        console.log(chalk.green(`Set a subdomain for app: "${appName}"...\n`));
         const updateAppResponse = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
             headers: getHeaders(),
@@ -176,32 +177,21 @@ export async function createApp(name, description = '', url = 'https://dev-cente
                 interface: "puter-apps",
                 method: "update",
                 args: {
-                    id: { name: subdomainName },
+                    id: { name: appName },
                     object: {
-                        name: subdomainName,
-                        index_url: `https://${subdomainName}.puter.site`,
-                        title: name,
-                        description: description,
-                        maximize_on_start: false,
-                        background: false,
-                        metadata: {
-                            window_resizable: true
-                        }
+                        index_url: `https://${appName}.puter.site`,
+                        title: name
                     }
                 }
             })
         });
         const updateAppData = await updateAppResponse.json();
-        console.log(updateAppData);
-        console.log('\n\n');
         if (!updateAppData || !updateAppData.success) {
             console.error(chalk.red(`Failed to update app "${name}" with new subdomain`));
             return;
         }
-        console.log(chalk.green(`App updated successfully!`));
-        console.log(chalk.dim(`Index URL: https://${subdomainName}.puter.site`));
-        */
-        return createAppData.result;
+        console.log(chalk.green(`App updated successfully at:`));
+        console.log(chalk.dim(`https://${subdomainName}.puter.site`));        
     } catch (error) {
         console.error(chalk.red(`Failed to create app "${name}".\nError: ${error.message}`));
     }

@@ -352,38 +352,43 @@ export async function listSubdomains(args = {}) {
 
 /**
  * Delete a subdomain by id
+ * @param {Array} subdomain IDs
+ * @return {boolean} Result of the operation
  */
-export async function deleteSubdomain(args = []) {
+async function deleteSubdomain(args = []) {
     if (args.length < 1){
         console.log(chalk.red('Usage: domain:delete <subdomain_id>'));
-        return;
+        return false;
     }
-    const subdomainId = args[0];
-    try {
-      const response = await fetch(`${API_BASE}/drivers/call`, {
-        headers: getHeaders(),
-        method: 'POST',
-        body: JSON.stringify({
-          interface: 'puter-subdomains',
-          method: 'delete',
-          args: {
-            id: { subdomainId }
-          }
-        })
-      });
-  
-      const data = await response.json();
-      if (!data.success) {
-        if (data.error?.code === 'entity_not_found') {
-          throw new Error(`Subdomain "${subdomain}" not found`);
+    const subdomains = args;
+    for (const subdomainId of subdomains)
+        try {
+        const response = await fetch(`${API_BASE}/drivers/call`, {
+            headers: getHeaders(),
+            method: 'POST',
+            body: JSON.stringify({
+            interface: 'puter-subdomains',
+            method: 'delete',
+            args: {
+                id: { subdomainId }
+            }
+            })
+        });
+    
+        const data = await response.json();
+        if (!data.success) {
+            if (data.error?.code === 'entity_not_found') {
+                console.log(chalk.red(`Subdomain ID: "${subdomainId}" not found`));
+                return false;
+            }
+            console.log(chalk.red(`Failed to delete subdomain: ${data.error?.message}`));
+            return false;
         }
-        throw new Error(data.error?.message || 'Failed to delete subdomain');
-      }
-      console.log(chalk.green('Subdomain deleted successfully'));
-    } catch (error) {
-      console.error(chalk.red('Error deleting subdomain:'), error.message);
-      throw error;
-    }
+        console.log(chalk.green('Subdomain deleted successfully'));
+        } catch (error) {
+            console.error(chalk.red('Error deleting subdomain:'), error.message);
+        }
+        return true;
 }
 
 /**
@@ -395,15 +400,14 @@ export async function deleteSite(args = []) {
         console.log(chalk.red('Usage: site:delete <siteUUID>'));
         return;
     }
-    for (const siteUUID of args)
+    for (const uuid of args)
         try {
-        // Check for 'sd-' prefix if present
-        const uuid = siteUUID.startsWith('sd-') ? siteUUID : `sd-${siteUUID}`;      
+        // The uuid must be prefixed with: 'sd-'
         const response = await fetch(`${API_BASE}/delete-site`, {
             headers: getHeaders(),
             method: 'POST',
             body: JSON.stringify({
-            site_uuid: uuid
+                site_uuid: uuid
             })
         });
     
@@ -412,15 +416,16 @@ export async function deleteSite(args = []) {
         }
     
         const data = await response.json();
-
-        // check if data is empty object
-        if (Object.keys(data).length === 0){
-            console.log(chalk.green(`Site: "${siteUUID}" deleted successfully`));
+        const result = await deleteSubdomain(uuid);
+        if (result){
+            // check if data is empty object
+            if (Object.keys(data).length === 0){
+                console.log(chalk.green(`Site: "${uuid}" should be deleted.`));
+            }
         }
-        } catch (error) {
+    } catch (error) {
         console.error(chalk.red('Error deleting site:'), error.message);
-        throw error;
-        }
+    }
 }
 
 /**
@@ -488,8 +493,9 @@ export async function deploySite(args = []) {
 
         const subdomains = data.result;        
         if (subdomains.some(sd => sd.subdomain === subdomain)) {
-            subdomain = generateAppName(); // Generate a random subdomain
             console.error(chalk.red(`The subdomain "${subdomain}" is already in use.`));
+            // It would be better to check the owner of the subdomain, then overwrite it if possible before creating a new random one
+            subdomain = generateAppName(); // Generate a random subdomain
             console.error(chalk.cyan(`New generated subdomain: "${subdomain}" will be used.`));
         }
 

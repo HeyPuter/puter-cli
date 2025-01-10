@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
 import { listApps, createApp, deleteApp, listSubdomains, 
-  deploySite, deleteSubdomain, deleteSite } from './apps.js';
+  deploySite, deleteSite } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
   getInfo, getDiskUsage, createFile, readFile, uploadFile, 
@@ -83,7 +83,6 @@ const commands = {
   pull: downloadFile,
   update: syncDirectory,
   domains: listSubdomains,
-  'domain:delete': deleteSubdomain,
   'site:delete': deleteSite,
   deploy: deploySite
 };

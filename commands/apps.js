@@ -370,7 +370,7 @@ async function deleteSubdomain(args = []) {
             interface: 'puter-subdomains',
             method: 'delete',
             args: {
-                id: { subdomainId }
+                id: { subdomain: subdomainId }
             }
             })
         });
@@ -402,7 +402,7 @@ export async function deleteSite(args = []) {
     }
     for (const uuid of args)
         try {
-        // The uuid must be prefixed with: 'sd-'
+        // The uuid must be prefixed with: 'subdomainObj-'
         const response = await fetch(`${API_BASE}/delete-site`, {
             headers: getHeaders(),
             method: 'POST',
@@ -420,9 +420,10 @@ export async function deleteSite(args = []) {
         if (result){
             // check if data is empty object
             if (Object.keys(data).length === 0){
-                console.log(chalk.green(`Site: "${uuid}" should be deleted.`));
+                console.log(chalk.green(`Site ID: "${uuid}" should be deleted.`));
             }
         }
+        console.log(chalk.yellow(`Site ID: "${uuid}" may already be deleted!`));
     } catch (error) {
         console.error(chalk.red('Error deleting site:'), error.message);
     }
@@ -486,17 +487,38 @@ export async function deploySite(args = []) {
         }
 
         // Step 2: Check if the subdomain already exists
-        const data = await getSubdomains(args);
+        const data = await getSubdomains();
         if (!data.success || !Array.isArray(data.result)) {
           throw new Error('Failed to fetch subdomains');
         }
 
-        const subdomains = data.result;        
-        if (subdomains.some(sd => sd.subdomain === subdomain)) {
-            console.error(chalk.red(`The subdomain "${subdomain}" is already in use.`));
-            // It would be better to check the owner of the subdomain, then overwrite it if possible before creating a new random one
+        const subdomains = data.result;
+        const subdomainObj = subdomains.find(sd => sd.subdomain === subdomain);      
+        // if (subdomains.some(sd => sd.subdomain === subdomain)) {
+        if (subdomainObj) {
+            console.error(chalk.cyan(`The subdomain "${subdomain}" is already in use and owned by: "${subdomainObj.owner['username']}"`));
+            if (subdomainObj.owner['username'] === getCurrentUserName()){
+                console.log(chalk.green(`It's yours, and linked to: ${subdomainObj.root_dir?.path}`));
+                if (subdomainObj.root_dir?.path === remoteDir){
+                    console.log(chalk.cyan(`Which is already the selected directory, and deployed at:`));
+                    console.log(chalk.green(`https://${subdomain}.puter.site`));
+                    return;
+                } else {
+                    console.log(chalk.yellow(`However, It's linked to different directory at: ${subdomainObj.root_dir?.path}`));
+                    console.log(chalk.cyan(`We'll try to unlink this subdomain from that directory...`));
+                    const result = await deleteSubdomain(subdomainObj.uid);
+                    if (result) {
+                        console.log(chalk.green('Looks like this subdomain is free again, please try again.'));
+                        return;
+                    } else {
+                        console.log(chalk.red('Could not release this subdomain.'));
+                    }
+                }
+            }
+        } else {
+            console.log(chalk.yellow(`The subdomain: "${subdomain}" is already taken, so let's generate a new random one:`));
             subdomain = generateAppName(); // Generate a random subdomain
-            console.error(chalk.cyan(`New generated subdomain: "${subdomain}" will be used.`));
+            console.log(chalk.cyan(`New generated subdomain: "${subdomain}" will be used.`));
         }
 
         // Step 3: Host the current directory under the subdomain

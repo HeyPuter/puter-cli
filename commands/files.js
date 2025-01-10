@@ -71,7 +71,7 @@ export async function listFiles(args = []) {
  */
 export async function makeDirectory(args = []) {
     if (args.length < 1) {
-        console.log(chalk.red('Usage: mkdir <directory_name> [parent_directory]'));
+        console.log(chalk.red('Usage: mkdir <directory_name>'));
         return;
     }
 
@@ -199,6 +199,34 @@ async function findMatchingFiles(files, pattern, basePath) {
     }
 
     return matchedPaths;
+}
+
+
+/**
+ * Find files matching the pattern in the local directory (DEPRECATED: Not used)
+ * @param {string} localDir - Local directory path.
+ * @param {string} pattern - File pattern (e.g., "*.html", "myapp/*").
+ * @returns {Array} - Array of file objects with local and relative paths.
+ */
+function findLocalMatchingFiles(localDir, pattern) {
+    const files = [];
+    const walkDir = (dir) => {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                walkDir(fullPath); // Recursively traverse directories
+            } else if (minimatch(fullPath, path.join(localDir, pattern), { dot: true })) {
+                files.push({
+                    localPath: fullPath,
+                    relativePath: path.relative(localDir, fullPath)
+                });
+            }
+        }
+    };
+
+    walkDir(localDir);
+    return files;
 }
 
 /**
@@ -449,8 +477,8 @@ export async function changeDirectory(args) {
     }
 
     const path = args[0];
-    // Handle ".." and deeper navigation
-    const newPath = path.startsWith('/')? path: resolvePath(currentPath, path);
+    // Handle "/","~",".." and deeper navigation
+    const newPath = path.startsWith('/')? path: (path === '~'? `/${getCurrentUserName()}` :resolvePath(currentPath, path));
     try {
         // Check if the new path is a valid directory
         const response = await fetch(`${API_BASE}/stat`, {

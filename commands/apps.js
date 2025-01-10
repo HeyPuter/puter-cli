@@ -1,9 +1,12 @@
+import fs from 'node:fs';
 import chalk from 'chalk';
 import fetch from 'node-fetch';
-import { API_BASE, getHeaders } from './commons.js';
-import { formatDate } from './utils.js';
 import Table from 'cli-table3';
-
+import { minimatch } from 'minimatch';
+import { formatDate } from './utils.js';
+import { getCurrentUserName, getCurrentDirectory } from './auth.js';
+import { API_BASE, getHeaders, generateAppName, resolvePath } from './commons.js';
+import { createFile, uploadFile } from './files.js';
 /**
  * List all apps
  * 
@@ -267,5 +270,237 @@ export async function deleteApp(name) {
     } catch (error) {
         console.error(chalk.red(`Failed to delete app "${name}".\nError: ${error.message}`));
         // return false;
+    }
+}
+
+/**
+ * Get list of subdomains.
+ * @param {Object} args - Options for the query.
+ * @returns {Array} - Array of subdomains.
+ */
+async function getSubdomains(args = {}) {
+    const response = await fetch(`${API_BASE}/drivers/call`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+            interface: 'puter-subdomains',
+            method: 'select',
+            args: args
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch subdomains.');
+    }
+    return await response.json();
+}
+
+/**
+ * Listing subdomains
+ */
+export async function listSubdomains(args = {}) {
+    try {
+      const data = await getSubdomains(args);
+
+      if (!data.success || !Array.isArray(data.result)) {
+        throw new Error('Failed to fetch subdomains');
+      }
+  
+      // Create table instance
+      const table = new Table({
+        head: [
+          chalk.cyan('UID'),
+          chalk.cyan('Subdomain'),
+          chalk.cyan('Created'),
+          chalk.cyan('Protected'),
+        //   chalk.cyan('Owner'),
+          chalk.cyan('Directory')
+        ],
+        style: {
+          head: [], // Disable colors in header
+          border: [] // Disable colors for borders
+        }
+      });
+  
+      // Format and add data to table
+      data.result.forEach(domain => {
+        const createdDate = new Date(domain.created_at).toLocaleDateString();        
+        table.push([
+          domain.uid,
+          chalk.green(`${domain.subdomain}.puter.site`),
+          createdDate,
+          domain.protected ? chalk.red('Yes') : chalk.green('No'),
+        //   domain.owner['username'],
+          domain?.root_dir?.path.split('/').pop()
+        ]);
+      });
+  
+      // Print table
+      if (data.result.length === 0) {
+        console.log(chalk.yellow('No subdomains found'));
+      } else {
+        console.log(chalk.bold('\nYour Subdomains:'));
+        console.log(table.toString());
+        console.log(chalk.dim(`Total subdomains: ${data.result.length}`));
+      }
+  
+    } catch (error) {
+      console.error(chalk.red('Error listing subdomains:'), error.message);
+      throw error;
+    }
+}
+
+/**
+ * Delete a subdomain by id
+ */
+export async function deleteSubdomain(args = []) {
+    if (args.length < 1){
+        console.log(chalk.red('Usage: domain:delete <subdomain_id>'));
+        return;
+    }
+    const subdomainId = args[0];
+    try {
+      const response = await fetch(`${API_BASE}/drivers/call`, {
+        headers: getHeaders(),
+        method: 'POST',
+        body: JSON.stringify({
+          interface: 'puter-subdomains',
+          method: 'delete',
+          args: {
+            id: { subdomainId }
+          }
+        })
+      });
+  
+      const data = await response.json();
+      if (!data.success) {
+        if (data.error?.code === 'entity_not_found') {
+          throw new Error(`Subdomain "${subdomain}" not found`);
+        }
+        throw new Error(data.error?.message || 'Failed to delete subdomain');
+      }
+      console.log(chalk.green('Subdomain deleted successfully'));
+    } catch (error) {
+      console.error(chalk.red('Error deleting subdomain:'), error.message);
+      throw error;
+    }
+}
+
+/**
+ * Delete hosted web site
+ * @param {any[]} args Array of site uuid
+ */
+export async function deleteSite(args = []) {
+    if (args.length < 1){
+        console.log(chalk.red('Usage: site:delete <siteUUID>'));
+        return;
+    }
+    for (const siteUUID of args)
+        try {
+        // Check for 'sd-' prefix if present
+        const uuid = siteUUID.startsWith('sd-') ? siteUUID : `sd-${siteUUID}`;      
+        const response = await fetch(`${API_BASE}/delete-site`, {
+            headers: getHeaders(),
+            method: 'POST',
+            body: JSON.stringify({
+            site_uuid: uuid
+            })
+        });
+    
+        if (!response.ok) {
+            throw new Error(`Failed to delete site (Status: ${response.status})`);
+        }
+    
+        const data = await response.json();
+
+        // check if data is empty object
+        if (Object.keys(data).length === 0){
+            console.log(chalk.green(`Site: "${siteUUID}" deleted successfully`));
+        }
+        } catch (error) {
+        console.error(chalk.red('Error deleting site:'), error.message);
+        throw error;
+        }
+}
+
+/**
+ * Host a directory under a subdomain.
+ * @param {string} subdomain - Subdomain name.
+ * @param {string} remoteDir - Remote directory path.
+ * @returns {Object} - Hosting details (e.g., subdomain).
+ */
+async function hostDirectory(subdomain, remoteDir) {
+    const response = await fetch(`${API_BASE}/drivers/call`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+            interface: 'puter-subdomains',
+            method: 'create',
+            args: {
+                object: {
+                    subdomain: subdomain,
+                    root_dir: remoteDir
+                }
+            }
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to host directory.');
+    }
+    const data = await response.json();
+    return data.result;
+}
+
+/**
+ * Deploy a static web app from the current directory to Puter cloud.
+ * @param {string[]} args - Command-line arguments (e.g., [name, --subdomain=<subdomain>]).
+ */
+export async function deploySite(args = []) {
+    if (args.length < 1) {
+        console.log(chalk.red('Usage: deploy <name> [<remote_dir>] [--subdomain=<subdomain>]'));
+        console.log(chalk.yellow('Example: deploy myapp'));
+        console.log(chalk.yellow('Example: deploy myapp ./myapp'));
+        console.log(chalk.yellow('Example: deploy myapp --subdomain=myapp'));
+        return;
+    }
+
+    const appName = args[0]; // App name (required)
+    const subdomainOption = args.find(arg => arg.startsWith('--subdomain='))?.split('=')[1]; // Optional subdomain
+    // Use the current directory as the root directory if none specified
+    const remoteDir = args[1]?(args[1].startsWith('--')?getCurrentDirectory(): resolvePath(getCurrentDirectory(), args[1])):getCurrentDirectory();
+
+    console.log(chalk.green(`Deploying app "${appName}" from "${remoteDir}"...\n`));
+    try {
+        // Step 1: Determine the subdomain
+        let subdomain;
+        if (subdomainOption) {
+            subdomain = subdomainOption; // Use the provided subdomain
+        } else {
+            subdomain = appName; // Default to the app name as the subdomain
+        }
+
+        // Step 2: Check if the subdomain already exists
+        const data = await getSubdomains(args);
+        if (!data.success || !Array.isArray(data.result)) {
+          throw new Error('Failed to fetch subdomains');
+        }
+
+        const subdomains = data.result;        
+        if (subdomains.some(sd => sd.subdomain === subdomain)) {
+            subdomain = generateAppName(); // Generate a random subdomain
+            console.error(chalk.red(`The subdomain "${subdomain}" is already in use.`));
+            console.error(chalk.cyan(`New generated subdomain: "${subdomain}" will be used.`));
+        }
+
+        // Step 3: Host the current directory under the subdomain
+        console.log(chalk.cyan(`Hosting app "${appName}" under subdomain "${subdomain}"...`));
+        const site = await hostDirectory(subdomain, remoteDir);
+
+        console.log(chalk.green(`App "${appName}" deployed successfully!`));
+        console.log(chalk.green(`Website hosted at: https://${site.subdomain}.puter.site`));
+    } catch (error) {
+        console.error(chalk.red('Failed to deploy app.'));
+        console.error(chalk.red(`Error: ${error.message}`));
     }
 }

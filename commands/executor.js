@@ -1,11 +1,12 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
-import { listApps, createApp, deleteApp } from './apps.js';
+import { listApps, createApp, deleteApp, listSubdomains, 
+  deploySite, deleteSubdomain, deleteSite } from './apps.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
   getInfo, getDiskUsage, createFile, readFile, uploadFile, 
-  downloadFile, copyFile, syncDirectory, deployApp } from './files.js';
+  downloadFile, copyFile, syncDirectory } from './files.js';
 import { getUserInfo, getUsageInfo } from './auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
@@ -81,7 +82,10 @@ const commands = {
   push: uploadFile,
   pull: downloadFile,
   update: syncDirectory,
-  deploy: deployApp
+  domains: listSubdomains,
+  'domain:delete': deleteSubdomain,
+  'site:delete': deleteSite,
+  deploy: deploySite
 };
 
 /**
@@ -156,6 +160,9 @@ function showHelp() {
   ${chalk.cyan('push')}              Upload file to Puter cloud
   ${chalk.cyan('pull')}              Download file from Puter cloud
   ${chalk.cyan('update')}            Sync local directory with remote cloud
-  ${chalk.cyan('deploy')}            Sync local directory with remote cloud
+  ${chalk.cyan('domains')}           Listing subdomains
+  ${chalk.cyan('domain:delete')}     Delete a subdomain by UID (DEPRECATED: use site:delete instead)
+  ${chalk.cyan('site:delete')}       Delete a site by UUID
+  ${chalk.cyan('deploy')}            Deploy a local directory into a new app
   `);
 }

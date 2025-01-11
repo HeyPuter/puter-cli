@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import path from 'path';
 import chalk from 'chalk';
 import fetch from 'node-fetch';
 import Table from 'cli-table3';
@@ -124,12 +124,13 @@ export async function createApp(name, description = '', url = 'https://dev-cente
 
         // Step 2: Create a directory for the app
         const uid = crypto.randomUUID();
-        console.log(chalk.green(`Creating directory for app "${chalk.red(name)}" with UID: "${chalk.red(uid)}" ...\n`));
+        const appDir = `/${username}/AppData/${appUid}`;
+        console.log(chalk.green(`Creating directory...\nPath: ${chalk.dim(appDir)}\nApp: ${chalk.dim(name)}\nUID: ${chalk.dim(uid)}\n`));
         const createDirResponse = await fetch(`${API_BASE}/mkdir`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({
-                parent: `/${username}/AppData/${appUid}`,
+                parent: appDir,
                 path: `app-${uid}`,
                 overwrite: true,
                 dedupe_name: false,
@@ -145,7 +146,11 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         console.log(chalk.green(`Directory created successfully!`));
         console.log(chalk.dim(`Directory UID: ${dirUid}`));
 
-        // TODO: Create a dummy home page
+        // Create a dummy home page
+        const createFileResult = await createFile([path.join(appDir, 'index.html'), '<h1>My New App</h1']);
+        if (!createFileResult){
+            console.log(chalk.red("We could not create the home page file!"));
+        }
 
         // Step 3: Create a subdomain for the app
         const subdomainName = `${name}-${uid.split('-')[0]}`;
@@ -193,6 +198,10 @@ export async function createApp(name, description = '', url = 'https://dev-cente
  * @returns a boolean success value
  */
 export async function deleteApp(name) {
+    if (!name || name.length == 0){
+        console.log(chalk.red('Usage: app:delete <name>'));
+        return false;
+    }
     console.log(chalk.green(`Checking app "${name}"...\n`));
     try {
         // Step 1: Read app details
@@ -241,16 +250,17 @@ export async function deleteApp(name) {
         const deleteData = await deleteResponse.json();
         
         if (deleteData.success) {
-            console.log(chalk.green(`App "${name}" deleted successfully!`));
-            // return true;
+            console.log(chalk.green(`App "${chalk.red(name)}" deleted successfully!`));
+            return true;
         } else {
             console.error(chalk.red(`Failed to delete app "${name}".\nP.S. You may need to provide the 'name' not the 'title'.`));
-            // return false;
+            return false;
         }
     } catch (error) {
         console.error(chalk.red(`Failed to delete app "${name}".\nError: ${error.message}`));
-        // return false;
+        return false;
     }
+    return true;
 }
 
 /**

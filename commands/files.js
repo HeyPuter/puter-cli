@@ -542,14 +542,16 @@ export async function createFile(args = []) {
 
     const filePath = args[0]; // File path (e.g., "app/index.html")
     const content = args.length > 1 ? args.slice(1).join(' ') : ''; // Optional content
-    const fullPath = resolvePath(getCurrentDirectory(), filePath); // Resolve the full path
+    let fullPath = filePath;
+    if (!filePath.startsWith(`/${getCurrentUserName()}/`)){
+        fullPath = resolvePath(getCurrentDirectory(), filePath); // Resolve the full path
+    }
     const dirName = path.dirname(fullPath); // Extract the directory name
     const fileName = path.basename(fullPath); // Extract the file name
     const dedupeName = false; // Default: false
     const overwrite = true; // Default: true
 
-    console.log(chalk.green(`Creating file "${filePath}" in "${dirName}" ${content.length > 0 ? `with content: '${content}'` : ''}...\n`));
-
+    console.log(chalk.green(`Creating file:\nFileName: "${chalk.dim(fileName)}"\nPath: "${chalk.dim(dirName)}"\nContent:${chalk.dim(content)}`));
     try {
         // Step 1: Check if the file already exists
         const statResponse = await fetch(`${API_BASE}/stat`, {

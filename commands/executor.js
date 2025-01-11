@@ -46,22 +46,25 @@ const commands = {
   'app:delete': async (args) => {
     if (args.length < 1) {
         console.log(chalk.red('Usage: app:delete <name>'));
+        return;
     }
-    const name = args[0].trim();
+    const name = args.find(arg => arg !=='-f')
+    const force = args.some(arg => arg =='-f')? true: false;
 
-    const { confirm } = await inquirer.prompt([
-      {
-          type: 'confirm',
-          name: 'confirm',
-          message: chalk.yellow(`Are you sure you want to delete "${name}"?`),
-          default: false
+    if (!force){
+      const { confirm } = await inquirer.prompt([
+        {
+            type: 'confirm',
+            name: 'confirm',
+            message: chalk.yellow(`Are you sure you want to delete "${name}"?`),
+            default: false
+        }
+      ]);
+      if (!confirm) {
+          console.log(chalk.yellow('Operation cancelled.'));
+          return false;
       }
-    ]);
-
-    if (!confirm) {
-        console.log(chalk.yellow('Operation cancelled.'));
-        return false;
-    } 
+    }
     await deleteApp(name);
   },
   ls: listFiles,

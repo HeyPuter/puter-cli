@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 import Table from 'cli-table3';
 import { formatDate } from './utils.js';
 import { getCurrentUserName, getCurrentDirectory } from './auth.js';
-import { API_BASE, getHeaders, generateAppName, resolvePath, isValidAppName } from './commons.js';
+import { API_BASE, getHeaders, generateAppName, resolvePath, isValidAppName, getDefaultHomePage } from './commons.js';
 import { getSubdomains, deleteSubdomain, createSubdomain } from './subdomains.js';
 import { createFile, uploadFile } from './files.js';
 
@@ -146,16 +146,11 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         console.log(chalk.green(`Directory created successfully!`));
         console.log(chalk.dim(`Directory UID: ${dirUid}`));
 
-        // Create a dummy home page
-        const createFileResult = await createFile([path.join(appDir, 'index.html'), '<h1>My New App</h1']);
-        if (!createFileResult){
-            console.log(chalk.red("We could not create the home page file!"));
-        }
-
         // Step 3: Create a subdomain for the app
         const subdomainName = `${name}-${uid.split('-')[0]}`;
-        console.log(chalk.green(`Creating subdomain: "${chalk.red(subdomainName)}"...\n`));
-        const subdomainResult = await createSubdomain(subdomainName, `/${username}/AppData/${appUid}/${createDirData.name}`);
+        const remoteDir = `${appDir}/${createDirData.name}`;
+        console.log(chalk.green(`Linking to subdomain...\nSubdomain: "${chalk.dim(subdomainName)}"\nPath: ${chalk.dim(remoteDir)}\n`));
+        const subdomainResult = await createSubdomain(subdomainName, remoteDir);
         if (!subdomainResult) {
             console.error(chalk.red(`Failed to create subdomain: "${chalk.red(subdomainName)}"`));
             return;
@@ -163,7 +158,13 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         console.log(chalk.green(`Subdomain created successfully!`));
         console.log(chalk.dim(`Subdomain: ${subdomainName}`));
 
-        // Step 4: Update the app's index_url to point to the subdomain
+        // Step 4: Create a home page
+        const homePageResult = await createFile([path.join(remoteDir, 'index.html'), getDefaultHomePage(appName)]);
+        if (!homePageResult){
+            console.log(chalk.red("We could not create the home page file!"));
+        }
+
+        // Step 5: Update the app's index_url to point to the subdomain
         console.log(chalk.green(`Set "${chalk.red(subdomainName)}" as a subdomain for app: "${chalk.red(appName)}"...\n`));
         const updateAppResponse = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',

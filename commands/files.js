@@ -551,7 +551,7 @@ export async function createFile(args = []) {
     const dedupeName = false; // Default: false
     const overwrite = true; // Default: true
 
-    console.log(chalk.green(`Creating file:\nFileName: "${chalk.dim(fileName)}"\nPath: "${chalk.dim(dirName)}"\nContent:${chalk.dim(content)}`));
+    console.log(chalk.green(`Creating file:\nFileName: "${chalk.dim(fileName)}"\nPath: "${chalk.dim(dirName)}"\nContent Length: ${chalk.dim(content.length)}`));
     try {
         // Step 1: Check if the file already exists
         const statResponse = await fetch(`${API_BASE}/stat`, {

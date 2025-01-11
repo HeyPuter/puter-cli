@@ -121,3 +121,31 @@ export async function deleteSubdomain(args = []) {
         return true;
 }
 
+/**
+ * Create a new subdomain into remote directory
+ * @param {string} subdomain - Subdomain name.
+ * @param {string} remoteDir - Remote directory path.
+ * @returns {Object} - Hosting details (e.g., subdomain).
+ */
+export async function createSubdomain(subdomain, remoteDir) {
+    const response = await fetch(`${API_BASE}/drivers/call`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+            interface: 'puter-subdomains',
+            method: 'create',
+            args: {
+                object: {
+                    subdomain: subdomain,
+                    root_dir: remoteDir
+                }
+            }
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to host directory.');
+    }
+    const data = await response.json();
+    return data.result;
+}

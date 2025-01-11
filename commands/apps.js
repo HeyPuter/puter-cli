@@ -4,8 +4,8 @@ import fetch from 'node-fetch';
 import Table from 'cli-table3';
 import { formatDate } from './utils.js';
 import { getCurrentUserName, getCurrentDirectory } from './auth.js';
-import { API_BASE, getHeaders, generateAppName, resolvePath } from './commons.js';
-import { getSubdomains, deleteSubdomain } from './subdomains.js';
+import { API_BASE, getHeaders, generateAppName, resolvePath, isValidAppName } from './commons.js';
+import { getSubdomains, deleteSubdomain, createSubdomain } from './subdomains.js';
 import { createFile, uploadFile } from './files.js';
 
 /**
@@ -304,41 +304,12 @@ export async function deleteSite(args = []) {
 }
 
 /**
- * Host a directory under a subdomain.
- * @param {string} subdomain - Subdomain name.
- * @param {string} remoteDir - Remote directory path.
- * @returns {Object} - Hosting details (e.g., subdomain).
- */
-async function hostDirectory(subdomain, remoteDir) {
-    const response = await fetch(`${API_BASE}/drivers/call`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-            interface: 'puter-subdomains',
-            method: 'create',
-            args: {
-                object: {
-                    subdomain: subdomain,
-                    root_dir: remoteDir
-                }
-            }
-        })
-    });
-
-    if (!response.ok) {
-        throw new Error('Failed to host directory.');
-    }
-    const data = await response.json();
-    return data.result;
-}
-
-/**
  * Deploy a static web app from the current directory to Puter cloud.
  * @param {string[]} args - Command-line arguments (e.g., [name, --subdomain=<subdomain>]).
  */
 export async function deploySite(args = []) {
-    if (args.length < 1) {
-        console.log(chalk.red('Usage: deploy <name> [<remote_dir>] [--subdomain=<subdomain>]'));
+    if (args.length < 1 || !isValidAppName(args[0])) {
+        console.log(chalk.red('Usage: deploy <valid_name_app> [<remote_dir>] [--subdomain=<subdomain>]'));
         console.log(chalk.yellow('Example: deploy myapp'));
         console.log(chalk.yellow('Example: deploy myapp ./myapp'));
         console.log(chalk.yellow('Example: deploy myapp --subdomain=myapp'));
@@ -346,9 +317,9 @@ export async function deploySite(args = []) {
     }
 
     const appName = args[0]; // App name (required)
-    const subdomainOption = args.find(arg => arg.startsWith('--subdomain='))?.split('=')[1]; // Optional subdomain
+    const subdomainOption = args.find(arg => arg.toLocaleLowerCase().startsWith('--subdomain='))?.split('=')[1]; // Optional subdomain
     // Use the current directory as the root directory if none specified
-    const remoteDir = args[1]?(args[1].startsWith('--')?getCurrentDirectory(): resolvePath(getCurrentDirectory(), args[1])):getCurrentDirectory();
+    const remoteDir = resolvePath(getCurrentDirectory(), (args[1] && !args[1].startsWith('--'))?args[1]:'.');
 
     console.log(chalk.green(`Deploying app "${appName}" from "${remoteDir}"...\n`));
     try {
@@ -396,10 +367,10 @@ export async function deploySite(args = []) {
 
         // Step 3: Host the current directory under the subdomain
         console.log(chalk.cyan(`Hosting app "${appName}" under subdomain "${subdomain}"...`));
-        const site = await hostDirectory(subdomain, remoteDir);
+        const site = await createSubdomain(subdomain, remoteDir);
 
-        console.log(chalk.green(`App "${appName}" deployed successfully!`));
-        console.log(chalk.green(`Website hosted at: https://${site.subdomain}.puter.site`));
+        console.log(chalk.green(`App "${chalk.red(appName)}" deployed successfully at:`));
+        console.log(chalk.dim(`https://${site.subdomain}.puter.site`));
     } catch (error) {
         console.error(chalk.red('Failed to deploy app.'));
         console.error(chalk.red(`Error: ${error.message}`));

@@ -141,3 +141,48 @@ export function resolvePath(currentPath, relativePath) {
 
     return currentPath;
 }
+
+/**
+* Checks if a given string is a valid app name.
+* The name must:
+*  - Not be '.' or '..'
+*  - Not contain path separators ('/' or '\\')
+*  - Not contain wildcard characters ('*')
+*  - (Optional) Contain only allowed characters (letters, numbers, spaces, underscores, hyphens)
+*
+* @param {string} name - The app name to validate.
+* @returns {boolean} - Returns true if valid, false otherwise.
+*/
+export function isValidAppName(name) {
+   // Ensure the name is a non-empty string
+   if (typeof name !== 'string' || name.trim().length === 0) {
+       return false;
+   }
+
+   // Trim whitespace from both ends
+   const trimmedName = name.trim();
+
+   // Reject reserved names
+   if (trimmedName === '.' || trimmedName === '..') {
+       return false;
+   }
+
+   // Regex patterns for invalid characters
+   const invalidPattern = /[\/\\*]/; // Disallow /, \, and *
+
+   if (invalidPattern.test(trimmedName)) {
+       return false;
+   }
+
+   // Optional: Define allowed characters pattern
+   // Uncomment the following lines if you want to enforce allowed characters
+   /*
+   const allowedPattern = /^[A-Za-z0-9 _-]+$/;
+   if (!allowedPattern.test(trimmedName)) {
+       return false;
+   }
+   */
+
+   // All checks passed
+   return true;
+}

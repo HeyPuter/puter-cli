@@ -530,29 +530,33 @@ export async function getDiskUsage(body = null) {
 }
 
 /**
- * Create a new empty file (similar to Unix "touch" command).
- * @param {Array} args - The arguments passed to the command (file name and optional path).
+ * Create a new file (similar to Unix "touch" command).
+ * @param {Array} args - The arguments passed to the command (file name and optional content).
+ * @returns {boolean} - True if the file was created successfully, false otherwise.
  */
 export async function createFile(args = []) {
     if (args.length < 1) {
         console.log(chalk.red('Usage: touch <file_name> [content]'));
-        return;
+        return false;
     }
 
-    const fileName = args[0];
-    // Extract all the other values from "args" starting from 1 to the length of args:
+    const filePath = args[0]; // File path (e.g., "app/index.html")
     const content = args.length > 1 ? args.slice(1).join(' ') : ''; // Optional content
-    const path = resolvePath(getCurrentDirectory(), '.');
+    const fullPath = resolvePath(getCurrentDirectory(), filePath); // Resolve the full path
+    const dirName = path.dirname(fullPath); // Extract the directory name
+    const fileName = path.basename(fullPath); // Extract the file name
     const dedupeName = false; // Default: false
     const overwrite = true; // Default: true
-    console.log(chalk.green(`Creating file "${fileName}" in "${path}" ${content.length > 0?`with content: '${content}'`:''}...\n`));
+
+    console.log(chalk.green(`Creating file "${filePath}" in "${dirName}" ${content.length > 0 ? `with content: '${content}'` : ''}...\n`));
+
     try {
         // Step 1: Check if the file already exists
         const statResponse = await fetch(`${API_BASE}/stat`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({
-                path: `${path}/${fileName}`
+                path: fullPath
             })
         });
 
@@ -560,14 +564,14 @@ export async function createFile(args = []) {
             const statData = await statResponse.json();
             if (statData && statData.id) {
                 if (!overwrite) {
-                    console.error(chalk.red(`File "${fileName}" already exists. Use --overwrite=true to replace it.`));
-                    return;
+                    console.error(chalk.red(`File "${filePath}" already exists. Use --overwrite=true to replace it.`));
+                    return false;
                 }
-                console.log(chalk.yellow(`File "${fileName}" already exists. It will be overwritten.`));
+                console.log(chalk.yellow(`File "${filePath}" already exists. It will be overwritten.`));
             }
         } else if (statResponse.status !== 404) {
             console.error(chalk.red('Failed to check if file exists.'));
-            return;
+            return false;
         }
 
         // Step 2: Check disk space
@@ -579,23 +583,46 @@ export async function createFile(args = []) {
 
         if (!dfResponse.ok) {
             console.error(chalk.red('Unable to check disk space.'));
-            return;
+            return false;
         }
 
         const dfData = await dfResponse.json();
         if (dfData.used >= dfData.capacity) {
             console.error(chalk.red('Not enough disk space to create the file.'));
             showDiskSpaceUsage(dfData); // Display disk usage info
-            return;
+            return false;
         }
 
-        // Step 3: Create the file using /batch
+        // Step 3: Create the nested directories if they don't exist
+        const dirStatResponse = await fetch(`${API_BASE}/stat`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                path: dirName
+            })
+        });
+
+        if (!dirStatResponse.ok || dirStatResponse.status === 404) {
+            // Create the directory if it doesn't exist
+            await fetch(`${API_BASE}/mkdir`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    parent: path.dirname(dirName),
+                    path: path.basename(dirName),
+                    overwrite: false,
+                    dedupe_name: true,
+                    create_missing_parents: true
+                })
+            });
+        }
+
+        // Step 4: Create the file using /batch
         const operationId = crypto.randomUUID(); // Generate a unique operation ID
         const socketId = 'undefined'; // Placeholder socket ID
         const boundary = `----WebKitFormBoundary${crypto.randomUUID().replace(/-/g, '')}`;
-        // Prepare the file as a Blob
         const fileBlob = new Blob([content || ''], { type: 'text/plain' });
-        // Prepare FormData
+
         const formData = `--${boundary}\r\n` +
             `Content-Disposition: form-data; name="operation_id"\r\n\r\n${operationId}\r\n` +
             `--${boundary}\r\n` +
@@ -614,7 +641,7 @@ export async function createFile(args = []) {
                 dedupe_name: dedupeName,
                 overwrite: overwrite,
                 operation_id: operationId,
-                path: path,
+                path: dirName,
                 name: fileName,
                 item_upload_id: 0
             })}\r\n` +
@@ -622,7 +649,7 @@ export async function createFile(args = []) {
             `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
             `Content-Type: text/plain\r\n\r\n${content || ''}\r\n` +
             `--${boundary}--\r\n`;
-        
+
         // Send the request
         const createResponse = await fetch(`${API_BASE}/batch`, {
             method: 'POST',
@@ -633,21 +660,24 @@ export async function createFile(args = []) {
         if (!createResponse.ok) {
             const errorText = await createResponse.text();
             console.error(chalk.red(`Failed to create file. Server response: ${errorText}. status: ${createResponse.status}`));
-            return;
+            return false;
         }
 
         const createData = await createResponse.json();
         if (createData && createData.results && createData.results.length > 0) {
             const file = createData.results[0];
-            console.log(chalk.green(`File "${fileName}" created successfully!`));
+            console.log(chalk.green(`File "${filePath}" created successfully!`));
             console.log(chalk.dim(`Path: ${file.path}`));
             console.log(chalk.dim(`UID: ${file.uid}`));
         } else {
             console.error(chalk.red('Failed to create file. Invalid response from server.'));
+            return false;
         }
     } catch (error) {
         console.error(chalk.red(`Failed to create file.\nError: ${error.message}`));
+        return false;
     }
+    return true;
 }
 
 /**
@@ -709,7 +739,6 @@ export async function uploadFile(args = []) {
     const overwrite = args.length > 3 ? args[3] === 'true' : false; // Default: false
 
     console.log(chalk.green(`Uploading files from "${localPath}" to "${remotePath}"...\n`));
-
     try {
         // Step 1: Find all matching files (excluding hidden files)
         const files = glob.sync(localPath, { nodir: true, dot: false });

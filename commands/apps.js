@@ -19,7 +19,7 @@ import { createFile, uploadFile } from './files.js';
  * ```
  */
 export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
-    console.log(chalk.green(`Listing of apps during period "${statsPeriod}":\n`));
+    console.log(chalk.green(`Listing of apps during period "${chalk.red(statsPeriod)}":\n`));
     try {
         const response = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
@@ -44,10 +44,10 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
                     chalk.cyan('Created'),
                     chalk.cyan('Subdomain'),
                     // chalk.cyan('Description'),
-                    chalk.cyan('Opened'),
-                    chalk.cyan('User(s)')
+                    chalk.cyan('#Open'),
+                    chalk.cyan('#User')
                 ],
-                colWidths: [20, 30, 25, 35, 5, 5],
+                colWidths: [20, 30, 25, 35, 8, 8],
                 wordWrap: false
             });
 
@@ -66,8 +66,7 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
 
             // Display the table
             console.log(table.toString());
-            console.log('\n');
-            console.log(chalk.green(`You have in total: ${data['result'].length} application(s).`));
+            console.log(chalk.green(`You have in total: ${chalk.red(data['result'].length)} application(s).`));
         } else {
             console.error(chalk.red('Unable to list your apps. Please check your credentials.'));
         }

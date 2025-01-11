@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
-import { listApps, createApp, deleteApp, listSubdomains, 
-  deploySite, deleteSite } from './apps.js';
+import { listApps, createApp, deleteApp, deploySite, deleteSite } from './apps.js';
+import { listSubdomains } from './subdomains.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
   getInfo, getDiskUsage, createFile, readFile, uploadFile, 
@@ -160,8 +160,7 @@ function showHelp() {
   ${chalk.cyan('pull')}              Download file from Puter cloud
   ${chalk.cyan('update')}            Sync local directory with remote cloud
   ${chalk.cyan('domains')}           Listing subdomains
-  ${chalk.cyan('domain:delete')}     Delete a subdomain by UID (DEPRECATED: use site:delete instead)
   ${chalk.cyan('site:delete')}       Delete a site by UUID
-  ${chalk.cyan('deploy')}            Deploy a local directory into a new app
+  ${chalk.cyan('deploy')}            Deploy a directory into website
   `);
 }

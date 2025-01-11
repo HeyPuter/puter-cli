@@ -147,5 +147,13 @@ export async function createSubdomain(subdomain, remoteDir) {
         throw new Error('Failed to host directory.');
     }
     const data = await response.json();
+    if (!data.success || !data.result) {
+        if (data.error?.code === 'already_in_use') {
+            console.log(chalk.yellow(`Subdomain already taken!\nMessage: ${data?.error?.message}`));
+            return false;
+        }
+        console.log(chalk.red(`Error when creating "${subdomain}".\nError: ${data?.error?.message}\nCode: ${data.error?.code}`));
+        return false;
+    }
     return data.result;
 }

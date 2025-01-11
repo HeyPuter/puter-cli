@@ -145,25 +145,13 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         console.log(chalk.green(`Directory created successfully!`));
         console.log(chalk.dim(`Directory UID: ${dirUid}`));
 
+        // TODO: Create a dummy home page
+
         // Step 3: Create a subdomain for the app
         const subdomainName = `${name}-${uid.split('-')[0]}`;
         console.log(chalk.green(`Creating subdomain: "${chalk.red(subdomainName)}"...\n`));
-        const createSubdomainResponse = await fetch(`${API_BASE}/drivers/call`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                interface: "puter-subdomains",
-                method: "create",
-                args: {
-                    object: {
-                        subdomain: subdomainName,
-                        root_dir: `/${username}/AppData/${appUid}/${createDirData.name}`
-                    }
-                }
-            })
-        });
-        const createSubdomainData = await createSubdomainResponse.json();
-        if (!createSubdomainData || !createSubdomainData.success) {
+        const subdomainResult = await createSubdomain(subdomainName, `/${username}/AppData/${appUid}/${createDirData.name}`);
+        if (!subdomainResult) {
             console.error(chalk.red(`Failed to create subdomain: "${chalk.red(subdomainName)}"`));
             return;
         }
@@ -368,6 +356,10 @@ export async function deploySite(args = []) {
         // Step 3: Host the current directory under the subdomain
         console.log(chalk.cyan(`Hosting app "${appName}" under subdomain "${subdomain}"...`));
         const site = await createSubdomain(subdomain, remoteDir);
+        if (!site){
+            console.error(chalk.red(`Failed to create subdomain: "${chalk.red(subdomain)}"`));
+            return;
+        }
 
         console.log(chalk.green(`App "${chalk.red(appName)}" deployed successfully at:`));
         console.log(chalk.dim(`https://${site.subdomain}.puter.site`));

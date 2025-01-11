@@ -82,7 +82,7 @@ const commands = {
   push: uploadFile,
   pull: downloadFile,
   update: syncDirectory,
-  domains: listSubdomains,
+  sites: listSubdomains,
   'site:delete': deleteSite,
   deploy: deploySite
 };
@@ -159,7 +159,7 @@ function showHelp() {
   ${chalk.cyan('push')}              Upload file to Puter cloud
   ${chalk.cyan('pull')}              Download file from Puter cloud
   ${chalk.cyan('update')}            Sync local directory with remote cloud
-  ${chalk.cyan('domains')}           Listing subdomains
+  ${chalk.cyan('sites')}             Listing of sites and subdomains
   ${chalk.cyan('site:delete')}       Delete a site by UUID
   ${chalk.cyan('deploy')}            Deploy a directory into website
   `);

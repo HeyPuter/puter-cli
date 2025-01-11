@@ -7,6 +7,7 @@ import { formatDate } from './utils.js';
 import { getCurrentUserName, getCurrentDirectory } from './auth.js';
 import { API_BASE, getHeaders, generateAppName, resolvePath } from './commons.js';
 import { createFile, uploadFile } from './files.js';
+
 /**
  * List all apps
  * 
@@ -83,7 +84,7 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
  * @returns Output JSON data
  */
 export async function createApp(name, description = '', url = 'https://dev-center.puter.com/coming-soon.html') {
-    console.log(chalk.green(`Creating app "${name}"...\n`));
+    console.log(chalk.green(`Creating app: "${chalk.red(name)}"...\n`));
     try {
         // Step 1: Create the app
         const createAppResponse = await fetch(`${API_BASE}/drivers/call`, {
@@ -117,17 +118,19 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         }
         const appUid = createAppData.result.uid;
         const appName = createAppData.result.name;
-        console.log(chalk.green(`App "${name}" created successfully!`));
-        console.log(chalk.dim(`UID: ${appUid}`));
+        const username = createAppData.result.owner.username;
+        console.log(chalk.green(`App "${chalk.red(name)}" created successfully!`));
+        console.log(chalk.dim(`AppName: ${appName}\nUID: ${appUid}\nUsername: ${username}`));
 
         // Step 2: Create a directory for the app
-        console.log(chalk.green(`Creating directory for app "${name}"...\n`));
+        const uid = crypto.randomUUID();
+        console.log(chalk.green(`Creating directory for app "${chalk.red(name)}" with UID: "${chalk.red(uid)}" ...\n`));
         const createDirResponse = await fetch(`${API_BASE}/mkdir`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({
-                parent: `/${createAppData.result.owner.username}/AppData/${appUid}`,
-                path: `app-${crypto.randomUUID()}`,
+                parent: `/${username}/AppData/${appUid}`,
+                path: `app-${uid}`,
                 overwrite: true,
                 dedupe_name: false,
                 create_missing_parents: true
@@ -143,8 +146,8 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         console.log(chalk.dim(`Directory UID: ${dirUid}`));
 
         // Step 3: Create a subdomain for the app
-        console.log(chalk.green(`Creating subdomain for app "${name}"...\n`));
-        const subdomainName = `${name}-${crypto.randomUUID().split('-')[0]}`;
+        const subdomainName = `${name}-${uid.split('-')[0]}`;
+        console.log(chalk.green(`Creating subdomain: "${chalk.red(subdomainName)}"...\n`));
         const createSubdomainResponse = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
             headers: getHeaders(),
@@ -154,21 +157,21 @@ export async function createApp(name, description = '', url = 'https://dev-cente
                 args: {
                     object: {
                         subdomain: subdomainName,
-                        root_dir: `/${createAppData.result.owner.username}/AppData/${appUid}/${createDirData.name}`
+                        root_dir: `/${username}/AppData/${appUid}/${createDirData.name}`
                     }
                 }
             })
         });
         const createSubdomainData = await createSubdomainResponse.json();
         if (!createSubdomainData || !createSubdomainData.success) {
-            console.error(chalk.red(`Failed to create subdomain for app "${name}"`));
+            console.error(chalk.red(`Failed to create subdomain: "${chalk.red(subdomainName)}"`));
             return;
         }
         console.log(chalk.green(`Subdomain created successfully!`));
         console.log(chalk.dim(`Subdomain: ${subdomainName}`));
 
         // Step 4: Update the app's index_url to point to the subdomain
-        console.log(chalk.green(`Set a subdomain for app: "${appName}"...\n`));
+        console.log(chalk.green(`Set "${chalk.red(subdomainName)}" as a subdomain for app: "${chalk.red(appName)}"...\n`));
         const updateAppResponse = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
             headers: getHeaders(),
@@ -189,7 +192,7 @@ export async function createApp(name, description = '', url = 'https://dev-cente
             console.error(chalk.red(`Failed to update app "${name}" with new subdomain`));
             return;
         }
-        console.log(chalk.green(`App updated successfully at:`));
+        console.log(chalk.green(`App deployed successfully at:`));
         console.log(chalk.dim(`https://${subdomainName}.puter.site`));        
     } catch (error) {
         console.error(chalk.red(`Failed to create app "${name}".\nError: ${error.message}`));

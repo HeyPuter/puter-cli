@@ -151,20 +151,19 @@ function showHelp() {
   ${chalk.cyan('app <app_name>')}    Get application informations
   ${chalk.cyan('app:create')}        Create a new app: app:create <name> [url]
   ${chalk.cyan('app:delete')}        Delete an app: app:delete <name>
-  ${chalk.cyan('ls')}                List files and directories
+  ${chalk.cyan('ls [dir]')}          List files and directories
   ${chalk.cyan('cd [dir]')}          Change the current working directory
-  ${chalk.cyan('cd ..')}             Go up one directory
   ${chalk.cyan('pwd')}               Print the current working directory
-  ${chalk.cyan('mkdir')}             Create a new directory
-  ${chalk.cyan('mv')}                Rename a file or directory
-  ${chalk.cyan('rm')}                Move a file or directory to the system's Trash
+  ${chalk.cyan('mkdir <dir>')}       Create a new directory
+  ${chalk.cyan('mv <src> <dest>')}   Rename a file or directory
+  ${chalk.cyan('rm <file>')}         Move a file or directory to the system's Trash
   ${chalk.cyan('clean')}             Empty the system's Trash
-  ${chalk.cyan('cp')}                Copy files or directories
-  ${chalk.cyan('touch')}             Create a new empty file
-  ${chalk.cyan('cat')}               Output file content to the console
-  ${chalk.cyan('push')}              Upload file to Puter cloud
-  ${chalk.cyan('pull')}              Download file from Puter cloud
-  ${chalk.cyan('update')}            Sync local directory with remote cloud
+  ${chalk.cyan('cp <file> <dir>')}   Copy files or directories
+  ${chalk.cyan('touch <file>')}      Create a new empty file
+  ${chalk.cyan('cat <file>')}        Output file content to the console
+  ${chalk.cyan('push <file>')}       Upload file to Puter cloud
+  ${chalk.cyan('pull <file>')}       Download file from Puter cloud
+  ${chalk.cyan('update <s> <d>')}    Sync local directory with remote cloud
   ${chalk.cyan('sites')}             Listing of sites and subdomains
   ${chalk.cyan('site <site_uid>')}   Get site informations by UID
   ${chalk.cyan('site:delete')}       Delete a site by UID

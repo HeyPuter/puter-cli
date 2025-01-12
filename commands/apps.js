@@ -4,7 +4,8 @@ import fetch from 'node-fetch';
 import Table from 'cli-table3';
 import { displayNonNullValues, formatDate } from './utils.js';
 import { API_BASE, getHeaders, getDefaultHomePage, isValidAppName, resolvePath } from './commons.js';
-import { createSubdomain, getSubdomains, deleteSite } from './subdomains.js';
+import { createSubdomain, getSubdomains } from './subdomains.js';
+import { deleteSite } from './sites.js';
 import { copyFile, createFile, listRemoteFiles } from './files.js';
 import { getCurrentDirectory } from './auth.js';
 

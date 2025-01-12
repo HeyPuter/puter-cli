@@ -10,7 +10,7 @@ import { displayNonNullValues } from './utils.js';
  * @param {Object} args - Options for the query.
  * @returns {Array} - Array of subdomains.
  */
-async function getSubdomains(args = {}) {
+export async function getSubdomains(args = {}) {
     const response = await fetch(`${API_BASE}/drivers/call`, {
         method: 'POST',
         headers: getHeaders(),
@@ -194,7 +194,6 @@ export async function infoSite(args = []) {
       displayNonNullValues(data.result);
     } catch (error) {
       console.error(chalk.red('Error getting site info:'), error.message);
-      throw error;
     }
 }
 
@@ -205,7 +204,7 @@ export async function infoSite(args = []) {
 export async function deleteSite(args = []) {
   if (args.length < 1){
       console.log(chalk.red('Usage: site:delete <siteUUID>'));
-      return;
+      return false;
   }
   for (const uuid of args)
       try {
@@ -233,7 +232,9 @@ export async function deleteSite(args = []) {
       console.log(chalk.yellow(`Site ID: "${uuid}" may already be deleted!`));
   } catch (error) {
       console.error(chalk.red('Error deleting site:'), error.message);
+      return false;
   }
+  return true;
 }
 
 /**

@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 import Table from 'cli-table3';
 import { displayNonNullValues, formatDate } from './utils.js';
 import { API_BASE, getHeaders, getDefaultHomePage } from './commons.js';
-import { createSubdomain } from './subdomains.js';
+import { createSubdomain, getSubdomains, deleteSite } from './subdomains.js';
 import { createFile } from './files.js';
 
 /**
@@ -78,9 +78,13 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
 /**
  * Get app informations
  * 
- * @param {object} options
+ * @param {Array} List of options (only "name" is supported at the moment)
+ * @example:
+ * ```json
+ * const data = await appInfo("app name");
+ * ```
  */
-export async function appInfo(args = {}) {
+export async function appInfo(args = []) {
     if (!args || args.length == 0){
         console.log(chalk.red('Usage: app <name>'));
         return;
@@ -270,7 +274,6 @@ export async function deleteApp(name) {
         console.log(`Created: ${new Date(readData.result.created_at).toLocaleString()}`);
         console.log(`URL: ${readData.result.index_url}`);
         console.log(chalk.dim('----------------------------------------'));
-        console.log(chalk.dim('----------------------------------------'));
 
         // Step 2: Delete the app
         console.log(chalk.green(`Deleting app "${chalk.red(name)}"...`));
@@ -292,8 +295,13 @@ export async function deleteApp(name) {
             return false;
         }
         
-        // TODO: Try to lookup subdomainUID then delete it
-        // await deleteSite(readData.result.index_url);
+        // Lookup subdomainUID then delete it
+        const subdomains = await getSubdomains();
+        const appSubdomain = subdomains.result.find(sd => sd.root_dir?.dirname?.endsWith(readData.result.uid));
+        const subdomainDeleted = await deleteSite([appSubdomain.uid]);
+        if (subdomainDeleted){
+            console.log(chalk.green(`Subdomain: ${chalk.dim(appSubdomain.uid)} deleted.`));
+        }
 
         console.log(chalk.green(`App "${chalk.red(name)}" deleted successfully!`));
     } catch (error) {

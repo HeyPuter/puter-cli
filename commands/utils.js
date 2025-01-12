@@ -79,14 +79,14 @@ export function displayNonNullValues(data) {
     // Determine max key length for formatting
     const maxKeyLength = tableData.reduce((max, item) => Math.max(max, item.key.length), 0);
     // Format and output the table
-    console.log(chalk.cyan('-'.repeat(maxKeyLength*4)));
+    console.log(chalk.cyan('-'.repeat(maxKeyLength*3)));
     console.log(chalk.cyan(`| ${'Key'.padEnd(maxKeyLength)} | Value`));
-    console.log(chalk.cyan('-'.repeat(maxKeyLength*4)));
+    console.log(chalk.cyan('-'.repeat(maxKeyLength*3)));
     tableData.forEach(item => {
         const key = item.key.padEnd(maxKeyLength);
         const value = String(item.value);
         console.log(chalk.green(`| ${chalk.dim(key)} | ${value}`));
     });
-    console.log(chalk.cyan('-'.repeat(maxKeyLength*4)));
+    console.log(chalk.cyan('-'.repeat(maxKeyLength*3)));
     console.log(chalk.cyan(`You have ${chalk.green(tableData.length)} key/value pair(s).`));
   }

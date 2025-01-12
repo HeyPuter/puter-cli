@@ -2,7 +2,7 @@ import path from 'path';
 import chalk from 'chalk';
 import fetch from 'node-fetch';
 import Table from 'cli-table3';
-import { formatDate } from './utils.js';
+import { displayNonNullValues, formatDate } from './utils.js';
 import { API_BASE, getHeaders, getDefaultHomePage } from './commons.js';
 import { createSubdomain } from './subdomains.js';
 import { createFile } from './files.js';
@@ -72,6 +72,44 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
         }
     } catch (error) {
         console.error(chalk.red(`Failed to list apps. Error: ${error.message}`));
+    }
+}
+
+/**
+ * Get app informations
+ * 
+ * @param {object} options
+ */
+export async function appInfo(args = {}) {
+    if (!args || args.length == 0){
+        console.log(chalk.red('Usage: app <name>'));
+        return;
+    }
+    const appName = args[0].trim()
+    console.log(chalk.green(`Looking for "${chalk.red(appName)}" app informations:\n`));
+    try {
+        const response = await fetch(`${API_BASE}/drivers/call`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                interface: "puter-apps",
+                method: "read",
+                args: {
+                    id: {
+                        name: appName
+                    }
+                }
+            })
+        });
+        const data = await response.json();
+        if (data && data['result']) {
+            // Display the informations
+            displayNonNullValues(data['result']);
+        } else {
+            console.error(chalk.red('Could not find this app.'));
+        }
+    } catch (error) {
+        console.error(chalk.red(`Failed to get app info. Error: ${error.message}`));
     }
 }
 

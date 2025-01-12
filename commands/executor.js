@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
-import { listApps, createApp, deleteApp } from './apps.js';
+import { listApps, appInfo, createApp, deleteApp } from './apps.js';
 import { listSubdomains, createSite, deleteSite, infoSite } from './subdomains.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
@@ -36,6 +36,7 @@ const commands = {
         statsPeriod: args[0] || 'all'
     });
   },
+  app: appInfo,
   'app:create': async (args) => {
     if (args.length < 1) {
         console.log(chalk.red('Usage: app:create <name> [description] [url]'));

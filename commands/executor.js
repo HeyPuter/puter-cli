@@ -106,32 +106,33 @@ const commands = {
 export async function execCommand(input) {
   const [cmd, ...args] = input.split(' ');
 
-  if (cmd.startsWith('!')) {
+  if (cmd === 'help') {
+    // Handle help command
+    const command = args[0];
+    showHelp(command);
+  } else if (cmd.startsWith('!')) {
     // Execute the command on the host machine
     const hostCommand = input.slice(1); // Remove the "!"
-      exec(hostCommand, (error, stdout, stderr) => {
-          if (error) {
-              console.error(chalk.red(`Host Error: ${error.message}`));
-              return;
-          }
-          if (stderr) {
-              console.error(chalk.red(stderr));
-              return;
-          }
-          console.log(stdout);
-          console.log(chalk.green(`Press <Enter> to return.`));
-      });
+    exec(hostCommand, (error, stdout, stderr) => {
+      if (error) {
+        console.error(chalk.red(`Host Error: ${error.message}`));
+        return;
+      }
+      if (stderr) {
+        console.error(chalk.red(stderr));
+        return;
+      }
+      console.log(stdout);
+      console.log(chalk.green(`Press <Enter> to return.`));
+    });
   } else if (commands[cmd]) {
-    // const spinner = ora(chalk.green(`Executing command: ${cmd}...\n`)).start();
     try {
       await commands[cmd](args);
-      // spinner.succeed(chalk.green(`Command "${cmd}" executed successfully!`));
     } catch (error) {
       console.error(chalk.red(`Error executing command: ${error.message}`));
-      // spinner.fail(chalk.red(`Error executing command: ${error.message}`));
     }
   } else {
-    if (!['Y','N'].includes(cmd.toUpperCase()[0])){
+    if (!['Y', 'N'].includes(cmd.toUpperCase()[0])) {
       console.log(chalk.red(`Unknown command: ${cmd}`));
       showHelp();
     }
@@ -139,40 +140,167 @@ export async function execCommand(input) {
 }
 
 /**
- * Display help menu
+ * Display help for a specific command or general help if no command is provided.
+ * @param {string} [command] - The command to display help for.
  */
-function showHelp() {
-  console.log(chalk.yellow('\nAvailable commands:'));
-  console.log(`
-  ${chalk.cyan('help')}              Show this help message
-  ${chalk.cyan('exit')}              Exit the shell
-  ${chalk.cyan('logout')}            Logout from Puter account
-  ${chalk.cyan('whoami')}            Show user informations
-  ${chalk.cyan('stat')}              Show statistical informations
-  ${chalk.cyan('df')}                Show disk usage informations
-  ${chalk.cyan('usage')}             Show usage informations
-  ${chalk.cyan('stat')}              Show statistical informations
-  ${chalk.cyan('apps [period]')}     List all your apps
-                      period: today, yesterday, 7d, 30d, this_month, last_month
-  ${chalk.cyan('app <app_name>')}    Get application informations
-  ${chalk.cyan('app:create')}        Create a new app: app:create <name> [url]
-  ${chalk.cyan('app:delete')}        Delete an app: app:delete <name>
-  ${chalk.cyan('ls [dir]')}          List files and directories
-  ${chalk.cyan('cd [dir]')}          Change the current working directory
-  ${chalk.cyan('pwd')}               Print the current working directory
-  ${chalk.cyan('mkdir <dir>')}       Create a new directory
-  ${chalk.cyan('mv <src> <dest>')}   Rename a file or directory
-  ${chalk.cyan('rm <file>')}         Move a file or directory to the system's Trash
-  ${chalk.cyan('clean')}             Empty the system's Trash
-  ${chalk.cyan('cp <file> <dir>')}   Copy files or directories
-  ${chalk.cyan('touch <file>')}      Create a new empty file
-  ${chalk.cyan('cat <file>')}        Output file content to the console
-  ${chalk.cyan('push <file>')}       Upload file to Puter cloud
-  ${chalk.cyan('pull <file>')}       Download file from Puter cloud
-  ${chalk.cyan('update <s> <d>')}    Sync local directory with remote cloud
-  ${chalk.cyan('sites')}             Listing of sites and subdomains
-  ${chalk.cyan('site <site_uid>')}   Get site informations by UID
-  ${chalk.cyan('site:delete')}       Delete a site by UID
-  ${chalk.cyan('site:create')}       Create a static website from directory
-  `);
+function showHelp(command) {
+  const commandHelp = {
+    help: `
+      ${chalk.cyan('help [command]')}
+      Display help for a specific command or show general help.
+      Example: help ls
+    `,
+    exit: `
+      ${chalk.cyan('exit')}
+      Exit the shell.
+    `,
+    logout: `
+      ${chalk.cyan('logout')}
+      Logout from Puter account.
+    `,
+    whoami: `
+      ${chalk.cyan('whoami')}
+      Show user information.
+    `,
+    stat: `
+      ${chalk.cyan('stat <path>')}
+      Show file or directory information.
+      Example: stat /path/to/file
+    `,
+    df: `
+      ${chalk.cyan('df')}
+      Show disk usage information.
+    `,
+    usage: `
+      ${chalk.cyan('usage')}
+      Show usage information.
+    `,
+    apps: `
+      ${chalk.cyan('apps [period]')}
+      List all your apps.
+      period: today, yesterday, 7d, 30d, this_month, last_month
+      Example: apps today
+    `,
+    app: `
+      ${chalk.cyan('app <app_name>')}
+      Get application information.
+      Example: app myapp
+    `,
+    'app:create': `
+      ${chalk.cyan('app:create <name> [url]')}
+      Create a new app.
+      Example: app:create myapp https://example.com
+    `,
+    'app:update': `
+      ${chalk.cyan('app:update <name> [dir]')}
+      Update an app.
+      Example: app:update myapp .
+    `,
+    'app:delete': `
+      ${chalk.cyan('app:delete <name>')}
+      Delete an app.
+      Example: app:delete myapp
+    `,
+    ls: `
+      ${chalk.cyan('ls [dir]')}
+      List files and directories.
+      Example: ls /path/to/dir
+    `,
+    cd: `
+      ${chalk.cyan('cd [dir]')}
+      Change the current working directory.
+      Example: cd /path/to/dir
+    `,
+    pwd: `
+      ${chalk.cyan('pwd')}
+      Print the current working directory.
+    `,
+    mkdir: `
+      ${chalk.cyan('mkdir <dir>')}
+      Create a new directory.
+      Example: mkdir /path/to/newdir
+    `,
+    mv: `
+      ${chalk.cyan('mv <src> <dest>')}
+      Move or rename a file or directory.
+      Example: mv /path/to/src /path/to/dest
+    `,
+    rm: `
+      ${chalk.cyan('rm <file>')}
+      Move a file or directory to the system's Trash.
+      Example: rm /path/to/file
+    `,
+    clean: `
+      ${chalk.cyan('clean')}
+      Empty the system's Trash.
+    `,
+    cp: `
+      ${chalk.cyan('cp <src> <dest>')}
+      Copy files or directories.
+      Example: cp /path/to/src /path/to/dest
+    `,
+    touch: `
+      ${chalk.cyan('touch <file>')}
+      Create a new empty file.
+      Example: touch /path/to/file
+    `,
+    cat: `
+      ${chalk.cyan('cat <file>')}
+      Output file content to the console.
+      Example: cat /path/to/file
+    `,
+    push: `
+      ${chalk.cyan('push <file>')}
+      Upload file to Puter cloud.
+      Example: push /path/to/file
+    `,
+    pull: `
+      ${chalk.cyan('pull <file>')}
+      Download file from Puter cloud.
+      Example: pull /path/to/file
+    `,
+    update: `
+      ${chalk.cyan('update <src> <dest>')}
+      Sync local directory with remote cloud.
+      Example: update /local/path /remote/path
+    `,
+    sites: `
+      ${chalk.cyan('sites')}
+      List sites and subdomains.
+    `,
+    site: `
+      ${chalk.cyan('site <site_uid>')}
+      Get site information by UID.
+      Example: site sd-123456
+    `,
+    'site:delete': `
+      ${chalk.cyan('site:delete <uid>')}
+      Delete a site by UID.
+      Example: site:delete sd-123456
+    `,
+    'site:create': `
+      ${chalk.cyan('site:create <dir> [--subdomain=<name>]')}
+      Create a static website from directory.
+      Example: site:create /path/to/dir --subdomain=myapp
+    `,
+    '!': `
+      ${chalk.cyan('!<command>')}
+      Execute a command on the host machine.
+      Example: !ls -la
+    `,
+  };
+
+  if (command && commandHelp[command]) {
+    console.log(chalk.yellow(`\nHelp for command: ${chalk.cyan(command)}`));
+    console.log(commandHelp[command]);
+  } else if (command) {
+    console.log(chalk.red(`Unknown command: ${command}`));
+    console.log(chalk.yellow('Use "help" to see a list of available commands.'));
+  } else {
+    console.log(chalk.yellow('\nAvailable commands:'));
+    for (const cmd in commandHelp) {
+      console.log(chalk.cyan(cmd.padEnd(20)) + '- ' + commandHelp[cmd].split('\n')[2].trim());
+    }
+    console.log(chalk.yellow('\nUse "help <command>" for detailed help on a specific command.'));
+  }
 }

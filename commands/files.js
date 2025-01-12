@@ -20,7 +20,7 @@ const config = new Conf({ projectName: PROJECT_NAME });
  * @param {string} path Path to the file or directory
  * @returns List of files found
  */
-async function listRemoteFiles(path) {
+export async function listRemoteFiles(path) {
     const response = await fetch(`${API_BASE}/readdir`, {
         method: 'POST',
         headers: getHeaders(),
@@ -960,21 +960,15 @@ export async function copyFile(args = []) {
         return;
     }
 
-    const sourcePath = resolvePath(getCurrentDirectory(), args[0]); // Resolve the source path
-    const destinationPath = resolvePath(getCurrentDirectory(), args[1]); // Resolve the destination path
-
-    console.log(chalk.green(`Copying file "${sourcePath}" to "${destinationPath}"...\n`));
-
+    const sourcePath = args[0].startsWith(`/${getCurrentUserName()}`)? args[0]: resolvePath(getCurrentDirectory(), args[0]); // Resolve the source path
+    const destinationPath = args[1].startsWith(`/${getCurrentUserName()}`)? args[1]: resolvePath(getCurrentDirectory(), args[1]); // Resolve the destination path
+    console.log(chalk.green(`Copy: "${chalk.dim(sourcePath)}" to: "${chalk.dim(destinationPath)}"...\n`));
     try {
         // Step 1: Prepare the copy request
-        // const socketId = 'undefined'; // Placeholder socket ID
-
         const copyResponse = await fetch(`${API_BASE}/copy`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({
-                // original_client_socket_id: socketId,
-                // socket_id: socketId,
                 source: sourcePath,
                 destination: destinationPath
             })

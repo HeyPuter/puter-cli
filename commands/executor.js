@@ -42,7 +42,7 @@ const commands = {
         console.log(chalk.red('Usage: app:create <name> [description] [url]'));
         return;
     }
-    await createApp(args[0], args[1]);
+    await createApp(args);
   },
   'app:delete': async (args) => {
     if (args.length < 1) {

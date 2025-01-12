@@ -3,9 +3,10 @@ import chalk from 'chalk';
 import fetch from 'node-fetch';
 import Table from 'cli-table3';
 import { displayNonNullValues, formatDate } from './utils.js';
-import { API_BASE, getHeaders, getDefaultHomePage } from './commons.js';
+import { API_BASE, getHeaders, getDefaultHomePage, isValidAppName, resolvePath } from './commons.js';
 import { createSubdomain, getSubdomains, deleteSite } from './subdomains.js';
-import { createFile } from './files.js';
+import { copyFile, createFile, listRemoteFiles } from './files.js';
+import { getCurrentDirectory } from './auth.js';
 
 /**
  * List all apps
@@ -39,6 +40,7 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
             // Create a new table instance
             const table = new Table({
                 head: [
+                    chalk.cyan('#'),
                     chalk.cyan('Title'),
                     chalk.cyan('Name'),
                     chalk.cyan('Created'),
@@ -47,13 +49,15 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
                     chalk.cyan('#Open'),
                     chalk.cyan('#User')
                 ],
-                colWidths: [20, 30, 25, 35, 8, 8],
+                colWidths: [5, 20, 30, 25, 35, 8, 8],
                 wordWrap: false
             });
 
             // Populate the table with app data
+            let i = 0;
             for (const app of data['result']) {
                 table.push([
+                    i++,
                     app['title'],
                     app['name'],
                     formatDate(app['created_at']),
@@ -124,7 +128,20 @@ export async function appInfo(args = []) {
  * @param {string} url A default coming-soon URL
  * @returns Output JSON data
  */
-export async function createApp(name, description = '', url = 'https://dev-center.puter.com/coming-soon.html') {
+export async function createApp(args = []) {
+    if (args.length < 1 || !isValidAppName(args[0])) {
+        console.log(chalk.red('Usage: app:create <valid_name_app> [<remote_dir>] [--description=<description>] [--url=<url>]'));
+        console.log(chalk.yellow('Example: app:create myapp'));
+        console.log(chalk.yellow('Example: app:create myapp ./myapp'));
+        console.log(chalk.yellow('Example: app:create myapp --description=myapp'));
+        return;
+    }
+    const name = args[0]; // App name (required)
+    // Use the default home page if the root directory if none specified
+    const localDir = (args[1] && !args[1].startsWith('--'))? resolvePath(getCurrentDirectory(), args[1]):'';
+    const description = (args.find(arg => arg.toLocaleLowerCase().startsWith('--description='))?.split('=')[1]) || ''; // Optional description
+    const url = (args.find(arg => arg.toLocaleLowerCase().startsWith('--url='))?.split('=')[1]) || 'https://dev-center.puter.com/coming-soon.html'; // Optional url
+
     console.log(chalk.green(`Creating app: "${chalk.red(name)}"...\n`));
     try {
         // Step 1: Create the app
@@ -200,9 +217,24 @@ export async function createApp(name, description = '', url = 'https://dev-cente
         console.log(chalk.dim(`Subdomain: ${subdomainName}`));
 
         // Step 4: Create a home page
-        const homePageResult = await createFile([path.join(remoteDir, 'index.html'), getDefaultHomePage(appName)]);
-        if (!homePageResult){
-            console.log(chalk.red("We could not create the home page file!"));
+        if (localDir.length > 0){
+            // List files in the current "localDir" then copy them to the "remoteDir"
+                const files = await listRemoteFiles(localDir);
+                if (Array.isArray(files) && files.length > 0) {
+                    console.log(chalk.cyan(`Copying ${files.length} files from: ${chalk.dim(localDir)}`));
+                    console.log(chalk.cyan(`To destination: ${chalk.dim(remoteDir)}`));
+                    for (const file of files) {
+                        const fileSource = path.join(localDir, file.name);
+                        await copyFile([fileSource, remoteDir]);
+                    }
+                } else {
+                    console.log(chalk.red("We could not find any file in the specified directory!"));
+                }
+        } else {
+            const homePageResult = await createFile([path.join(remoteDir, 'index.html'), getDefaultHomePage(appName)]);
+            if (!homePageResult){
+                console.log(chalk.red("We could not create the home page file!"));
+            }
         }
 
         // Step 5: Update the app's index_url to point to the subdomain

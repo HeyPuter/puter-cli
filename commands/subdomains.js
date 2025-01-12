@@ -244,9 +244,9 @@ export async function deleteSite(args = []) {
 export async function createSite(args = []) {
   if (args.length < 1 || !isValidAppName(args[0])) {
       console.log(chalk.red('Usage: site:create <valid_name_app> [<remote_dir>] [--subdomain=<subdomain>]'));
-      console.log(chalk.yellow('Example: site:create myapp'));
-      console.log(chalk.yellow('Example: site:create myapp ./myapp'));
-      console.log(chalk.yellow('Example: site:create myapp --subdomain=myapp'));
+      console.log(chalk.yellow('Example: site:create mysite'));
+      console.log(chalk.yellow('Example: site:create mysite ./mysite'));
+      console.log(chalk.yellow('Example: site:create mysite --subdomain=mysite'));
       return;
   }
 

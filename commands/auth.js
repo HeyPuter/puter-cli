@@ -32,15 +32,7 @@ export async function login() {
   try {
     const response = await fetch('https://puter.com/login', {
       method: 'POST',
-      headers: {
-        'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Connection': 'keep-alive',
-        'Content-Type': 'application/json',
-        'Origin': 'https://puter.com',
-        'Referer': 'https://puter.com/',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-      },
+      headers: getHeaders(),
       body: JSON.stringify({
         username: answers.username,
         password: answers.password
@@ -167,7 +159,7 @@ export async function getUsageInfo() {
                   const service = `${usage.service['driver.interface']}.${usage.service['driver.method']}`;
                   const implementation = usage.service['driver.implementation'];
                   const month = `${usage.month}/${usage.year}`;
-                  const monthlyUsage = usage.monthly_usage.toString();
+                  const monthlyUsage = usage.monthly_usage?.toString();
                   const monthlyLimit = usage.monthly_limit ? usage.monthly_limit.toString() : 'No Limit';
                   const rateLimit = usage.policy ? `${usage.policy['rate-limit'].max} req/${usage.policy['rate-limit'].period / 1000}s` : 'N/A';
 

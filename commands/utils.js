@@ -1,3 +1,5 @@
+import chalk from 'chalk';
+
 /**
  * Convert "2024-10-07T15:03:53.000Z" to "10/7/2024, 15:03:53"
  * @param {Date} value date value
@@ -31,7 +33,11 @@ export function formatDateTime(timestamp) {
         return date.toLocaleDateString();
     }
 }
-
+/**
+ * Format file size in human readable format
+ * @param {number} size File size value
+ * @returns string formatted in human readable format
+ */
 export function formatSize(size) {
     if (size === null || size === undefined) return '0';
     if (size === 0) return '0';
@@ -43,3 +49,44 @@ export function formatSize(size) {
     }
     return `${size.toFixed(1)} ${units[unit]}`;
 }
+
+/**
+ * Display non null values in formatted table
+ * @param {Object} data Object to display
+ * @returns null
+ */
+export function displayNonNullValues(data) {
+    if (typeof data !== 'object' || data === null) {
+      console.error("Invalid input: Input must be a non-null object.");
+      return;
+    }
+    const tableData = [];
+    function flattenObject(obj, parentKey = '') {
+      for (const key in obj) {
+        const value = obj[key];
+        const newKey = parentKey ? `${parentKey}.${key}` : key;
+        if (value !== null) {
+          if (typeof value === 'object') {
+            flattenObject(value, newKey);
+          } else {
+            tableData.push({ key: newKey, value: value });
+          }
+        }
+      }
+    }
+  
+    flattenObject(data);
+    // Determine max key length for formatting
+    const maxKeyLength = tableData.reduce((max, item) => Math.max(max, item.key.length), 0);
+    // Format and output the table
+    console.log(chalk.cyan('-'.repeat(maxKeyLength*4)));
+    console.log(chalk.cyan(`| ${'Key'.padEnd(maxKeyLength)} | Value`));
+    console.log(chalk.cyan('-'.repeat(maxKeyLength*4)));
+    tableData.forEach(item => {
+        const key = item.key.padEnd(maxKeyLength);
+        const value = String(item.value);
+        console.log(chalk.green(`| ${chalk.dim(key)} | ${value}`));
+    });
+    console.log(chalk.cyan('-'.repeat(maxKeyLength*4)));
+    console.log(chalk.cyan(`You have ${chalk.green(tableData.length)} key/value pair(s).`));
+  }

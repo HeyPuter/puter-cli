@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
-import { listApps, createApp, deleteApp, deploySite, deleteSite } from './apps.js';
-import { listSubdomains } from './subdomains.js';
+import { listApps, createApp, deleteApp } from './apps.js';
+import { listSubdomains, createSite, deleteSite, infoSite } from './subdomains.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
   getInfo, getDiskUsage, createFile, readFile, uploadFile, 
@@ -86,8 +86,9 @@ const commands = {
   pull: downloadFile,
   update: syncDirectory,
   sites: listSubdomains,
+  site: infoSite,
   'site:delete': deleteSite,
-  deploy: deploySite
+  'site:create': createSite
 };
 
 /**
@@ -146,6 +147,7 @@ function showHelp() {
   ${chalk.cyan('stat')}              Show statistical informations
   ${chalk.cyan('apps [period]')}     List all your apps
                       period: today, yesterday, 7d, 30d, this_month, last_month
+  ${chalk.cyan('app <app_name>')}    Get application informations
   ${chalk.cyan('app:create')}        Create a new app: app:create <name> [url]
   ${chalk.cyan('app:delete')}        Delete an app: app:delete <name>
   ${chalk.cyan('ls')}                List files and directories
@@ -163,7 +165,8 @@ function showHelp() {
   ${chalk.cyan('pull')}              Download file from Puter cloud
   ${chalk.cyan('update')}            Sync local directory with remote cloud
   ${chalk.cyan('sites')}             Listing of sites and subdomains
-  ${chalk.cyan('site:delete')}       Delete a site by UUID
-  ${chalk.cyan('deploy')}            Deploy a directory into website
+  ${chalk.cyan('site <site_uid>')}   Get site informations by UID
+  ${chalk.cyan('site:delete')}       Delete a site by UID
+  ${chalk.cyan('site:create')}       Create a static website from directory
   `);
 }

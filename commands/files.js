@@ -1214,7 +1214,3 @@ export async function syncDirectory(args = []) {
         console.error(chalk.red(`Error: ${error.message}`));
     }
 }
-
-export async function deployApp(args = []) {
-    
-}

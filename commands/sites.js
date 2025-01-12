@@ -3,8 +3,8 @@ import fetch from 'node-fetch';
 import Table from 'cli-table3';
 import { getCurrentUserName, getCurrentDirectory } from './auth.js';
 import { API_BASE, getHeaders, generateAppName, resolvePath, isValidAppName } from './commons.js';
-import { displayNonNullValues } from './utils.js';
-import { getSubdomains } from './subdomains.js';
+import { displayNonNullValues, formatDate, formatDateTime } from './utils.js';
+import { getSubdomains, deleteSubdomain } from './subdomains.js';
 
 
 /**
@@ -29,21 +29,17 @@ export async function listSites(args = {}) {
         //   chalk.cyan('Owner'),
           chalk.cyan('Directory')
         ],
-        style: {
-          head: [], // Disable colors in header
-          border: [] // Disable colors for borders
-        }
+        wordWrap: false
       });
   
       // Format and add data to table
       let i = 0;
       data.result.forEach(domain => {
-        const createdDate = new Date(domain.created_at).toLocaleDateString();        
         table.push([
           i++,
           domain.uid,
-          chalk.green(`${domain.subdomain}.puter.site`),
-          createdDate,
+          chalk.green(`${chalk.dim(domain.subdomain)}.puter.site`),
+          formatDate(domain.created_at).split(',')[0],
           domain.protected ? chalk.red('Yes') : chalk.green('No'),
         //   domain.owner['username'],
           domain?.root_dir?.path.split('/').pop()
@@ -54,13 +50,13 @@ export async function listSites(args = {}) {
       if (data.result.length === 0) {
         console.log(chalk.yellow('No subdomains found'));
       } else {
-        console.log(chalk.bold('\nYour Subdomains:'));
+        console.log(chalk.bold('\nYour Sites:'));
         console.log(table.toString());
-        console.log(chalk.dim(`Total subdomains: ${data.result.length}`));
+        console.log(chalk.dim(`Total Sites: ${data.result.length}`));
       }
   
     } catch (error) {
-      console.error(chalk.red('Error listing subdomains:'), error.message);
+      console.error(chalk.red('Error listing sites:'), error.message);
       throw error;
     }
 }

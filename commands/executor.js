@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
-import { listApps, appInfo, createApp, deleteApp } from './apps.js';
+import { listApps, appInfo, createApp, updateApp, deleteApp } from './apps.js';
 import { listSites, createSite, deleteSite, infoSite } from './sites.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
@@ -39,10 +39,17 @@ const commands = {
   app: appInfo,
   'app:create': async (args) => {
     if (args.length < 1) {
-        console.log(chalk.red('Usage: app:create <name> [description] [url]'));
+        console.log(chalk.red('Usage: app:create <name> [<remote_dir>] [--description=<description>] [--url=<url>]'));
         return;
     }
     await createApp(args);
+  },
+  'app:update': async (args) => {
+    if (args.length < 1) {
+        console.log(chalk.red('Usage: app:update <name> <remote_dir>'));
+        return;
+    }
+    await updateApp(args);
   },
   'app:delete': async (args) => {
     if (args.length < 1) {
@@ -98,7 +105,6 @@ const commands = {
  */
 export async function execCommand(input) {
   const [cmd, ...args] = input.split(' ');
-
 
   if (cmd.startsWith('!')) {
     // Execute the command on the host machine

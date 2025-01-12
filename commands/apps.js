@@ -6,7 +6,7 @@ import { displayNonNullValues, formatDate } from './utils.js';
 import { API_BASE, getHeaders, getDefaultHomePage, isValidAppName, resolvePath } from './commons.js';
 import { createSubdomain, getSubdomains } from './subdomains.js';
 import { deleteSite } from './sites.js';
-import { copyFile, createFile, listRemoteFiles } from './files.js';
+import { copyFile, createFile, listRemoteFiles, pathExists, removeFileOrDirectory } from './files.js';
 import { getCurrentDirectory } from './auth.js';
 
 /**
@@ -95,7 +95,7 @@ export async function appInfo(args = []) {
         return;
     }
     const appName = args[0].trim()
-    console.log(chalk.green(`Looking for "${chalk.red(appName)}" app informations:\n`));
+    console.log(chalk.green(`Looking for "${chalk.dim(appName)}" app informations:\n`));
     try {
         const response = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
@@ -143,7 +143,7 @@ export async function createApp(args = []) {
     const description = (args.find(arg => arg.toLocaleLowerCase().startsWith('--description='))?.split('=')[1]) || ''; // Optional description
     const url = (args.find(arg => arg.toLocaleLowerCase().startsWith('--url='))?.split('=')[1]) || 'https://dev-center.puter.com/coming-soon.html'; // Optional url
 
-    console.log(chalk.green(`Creating app: "${chalk.red(name)}"...\n`));
+    console.log(chalk.green(`Creating app: "${chalk.dim(name)}"...\n`));
     try {
         // Step 1: Create the app
         const createAppResponse = await fetch(`${API_BASE}/drivers/call`, {
@@ -178,8 +178,8 @@ export async function createApp(args = []) {
         const appUid = createAppData.result.uid;
         const appName = createAppData.result.name;
         const username = createAppData.result.owner.username;
-        console.log(chalk.green(`App "${chalk.red(name)}" created successfully!`));
-        console.log(chalk.dim(`AppName: ${appName}\nUID: ${appUid}\nUsername: ${username}`));
+        console.log(chalk.green(`App "${chalk.dim(name)}" created successfully!`));
+        console.log(chalk.cyan(`AppName: ${chalk.dim(appName)}\nUID: ${chalk.dim(appUid)}\nUsername: ${chalk.dim(username)}`));
 
         // Step 2: Create a directory for the app
         const uid = crypto.randomUUID();
@@ -203,7 +203,7 @@ export async function createApp(args = []) {
         }
         const dirUid = createDirData.uid;
         console.log(chalk.green(`Directory created successfully!`));
-        console.log(chalk.dim(`Directory UID: ${dirUid}`));
+        console.log(chalk.cyan(`Directory UID: ${chalk.dim(dirUid)}`));
 
         // Step 3: Create a subdomain for the app
         const subdomainName = `${name}-${uid.split('-')[0]}`;
@@ -211,35 +211,35 @@ export async function createApp(args = []) {
         console.log(chalk.green(`Linking to subdomain...\nSubdomain: "${chalk.dim(subdomainName)}"\nPath: ${chalk.dim(remoteDir)}\n`));
         const subdomainResult = await createSubdomain(subdomainName, remoteDir);
         if (!subdomainResult) {
-            console.error(chalk.red(`Failed to create subdomain: "${chalk.red(subdomainName)}"`));
+            console.error(chalk.red(`Failed to create subdomain: "${subdomainName}"`));
             return;
         }
         console.log(chalk.green(`Subdomain created successfully!`));
-        console.log(chalk.dim(`Subdomain: ${subdomainName}`));
+        console.log(chalk.cyan(`Subdomain: ${chalk.dim(subdomainName)}`));
 
         // Step 4: Create a home page
         if (localDir.length > 0){
             // List files in the current "localDir" then copy them to the "remoteDir"
                 const files = await listRemoteFiles(localDir);
                 if (Array.isArray(files) && files.length > 0) {
-                    console.log(chalk.cyan(`Copying ${files.length} files from: ${chalk.dim(localDir)}`));
+                    console.log(chalk.cyan(`Copying ${chalk.dim(files.length)} files from: ${chalk.dim(localDir)}`));
                     console.log(chalk.cyan(`To destination: ${chalk.dim(remoteDir)}`));
                     for (const file of files) {
                         const fileSource = path.join(localDir, file.name);
                         await copyFile([fileSource, remoteDir]);
                     }
                 } else {
-                    console.log(chalk.red("We could not find any file in the specified directory!"));
+                    console.log(chalk.yellow("We could not find any file in the specified directory!"));
                 }
         } else {
             const homePageResult = await createFile([path.join(remoteDir, 'index.html'), getDefaultHomePage(appName)]);
             if (!homePageResult){
-                console.log(chalk.red("We could not create the home page file!"));
+                console.log(chalk.yellow("We could not create the home page file!"));
             }
         }
 
         // Step 5: Update the app's index_url to point to the subdomain
-        console.log(chalk.green(`Set "${chalk.red(subdomainName)}" as a subdomain for app: "${chalk.red(appName)}"...\n`));
+        console.log(chalk.green(`Set "${chalk.dim(subdomainName)}" as a subdomain for app: "${chalk.dim(appName)}"...\n`));
         const updateAppResponse = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
             headers: getHeaders(),
@@ -249,7 +249,7 @@ export async function createApp(args = []) {
                 args: {
                     id: { name: appName },
                     object: {
-                        index_url: `https://${appName}.puter.site`,
+                        index_url: `https://${subdomainName}.puter.site`,
                         title: name
                     }
                 }
@@ -261,9 +261,85 @@ export async function createApp(args = []) {
             return;
         }
         console.log(chalk.green(`App deployed successfully at:`));
-        console.log(chalk.dim(`https://${subdomainName}.puter.site`));        
+        console.log(chalk.cyanBright(`https://${subdomainName}.puter.site`));        
     } catch (error) {
         console.error(chalk.red(`Failed to create app "${name}".\nError: ${error.message}`));
+    }
+}
+
+/**
+ * Update an application from the directory
+ * @param {string} name The name of the App
+ * @param {string} remote_dir The remote directory
+ */
+export async function updateApp(args = []) {
+    if (args.length < 1) {
+        console.log(chalk.red('Usage: app:update <valid_name_app> [<remote_dir>]'));
+        console.log(chalk.yellow('Example: app:create myapp'));
+        console.log(chalk.yellow('Example: app:create myapp ./myapp'));
+        return;
+    }
+    const name = args[0]; // App name (required)
+    const remoteDir = resolvePath(getCurrentDirectory(), args[1] || '.');
+    const remoteDirExists = await pathExists(remoteDir);
+    
+    if (!remoteDirExists){
+        console.log(chalk.red(`Cannot find directory: ${chalk.dim(remoteDir)}...\n`));
+        return;
+    }
+
+    console.log(chalk.green(`Updating app: "${chalk.dim(name)}" from directory: ${chalk.dim(remoteDir)}\n`));
+    try {
+        // Step 1: Get the app info
+        const appResponse = await fetch(`${API_BASE}/drivers/call`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                interface: "puter-apps",
+                method: "read",
+                args: {
+                    id: { name }
+                }
+            })
+        });
+        const data = await appResponse.json();
+        if (!data || !data.success) {
+            console.error(chalk.red(`Failed to find app: "${name}"`));
+            return;
+        }
+        const appUid = data.result.uid;
+        const appName = data.result.name;
+        const username = data.result.owner.username;
+        const indexUrl = data.result.index_url;
+        const appDir = `/${username}/AppData/${appUid}`;
+        console.log(chalk.cyan(`AppName: ${chalk.dim(appName)}\nUID: ${chalk.dim(appUid)}\nUsername: ${chalk.dim(username)}`));
+
+        // Step 2: Find the path from subdomain
+        const subdomains = await getSubdomains();
+        const appSubdomain = subdomains.result.find(sd => sd.root_dir?.dirname?.endsWith(appUid));
+        const subdomainDir = appSubdomain['root_dir']['path'];
+
+        // Step 3: List files in the current "remoteDir" then copy them to the "subdomainDir"
+        const files = await listRemoteFiles(remoteDir);
+        if (Array.isArray(files) && files.length > 0) {
+            console.log(chalk.cyan(`Copying ${chalk.dim(files.length)} files from: ${chalk.dim(remoteDir)}`));
+            console.log(chalk.cyan(`To destination: ${chalk.dim(subdomainDir)}`));
+            for (const file of files) {
+                const fileSource = path.join(remoteDir, file.name);
+                const fileDest = path.join(subdomainDir, file.name);
+                if ((await pathExists(fileDest))){
+                    await removeFileOrDirectory([fileDest, '-f']);
+                }
+                await copyFile([fileSource, subdomainDir]);
+            }
+        } else {
+            console.log(chalk.red("We could not find any file in the specified directory!"));
+        }
+        
+        console.log(chalk.green(`App updated successfully at:`));
+        console.log(chalk.dim(indexUrl));
+    } catch (error) {
+        console.error(chalk.red(`Failed to update app "${name}".\nError: ${error.message}`));
     }
 }
 
@@ -302,10 +378,10 @@ export async function deleteApp(name) {
         // Show app details and confirm deletion
         console.log(chalk.cyan('\nApp Details:'));
         console.log(chalk.dim('----------------------------------------'));
-        console.log(`Name: ${readData.result.name}`);
-        console.log(`Title: ${readData.result.title}`);
-        console.log(`Created: ${new Date(readData.result.created_at).toLocaleString()}`);
-        console.log(`URL: ${readData.result.index_url}`);
+        console.log(chalk.dim(`Name: ${chalk.cyan(readData.result.name)}`));
+        console.log(chalk.dim(`Title: ${chalk.cyan(readData.result.title)}`));
+        console.log(chalk.dim(`Created: ${chalk.cyan(formatDate(readData.result.created_at))}`));
+        console.log(chalk.dim(`URL: ${readData.result.index_url}`));
         console.log(chalk.dim('----------------------------------------'));
 
         // Step 2: Delete the app
@@ -320,7 +396,7 @@ export async function deleteApp(name) {
                     id: { name }
                 }
             })
-        });
+        });path
 
         const deleteData = await deleteResponse.json();
         if (!deleteData.success) {
@@ -336,7 +412,7 @@ export async function deleteApp(name) {
             console.log(chalk.green(`Subdomain: ${chalk.dim(appSubdomain.uid)} deleted.`));
         }
 
-        console.log(chalk.green(`App "${chalk.red(name)}" deleted successfully!`));
+        console.log(chalk.green(`App "${chalk.dim(name)}" deleted successfully!`));
     } catch (error) {
         console.error(chalk.red(`Failed to delete app "${name}".\nError: ${error.message}`));
         return false;

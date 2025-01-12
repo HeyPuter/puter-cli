@@ -39,8 +39,12 @@ export async function listFiles(args = []) {
     try {
         if (!path.startsWith('/')){
             path =  resolvePath(getCurrentDirectory(), path);
-        }        
-        console.log(chalk.green(`Listing files in ${path}:\n`));
+        }
+        if (!(await pathExists(path))){
+            console.log(chalk.yellow(`Directory ${chalk.red(path)} doesn't exists!`));
+            continue;
+        }
+        console.log(chalk.green(`Listing files in ${chalk.dim(path)}:\n`));
         const files = await listRemoteFiles(path);
         if (Array.isArray(files) && files.length > 0) {
             console.log(chalk.cyan(`Type  Name                 Size    Modified          UID`));
@@ -530,6 +534,32 @@ export async function getDiskUsage(body = null) {
 }
 
 /**
+ * Check if a path exists
+ * @param {string} filePath List of files/directories
+ */
+export async function pathExists(filePath) {
+    if (filePath.length < 1) {
+        console.log(chalk.red('No path provided.'));
+        return false;
+    }
+    try {
+        // Step 1: Check if the file already exists
+        const statResponse = await fetch(`${API_BASE}/stat`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                path: filePath
+            })
+        });
+
+        return statResponse.ok;
+    } catch (error){
+        console.error(chalk.red('Failed to check if file exists.'));
+            return false;
+    }    
+}
+
+/**
  * Create a new file (similar to Unix "touch" command).
  * @param {Array} args - The arguments passed to the command (file name and optional content).
  * @returns {boolean} - True if the file was created successfully, false otherwise.
@@ -951,7 +981,7 @@ export async function downloadFile(args = []) {
 }
 
 /**
- * Copy a file from one location to another on the Puter server (similar to Unix "cp" command).
+ * Copy files or directories from one location to another on the Puter server (similar to Unix "cp" command).
  * @param {Array} args - The arguments passed to the command (source path, destination path).
  */
 export async function copyFile(args = []) {
@@ -960,38 +990,88 @@ export async function copyFile(args = []) {
         return;
     }
 
-    const sourcePath = args[0].startsWith(`/${getCurrentUserName()}`)? args[0]: resolvePath(getCurrentDirectory(), args[0]); // Resolve the source path
-    const destinationPath = args[1].startsWith(`/${getCurrentUserName()}`)? args[1]: resolvePath(getCurrentDirectory(), args[1]); // Resolve the destination path
+    const sourcePath = args[0].startsWith(`/${getCurrentUserName()}`) ? args[0] : resolvePath(getCurrentDirectory(), args[0]); // Resolve the source path
+    const destinationPath = args[1].startsWith(`/${getCurrentUserName()}`) ? args[1] : resolvePath(getCurrentDirectory(), args[1]); // Resolve the destination path
+
     console.log(chalk.green(`Copy: "${chalk.dim(sourcePath)}" to: "${chalk.dim(destinationPath)}"...\n`));
     try {
-        // Step 1: Prepare the copy request
-        const copyResponse = await fetch(`${API_BASE}/copy`, {
+        // Step 1: Check if the source is a directory or a file
+        const statResponse = await fetch(`${API_BASE}/stat`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({
-                source: sourcePath,
-                destination: destinationPath
+                path: sourcePath
             })
         });
 
-        if (!copyResponse.ok) {
-            const errorText = await copyResponse.text();
-            console.error(chalk.red(`Failed to copy file. Server response: ${errorText}`));
+        if (!statResponse.ok) {
+            console.error(chalk.red(`Failed to check source path. Server response: ${await statResponse.text()}`));
             return;
         }
 
-        const copyData = await copyResponse.json();
-        if (copyData && copyData.length > 0 && copyData[0].copied) {
-            const copiedFile = copyData[0].copied;
-            console.log(chalk.green(`File "${sourcePath}" copied successfully to "${copiedFile.path}"!`));
-            console.log(chalk.dim(`UID: ${copiedFile.uid}`));
+        const statData = await statResponse.json();
+        if (!statData || !statData.id) {
+            console.error(chalk.red(`Source path "${sourcePath}" does not exist.`));
+            return;
+        }
+
+        if (statData.is_dir) {
+            // Step 2: If source is a directory, copy all files recursively
+            const files = await listFiles([sourcePath]);
+            for (const file of files) {
+                const relativePath = file.path.replace(sourcePath, '');
+                const destPath = path.join(destinationPath, relativePath);
+
+                const copyResponse = await fetch(`${API_BASE}/copy`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        source: file.path,
+                        destination: destPath
+                    })
+                });
+
+                if (!copyResponse.ok) {
+                    console.error(chalk.red(`Failed to copy file "${file.path}". Server response: ${await copyResponse.text()}`));
+                    continue;
+                }
+
+                const copyData = await copyResponse.json();
+                if (copyData && copyData.length > 0 && copyData[0].copied) {
+                    console.log(chalk.green(`File "${chalk.dim(file.path)}" copied successfully to "${chalk.dim(copyData[0].copied.path)}"!`));
+                } else {
+                    console.error(chalk.red(`Failed to copy file "${file.path}". Invalid response from server.`));
+                }
+            }
         } else {
-            console.error(chalk.red('Failed to copy file. Invalid response from server.'));
+            // Step 3: If source is a file, copy it directly
+            const copyResponse = await fetch(`${API_BASE}/copy`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    source: sourcePath,
+                    destination: destinationPath
+                })
+            });
+
+            if (!copyResponse.ok) {
+                console.error(chalk.red(`Failed to copy file. Server response: ${await copyResponse.text()}`));
+                return;
+            }
+
+            const copyData = await copyResponse.json();
+            if (copyData && copyData.length > 0 && copyData[0].copied) {
+                console.log(chalk.green(`File "${sourcePath}" copied successfully to "${copyData[0].copied.path}"!`));
+                console.log(chalk.dim(`UID: ${copyData[0].copied.uid}`));
+            } else {
+                console.error(chalk.red('Failed to copy file. Invalid response from server.'));
+            }
         }
     } catch (error) {
         console.error(chalk.red(`Failed to copy file.\nError: ${error.message}`));
     }
 }
+
 
 /**
  * List all files in a local directory.

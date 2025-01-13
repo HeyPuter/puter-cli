@@ -4,7 +4,7 @@ import Table from 'cli-table3';
 import { getCurrentUserName, getCurrentDirectory } from './auth.js';
 import { API_BASE, getHeaders, generateAppName, resolvePath, isValidAppName } from './commons.js';
 import { displayNonNullValues, formatDate, formatDateTime } from './utils.js';
-import { getSubdomains, deleteSubdomain } from './subdomains.js';
+import { getSubdomains, createSubdomain, deleteSubdomain } from './subdomains.js';
 
 
 /**

@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import Conf from 'conf';
 import ora from 'ora';
 import fetch from 'node-fetch';
-import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js'
+import { PROJECT_NAME, API_BASE, getHeaders, BASE_URL } from './commons.js'
 const config = new Conf({ projectName: PROJECT_NAME });
 
 /**
@@ -27,10 +27,11 @@ export async function login() {
     }
   ]);
 
-  const spinner = ora('Logging in to Puter...').start();
-  
+  let spinner;
   try {
-    const response = await fetch('https://puter.com/login', {
+    spinner = ora('Logging in to Puter...').start();
+    
+    const response = await fetch(`${BASE_URL}/login`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({
@@ -45,15 +46,19 @@ export async function login() {
       config.set('auth_token', data.token);
       config.set('username', answers.username);
       config.set('cwd', `/${answers.username}`);
-      
-      console.log('Successfully logged in to Puter!');
+      if (spinner){
+        spinner.succeed(chalk.green('Successfully logged in to Puter!'));
+      }
       console.log(chalk.dim(`Token: ${data.token.slice(0, 5)}...${data.token.slice(-5)}`));
     } else {
       spinner.fail(chalk.red('Login failed. Please check your credentials.'));
     }
   } catch (error) {
-    console.error('Failed to login');
-    console.error(`Error: ${error.message}`);
+    if (spinner) {
+      spinner.fail(chalk.red('Failed to login'));
+    }
+    console.error(chalk.red(`Error: ${error.message}`));
+    throw error;
   }
 }
 

@@ -5,14 +5,46 @@ import inquirer from 'inquirer';
 import ora from 'ora';
 import chalk from 'chalk';
 import fetch from 'node-fetch';
-import config from 'conf';
+import Conf from 'conf';
 import { BASE_URL } from '../commands/commons.js';
 
+// Mock console to prevent actual logging
+vi.spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'error').mockImplementation(() => {});
+
+// Mock dependencies
 vi.mock('inquirer');
-vi.mock('ora');
-vi.mock('chalk');
+vi.mock('chalk', () => ({
+  default: {
+    green: vi.fn(text => text),
+    red: vi.fn(text => text),
+    dim: vi.fn(text => text)
+  }
+}));
 vi.mock('node-fetch');
-vi.mock('conf');
+
+// Mock Conf
+vi.mock('conf', () => {
+  return {
+    default: vi.fn().mockImplementation(() => ({
+      set: vi.fn(),
+      get: vi.fn(),
+    }))
+  }
+});
+
+// Create a mock spinner object
+const mockSpinner = {
+  start: vi.fn().mockReturnThis(),
+  succeed: vi.fn().mockReturnThis(),
+  fail: vi.fn().mockReturnThis()
+};
+
+// Mock ora
+vi.mock('ora', () => ({
+  default: vi.fn(() => mockSpinner)
+}));
+
 
 describe('auth.js', () => {
   beforeEach(() => {
@@ -21,29 +53,39 @@ describe('auth.js', () => {
 
   describe('login', () => {
     it('should login successfully with valid credentials', async () => {
-      inquirer.prompt.mockResolvedValue({ username: 'testuser', password: 'testpass' });
-      fetch.mockResolvedValue({
-        json: vi.fn().mockResolvedValue({ proceed: true, token: 'testtoken' }),
-        ok: true,
+      // Mock inquirer response
+      inquirer.prompt.mockResolvedValue({ 
+        username: 'testuser', 
+        password: 'testpass' 
       });
-      const spinner = { start: vi.fn(), succeed: vi.fn() };
-      ora.mockReturnValue(spinner);
 
-      // Mock console.log
-      const consoleLogSpy = vi.spyOn(console, 'log');
-
+      // Mock fetch response
+      fetch.mockResolvedValue({
+        json: () => Promise.resolve({ 
+          proceed: true, 
+          token: 'testtoken' 
+        })
+      });
+      
       await login();
 
+      // Verify inquirer was called
       expect(inquirer.prompt).toHaveBeenCalled();
+
+      // Verify fetch was called with correct parameters
       expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/login`, {
         method: 'POST',
         headers: expect.any(Object),
-        body: JSON.stringify({ username: 'testuser', password: 'testpass' }),
+        body: JSON.stringify({ 
+          username: 'testuser', 
+          password: 'testpass' 
+        }),
       });
-      expect(consoleLogSpy).toHaveBeenCalledWith('Successfully logged in to Puter!');
 
-      // Restore the original console.log
-      consoleLogSpy.mockRestore();      
+      // Verify spinner methods were called
+      expect(mockSpinner.start).toHaveBeenCalled();
+      expect(mockSpinner.succeed).toHaveBeenCalled();
+      
     });
 /*
     it('should fail login with invalid credentials', async () => {

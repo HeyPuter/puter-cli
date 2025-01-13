@@ -46,14 +46,14 @@ export async function login() {
       config.set('username', answers.username);
       config.set('cwd', `/${answers.username}`);
       
-      spinner.succeed(chalk.green('Successfully logged in to Puter!'));
+      console.log('Successfully logged in to Puter!');
       console.log(chalk.dim(`Token: ${data.token.slice(0, 5)}...${data.token.slice(-5)}`));
     } else {
       spinner.fail(chalk.red('Login failed. Please check your credentials.'));
     }
   } catch (error) {
-    spinner.fail(chalk.red('Failed to login'));
-    console.error(chalk.red(`Error: ${error.message}`));
+    console.error('Failed to login');
+    console.error(`Error: ${error.message}`);
   }
 }
 

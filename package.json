@@ -1,16 +1,20 @@
 {
   "name": "puter-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Command line interface for Puter cloud platform",
   "main": "index.js",
   "bin": {
     "puter": "./bin/index.js"
   },
+  "preferGlobal": true,
   "type": "module",
   "scripts": {
     "start": "node bin/index.js",
     "test": "vitest run tests/*",
     "test:watch": "vitest --watch tests/*"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "keywords": [
     "puter",
@@ -18,7 +22,7 @@
     "cloud"
   ],
   "author": "Ibrahim.H",
-  "license": "MIT",
+  "license": "NoHarm",
   "dependencies": {
     "chalk": "^5.3.0",
     "cli-table3": "^0.6.5",
@@ -33,5 +37,13 @@
   },
   "devDependencies": {
     "vitest": "^2.1.8"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bitsnaps/puter-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bitsnaps/puter-cli/issues"
+  },
+  "homepage": "https://github.com/bitsnaps/puter-cli"
 }

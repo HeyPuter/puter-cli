@@ -20,12 +20,12 @@ The **Puter CLI** is a command-line interface tool designed to interact with the
 ## Installation
 
 ### Prerequisites
-- Node.js (v16 or higher)
+- Node.js (v18 or higher)
 - npm (v7 or higher)
 
 Run the following command to install puter-cli globally in your system:
 ```bash
-npm install -g puter
+npm install -g puter-cli
 ```
 
 Execute the following command to check the installation process:

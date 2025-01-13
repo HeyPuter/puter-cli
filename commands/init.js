@@ -44,7 +44,7 @@ async function createAppStructure({ name, template }) {
 
   // Create basic files
   const files = {
-    '.env': `APP_NAME=${name}\PUTER_API_KEY=`,
+    '.env': `APP_NAME=${name}\nPUTER_API_KEY=`,
     'index.html': `<!DOCTYPE html>
 <html>
 <head>

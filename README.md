@@ -1,6 +1,6 @@
 # Puter-CLI
 
-The **Puter CLI** is a command-line interface tool designed to interact with the **Puter Cloud Platform**. It allows users to manage files, directories, applications, and other resources directly from the terminal. This tool is ideal for developers and power users who prefer working with command-line utilities.
+The **Puter CLI** is a command-line interface tool designed to interact with the **Puter Cloud Platform**. If you don't have an account you can [Signup](https://puter.com/?r=N5Y0ZYTF) from here for free. This cli tool allows users to manage files, directories, applications, and other resources directly from the terminal. This tool is ideal for developers and power users who prefer working with command-line utilities.
 
 ---
 
@@ -23,26 +23,26 @@ The **Puter CLI** is a command-line interface tool designed to interact with the
 - Node.js (v16 or higher)
 - npm (v7 or higher)
 
-### Steps
-1. Clone the repository:
- ```bash
-   git clone https://github.com/bitsnaps/puter-cli.git
-   cd puter-cli
- ```
-2. Install dependencies:
- ```bash
-   npm install
- ```
-3. Link the CLI globally:
- ```bash
-   npm link
- ```
+Run the following command to install puter-cli globally in your system:
+```bash
+npm install -g puter
+```
 
----
+Execute the following command to check the installation process:
+```bash
+puter help
+```
 
 ## Usage
 
 ### Commands
+
+#### Initilize a project
+- **Create a new project**: Initilize a new project
+```bash
+  puter init
+```
+Then just follow the prompts, this command doesn't require you to login.
 
 #### Authentication
 - **Login**: Log in to your Puter account.
@@ -215,6 +215,27 @@ or just type (you'll need to login):
 5. **Display statistics**:
  ```bash
    puter> stat /path/to/file/or/directory
+ ```
+
+---
+
+## Development
+
+If you want to customize this tool you can follow these steps:
+
+### Steps
+1. Clone the repository:
+ ```bash
+   git clone https://github.com/bitsnaps/puter-cli.git
+   cd puter-cli
+ ```
+2. Install dependencies:
+ ```bash
+   npm install
+ ```
+3. Link the CLI globally:
+ ```bash
+   npm link
  ```
 
 ---

@@ -56,38 +56,51 @@ The **Puter CLI** is a command-line interface tool designed to interact with the
 
 #### File Management
 
-We've adepoted the basic most used linux system for day to day file manipulation, not out of the box though, we want to keep it simple.
+We've adopted the most basic popluar linux system command line for daily file manipulation with some extra features, not out of the box though, we want to keep it simple.
 
 - **List Files**: List files and directories.
 ```bash
-  puter ls [dir]
+  puter> ls [dir]
 ```
 - **Change Directory**: Navigate to a directory:
 ```bash
-  puter cd [dir]
+  puter> cd [dir]
 ```
 It works with wildcards as you would expect in any OS for basic navigation with insensitive case: `cd ..`, `cd ../myapp`...etc.
 
 - **Create Directory**: Create a new directory.
 ```bash
-  puter mkdir <dir>
+  puter> mkdir <dir>
 ```
 - **Copy Files**: Copy files or directories.
 ```bash
-  puter cp <src> <dest>
+  puter> cp <src> <dest>
 ```
 - **Move Files**: Move or rename files or directories.
 ```bash
-  puter mv <src> <dest>
+  puter> mv <src> <dest>
 ```
 - **Delete Files/Directories**: Move files or directories to the trash.
 ```bash
-  puter rm [-f] <file>
+  puter> rm [-f] <file>
 ```
 - **Empty Trash**: Empty the system's trash.
 ```bash
-  puter clean
+  puter> clean
 ```
+##### Extra commands:
+
+Think of it as `git [push|pull]` commands, they're basically simplified equivalents.
+
+- **Push Files**: Copy files from host machine to the remote cloud instance.
+```bash
+  puter> push <host_src>
+```
+- **Pull Files**: Copy files from remote cloud instance to the host machine.
+```bash
+  puter> pull <remote_src>
+```
+P.S. These commands consider the current directory as the base path for every operation, basic wildcards are supported: e.g. `push myapp/*.html`.
 
 #### User Information
 - **Get User Info**: Display user information.

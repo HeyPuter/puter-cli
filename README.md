@@ -2,6 +2,9 @@
 
 The **Puter CLI** is a command-line interface tool designed to interact with the **Puter Cloud Platform**. If you don't have an account you can [Signup](https://puter.com/?r=N5Y0ZYTF) from here for free. This cli tool allows users to manage files, directories, applications, and other resources directly from the terminal. This tool is ideal for developers and power users who prefer working with command-line utilities.
 
+
+![](./screenshot.png)
+
 ---
 
 ## Features
@@ -72,18 +75,27 @@ It works with wildcards as you would expect in any OS for basic navigation with 
 ```bash
   puter> mkdir <dir>
 ```
+
+- **Create file**: Create a new file in the current directory.
+```bash
+  puter> touch <file>
+```
+
 - **Copy Files**: Copy files or directories.
 ```bash
   puter> cp <src> <dest>
 ```
+
 - **Move Files**: Move or rename files or directories.
 ```bash
   puter> mv <src> <dest>
 ```
+
 - **Delete Files/Directories**: Move files or directories to the trash.
 ```bash
   puter> rm [-f] <file>
 ```
+
 - **Empty Trash**: Empty the system's trash.
 ```bash
   puter> clean

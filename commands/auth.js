@@ -40,7 +40,37 @@ export async function login() {
       })
     });
 
-    const data = await response.json();
+    let data = await response.json();
+
+    while ( data.proceed && data.next_step ) {
+      if ( data.next_step === 'otp') {
+        spinner.succeed(chalk.green('2FA is enabled'));
+        const answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'otp',
+            message: 'Authenticator Code:',
+            validate: input => input.length === 6 || 'OTP must be 6 digits'
+          }
+        ]);
+        spinner = ora('Logging in to Puter...').start();
+        const response = await fetch(`${BASE_URL}/login/otp`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({
+            token: data.otp_jwt_token,
+            code: answers.otp,
+          }),
+        });
+        data = await response.json();
+        continue;
+      }
+
+      if ( data.next_step === 'complete' ) break;
+
+      spinner.fail(chalk.red(`Unrecognized login step "${data.next_step}"; you might need to update puter-cli.`));
+      return;
+    }
 
     if (data.proceed && data.token) {
       config.set('auth_token', data.token);

@@ -1,5 +1,11 @@
 # Puter-CLI
 
+<p align="center">
+    <img alt="test" src="https://github.com/bitsnaps/puter-cli/actions/workflows/npm-publish-github-packages.yml/badge.svg">
+    <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/bitsnaps/puter-cli">
+</p>
+
+
 The **Puter CLI** is a command-line interface tool designed to interact with the **Puter Cloud Platform**. If you don't have an account you can [Signup](https://puter.com/?r=N5Y0ZYTF) from here for free. This cli tool allows users to manage files, directories, applications, and other resources directly from the terminal. This tool is ideal for developers and power users who prefer working with command-line utilities.
 
 

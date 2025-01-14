@@ -39,7 +39,7 @@ npm install -g puter-cli
 
 Execute the following command to check the installation process:
 ```bash
-puter help
+puter --version
 ```
 
 ## Usage

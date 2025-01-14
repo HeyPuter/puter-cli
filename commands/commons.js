@@ -294,3 +294,18 @@ export function getDefaultHomePage(appName) {
     
     return defaultIndexContent;
 }
+
+
+/**
+ * Get latest package info from npm registery
+ */
+export async function getLatestVersion(packageName) {
+    try {
+      const response = await fetch(`https://registry.npmjs.org/${packageName}/latest`);
+      let data = await response.json();
+      return data;
+    } catch (error) {
+      console.error(`Error fetching latest version for ${packageName}:`, error.message);
+      return null;
+    }
+  }

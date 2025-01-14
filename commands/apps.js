@@ -317,7 +317,15 @@ export async function updateApp(args = []) {
         // Step 2: Find the path from subdomain
         const subdomains = await getSubdomains();
         const appSubdomain = subdomains.result.find(sd => sd.root_dir?.dirname?.endsWith(appUid));
+        if (!appSubdomain){
+            console.error(chalk.red(`Sorry! We could not find the subdomain for ${chalk.cyan(name)} application.`));
+            return;
+        }
         const subdomainDir = appSubdomain['root_dir']['path'];
+        if (!subdomainDir){
+            console.error(chalk.red(`Sorry! We could not find the path for ${chalk.cyan(name)} application.`));
+            return;
+        }
 
         // Step 3: List files in the current "remoteDir" then copy them to the "subdomainDir"
         const files = await listRemoteFiles(remoteDir);

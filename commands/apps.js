@@ -8,6 +8,7 @@ import { createSubdomain, getSubdomains } from './subdomains.js';
 import { deleteSite } from './sites.js';
 import { copyFile, createFile, listRemoteFiles, pathExists, removeFileOrDirectory } from './files.js';
 import { getCurrentDirectory } from './auth.js';
+import crypto from './crypto.js';
 
 /**
  * List all apps
@@ -131,19 +132,19 @@ export async function appInfo(args = []) {
  */
 export async function createApp(args = []) {
     if (args.length < 1 || !isValidAppName(args[0])) {
-        console.log(chalk.red('Usage: app:create <valid_name_app> [<remote_dir>] [--description=<description>] [--url=<url>]'));
+        console.log(chalk.red('Usage: app:create <valid_name_app> [<remote_dir>] [--url=<url>]'));
         console.log(chalk.yellow('Example: app:create myapp'));
         console.log(chalk.yellow('Example: app:create myapp ./myapp'));
-        console.log(chalk.yellow('Example: app:create myapp --description=myapp'));
         return;
     }
     const name = args[0]; // App name (required)
     // Use the default home page if the root directory if none specified
     const localDir = (args[1] && !args[1].startsWith('--'))? resolvePath(getCurrentDirectory(), args[1]):'';
-    const description = (args.find(arg => arg.toLocaleLowerCase().startsWith('--description='))?.split('=')[1]) || ''; // Optional description
+    // Optional description (disabled at the moment)
+    const description = ''; // (args.find(arg => arg.toLocaleLowerCase().startsWith('--description='))?.split('=')[1]) || '';
     const url = (args.find(arg => arg.toLocaleLowerCase().startsWith('--url='))?.split('=')[1]) || 'https://dev-center.puter.com/coming-soon.html'; // Optional url
 
-    console.log(chalk.green(`Creating app: "${chalk.dim(name)}"...\n`));
+    console.log(chalk.dim(`Creating app: ${chalk.green(name)}...\n`));
     try {
         // Step 1: Create the app
         const createAppResponse = await fetch(`${API_BASE}/drivers/call`, {
@@ -379,7 +380,7 @@ export async function deleteApp(name) {
         const readData = await readResponse.json();
 
         if (!readData.success || !readData.result) {
-            console.log(chalk.log(`App "${chalk.red(name)}" not found.`));
+            console.log(chalk.red(`App "${chalk.bold(name)}" not found.`));
             return false;
         }
 

@@ -35,6 +35,9 @@ dependencies:
   ora:
     specifier: ^8.0.1
     version: 8.0.1
+  uuid:
+    specifier: ^11.0.5
+    version: 11.0.5
 
 devDependencies:
   vitest:
@@ -1371,6 +1374,11 @@ packages:
 
   /util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+    dev: false
+
+  /uuid@11.0.5:
+    resolution: {integrity: sha512-508e6IcKLrhxKdBbcA2b4KQZlLVp2+J5UwQ6F7Drckkc5N9ZJwFa4TgWtsww9UG8fGHbm6gbV19TdM5pQ4GaIA==}
+    hasBin: true
     dev: false
 
   /vite-node@2.1.8:

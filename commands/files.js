@@ -11,6 +11,7 @@ import { formatDate, formatDateTime, formatSize } from './utils.js';
 import inquirer from 'inquirer';
 import { getAuthToken, getCurrentDirectory, getCurrentUserName } from './auth.js';
 import { updatePrompt } from './shell.js';
+import crypto from './crypto.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 

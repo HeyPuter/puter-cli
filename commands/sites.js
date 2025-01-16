@@ -153,7 +153,7 @@ export async function infoSite(args = []) {
     // Use the current directory as the root directory if none specified
     const remoteDir = resolvePath(getCurrentDirectory(), (args[1] && !args[1].startsWith('--'))?args[1]:'.');
   
-    console.log(chalk.green(`Creating site "${appName}" from "${remoteDir}"...\n`));
+    console.log(chalk.dim(`Creating site ${chalk.green(appName)} from: ${chalk.green(remoteDir)}...\n`));
     try {
         // Step 1: Determine the subdomain
         let subdomain;
@@ -182,7 +182,7 @@ export async function infoSite(args = []) {
                 } else {
                     console.log(chalk.yellow(`However, It's linked to different directory at: ${subdomainObj.root_dir?.path}`));
                     console.log(chalk.cyan(`We'll try to unlink this subdomain from that directory...`));
-                    const result = await deleteSubdomain(subdomainObj.uid);
+                    const result = await deleteSubdomain(subdomainObj?.uid);
                     if (result) {
                         console.log(chalk.green('Looks like this subdomain is free again, please try again.'));
                         return;
@@ -205,8 +205,8 @@ export async function infoSite(args = []) {
             return;
         }
   
-        console.log(chalk.green(`App "${chalk.red(appName)}" created successfully at:`));
-        console.log(chalk.dim(`https://${site.subdomain}.puter.site`));
+        console.log(chalk.green(`App ${chalk.dim(appName)} created successfully and accessible at:`));
+        console.log(chalk.cyan(`https://${site.subdomain}.puter.site`));
     } catch (error) {
         console.error(chalk.red('Failed to create site.'));
         console.error(chalk.red(`Error: ${error.message}`));

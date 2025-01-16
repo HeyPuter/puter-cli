@@ -187,7 +187,7 @@ function showHelp(command) {
       Example: app myapp
     `,
     'app:create': `
-      ${chalk.cyan('app:create <name> [url]')}
+      ${chalk.cyan('app:create <name> [<remote_dir>] [--url=<url>]')}
       Create a new app.
       Example: app:create myapp https://example.com
     `,
@@ -279,9 +279,9 @@ function showHelp(command) {
       Example: site:delete sd-123456
     `,
     'site:create': `
-      ${chalk.cyan('site:create <dir> [--subdomain=<name>]')}
+      ${chalk.cyan('site:create <app_name> [<dir>] [--subdomain=<name>]')}
       Create a static website from directory.
-      Example: site:create /path/to/dir --subdomain=myapp
+      Example: site:create mywebsite /path/to/dir --subdomain=mywebsite
     `,
     '!': `
       ${chalk.cyan('!<command>')}

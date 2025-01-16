@@ -5,7 +5,6 @@ import { init } from '../commands/init.js';
 import { startShell } from '../commands/shell.js';
 import { PROJECT_NAME, getLatestVersion } from '../commands/commons.js';
 
-
 async function main() {
   const { version } = await getLatestVersion(PROJECT_NAME);
 

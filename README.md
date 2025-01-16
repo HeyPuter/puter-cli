@@ -148,7 +148,7 @@ P.S. Please check the help command `help apps` for more details about any argume
 
 - **Create Application**: Create a new application.
 ```bash
-  puter app:create <name> [<remote_dir>] [--description=<description>] [--url=<url>]
+  puter app:create <name> [<remote_dir>] [--url=<url>]
 ```
 P.S. By default a new `index.html` with basic content will be created, but you can set a directory when you create a new application as follows: `app:create nameOfApp ./appDir`, so all files will be copied to the `AppData` directoy, you can then update your app using `app:update <name> <remote_dir>`. This command will attempt to create a subdomain with a random `uid` prefixed with the name of the app.
 
@@ -170,7 +170,7 @@ The static sites are served from the selected directory (or the current director
 
 - **Deploy Site**: Deploy a static website from a directory.
 ```bash
-  puter site:create <dir> [--subdomain=<name>]
+  puter site:create <app_name> [<dir>] [--subdomain=<name>]
 ```
 P.S. If the subdomain already exists, it will generate a new random one can set your own subdomain using `--subdomain` argument.
 

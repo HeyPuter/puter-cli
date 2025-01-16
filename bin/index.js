@@ -34,10 +34,32 @@ async function main() {
     .description('Start interactive shell')
     .action(startShell);
 
+
+  // App commands
+  program
+    .command('app:create <name>')
+    .description('Create a new Puter application')
+    .argument('<name>', 'Name of the application')
+    .argument('[directory]', 'Local directory path')
+    .option('-d, --description <description>', 'Application description')
+    .option('-u, --url <url>', 'Application URL', 'https://dev-center.puter.com/coming-soon.html')
+    .action(async (name, directory, options) => {
+      try {
+        await createApp({
+          name,
+          directory: directory || '',
+          description: options.description || '',
+          url: options.url
+        });
+      } catch (error) {
+        console.error(chalk.red(error.message));
+      }
+    });
+
   if (process.argv.length === 2) {
     startShell();
   } else {
-    program.parse();
+    program.parse(process.argv);
   }
 }
 

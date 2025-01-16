@@ -12,8 +12,8 @@ dependencies:
     specifier: ^0.6.5
     version: 0.6.5
   commander:
-    specifier: ^11.1.0
-    version: 11.1.0
+    specifier: ^13.0.0
+    version: 13.0.0
   conf:
     specifier: ^12.0.0
     version: 12.0.0
@@ -38,6 +38,9 @@ dependencies:
   uuid:
     specifier: ^11.0.5
     version: 11.0.5
+  yargs-parser:
+    specifier: ^21.1.1
+    version: 21.1.1
 
 devDependencies:
   vitest:
@@ -682,9 +685,9 @@ packages:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
     dev: false
 
-  /commander@11.1.0:
-    resolution: {integrity: sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==}
-    engines: {node: '>=16'}
+  /commander@13.0.0:
+    resolution: {integrity: sha512-oPYleIY8wmTVzkvQq10AEok6YcTC4sRUBl8F9gVuwchGVUCTbl/vhLTaQqutuuySYOsu8YTgV+OxKc/8Yvx+mQ==}
+    engines: {node: '>=18'}
     dev: false
 
   /conf@12.0.0:
@@ -1555,6 +1558,11 @@ packages:
       ansi-styles: 6.2.1
       string-width: 5.1.2
       strip-ansi: 7.1.0
+    dev: false
+
+  /yargs-parser@21.1.1:
+    resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
+    engines: {node: '>=12'}
     dev: false
 
   /yoctocolors-cjs@2.1.2:

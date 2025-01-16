@@ -126,25 +126,28 @@ export async function appInfo(args = []) {
 /**
  * Create a new web application
  * @param {string} name The name of the App
+ * @param {string} directory Optional directory path
  * @param {string} description A description of the App
  * @param {string} url A default coming-soon URL
- * @returns Output JSON data
+ * @returns {Promise<Object>} Output JSON data
  */
-export async function createApp(args = []) {
-    if (args.length < 1 || !isValidAppName(args[0])) {
-        console.log(chalk.red('Usage: app:create <valid_name_app> [<remote_dir>] [--url=<url>]'));
-        console.log(chalk.yellow('Example: app:create myapp'));
-        console.log(chalk.yellow('Example: app:create myapp ./myapp'));
-        return;
+export async function createApp(args) {
+    const name = args.name; // App name (required)
+    console.log(args);
+    if (!isValidAppName(name)) {
+        throw new Error('Invalid application name');
     }
-    const name = args[0]; // App name (required)
     // Use the default home page if the root directory if none specified
-    const localDir = (args[1] && !args[1].startsWith('--'))? resolvePath(getCurrentDirectory(), args[1]):'';
-    // Optional description (disabled at the moment)
-    const description = ''; // (args.find(arg => arg.toLocaleLowerCase().startsWith('--description='))?.split('=')[1]) || '';
-    const url = (args.find(arg => arg.toLocaleLowerCase().startsWith('--url='))?.split('=')[1]) || 'https://dev-center.puter.com/coming-soon.html'; // Optional url
+    const localDir = args.directory ? resolvePath(getCurrentDirectory(), args.directory) : '';
+    // Optional description
+    const description = args.description || '';
+    const url = args.url || '';
 
-    console.log(chalk.dim(`Creating app: ${chalk.green(name)}...\n`));
+    console.log(chalk.green(`Creating app "${name}"...`));
+    console.log(chalk.dim(`Directory: ${localDir || '[default]'}`));
+    console.log(chalk.dim(`Description: ${description}`));
+    console.log(chalk.dim(`URL: ${url}`));
+
     try {
         // Step 1: Create the app
         const createAppResponse = await fetch(`${API_BASE}/drivers/call`, {

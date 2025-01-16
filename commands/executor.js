@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import ora from 'ora';
 import Conf from 'conf';
 import { listApps, appInfo, createApp, updateApp, deleteApp } from './apps.js';
 import { listSites, createSite, deleteSite, infoSite } from './sites.js';
@@ -11,6 +10,7 @@ import { getUserInfo, getUsageInfo } from './auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
+import { parseArgs } from './utils.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -37,12 +37,28 @@ const commands = {
     });
   },
   app: appInfo,
-  'app:create': async (args) => {
-    if (args.length < 1) {
-        console.log(chalk.red('Usage: app:create <name> [<remote_dir>] [--description=<description>] [--url=<url>]'));
+  'app:create': async (rawArgs) => {
+    try {
+      const args = parseArgs(rawArgs.join(' '));
+      // Consider using explicit argument definition if necessary
+      // const args = parseArgs(rawArgs.join(' '), {string: ['description', 'url'],
+      //   alias: { d: 'description', u: 'url', },
+      // });
+
+      if (!args.length < 1) {
+        console.log(chalk.red('Usage: app:create <name> [directory] [--description="My App Description"] [--url=app-url]'));
         return;
+      }
+
+      await createApp({
+        name: args._[0],
+        directory: args._[1] || '',
+        description: args.description || '',
+        url: args.url || 'https://dev-center.puter.com/coming-soon.html'
+      });
+    } catch (error) {
+      console.error(chalk.red(error.message));
     }
-    await createApp(args);
   },
   'app:update': async (args) => {
     if (args.length < 1) {
@@ -51,13 +67,20 @@ const commands = {
     }
     await updateApp(args);
   },
-  'app:delete': async (args) => {
+  'app:delete': async (rawArgs) => {
+    const args = parseArgs(rawArgs.join(' '), {
+      string: ['_'],
+      boolean: ['f'],
+      configuration: {
+        'populate--': true
+      }
+    });
     if (args.length < 1) {
         console.log(chalk.red('Usage: app:delete <name>'));
         return;
     }
-    const name = args.find(arg => arg !=='-f')
-    const force = args.some(arg => arg =='-f')? true: false;
+    const name = args._[0];
+    const force = !!args.f;
 
     if (!force){
       const { confirm } = await inquirer.prompt([
@@ -144,6 +167,7 @@ export async function execCommand(input) {
  * @param {string} [command] - The command to display help for.
  */
 function showHelp(command) {
+  // Consider using `program.helpInformation()` function for global "help" command...
   const commandHelp = {
     help: `
       ${chalk.cyan('help [command]')}
@@ -187,9 +211,9 @@ function showHelp(command) {
       Example: app myapp
     `,
     'app:create': `
-      ${chalk.cyan('app:create <name> [<remote_dir>] [--url=<url>]')}
+      ${chalk.cyan('app:create <name> [<remote_dir>] [--description="<description>"] [--url=<url>]')}
       Create a new app.
-      Example: app:create myapp https://example.com
+      Example: app:create myapp https://myapp.puter.site
     `,
     'app:update': `
       ${chalk.cyan('app:update <name> [dir]')}

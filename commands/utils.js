@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import yargsParser from 'yargs-parser';
 
 /**
  * Convert "2024-10-07T15:03:53.000Z" to "10/7/2024, 15:03:53"
@@ -90,3 +91,13 @@ export function displayNonNullValues(data) {
     console.log(chalk.cyan('-'.repeat(maxKeyLength*3)));
     console.log(chalk.cyan(`You have ${chalk.green(tableData.length)} key/value pair(s).`));
   }
+
+  /**
+ * Parse command line arguments including quoted strings
+ * @param {string} input Raw command line input
+ * @returns {Object} Parsed arguments
+ */
+export function parseArgs(input, options = {}) {
+  const result = yargsParser(input, options);
+  return result;
+}

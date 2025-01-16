@@ -148,7 +148,7 @@ P.S. Please check the help command `help apps` for more details about any argume
 
 - **Create Application**: Create a new application.
 ```bash
-  puter app:create <name> [<remote_dir>] [--url=<url>]
+  puter app:create <name> [<directory>] [--description="My App Description"] [--url=<url>]
 ```
 P.S. By default a new `index.html` with basic content will be created, but you can set a directory when you create a new application as follows: `app:create nameOfApp ./appDir`, so all files will be copied to the `AppData` directoy, you can then update your app using `app:update <name> <remote_dir>`. This command will attempt to create a subdomain with a random `uid` prefixed with the name of the app.
 

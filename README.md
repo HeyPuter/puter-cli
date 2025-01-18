@@ -1,7 +1,7 @@
 # Puter-CLI
 
 <p align="center">
-    <img alt="test" src="https://github.com/bitsnaps/puter-cli/actions/workflows/npm-publish-github-packages.yml/badge.svg">
+    <img alt="test" src="https://github.com/bitsnaps/puter-cli/actions/workflows/npm-build.yml/badge.svg">
     <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/bitsnaps/puter-cli">
 </p>
 

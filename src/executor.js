@@ -11,8 +11,12 @@ import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
 import { parseArgs } from './utils.js';
+import { rl } from './commands/shell.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
+
+// History of commands
+const commandHistory = [];
 
 /**
  * Update the prompt function
@@ -37,6 +41,26 @@ const commands = {
     });
   },
   app: appInfo,
+  history: async (args) => {
+    const lineNumber = parseInt(args[0]);
+
+    if (isNaN(lineNumber)) {
+      // Display full history
+      commandHistory.forEach((command, index) => {
+        console.log(chalk.cyan(`${index + 1}: ${command}`));
+      });
+    } else {
+      // Copy the command at the specified line number
+      if (lineNumber < 1 || lineNumber > commandHistory.length) {
+        console.error(chalk.red(`Invalid line number. History has ${commandHistory.length} entries.`));
+        return;
+      }
+
+      const commandToCopy = commandHistory[lineNumber - 1];
+      // Simulate typing the command in the shell
+      rl.write(commandToCopy);
+    }
+  },
   'app:create': async (rawArgs) => {
     try {
       const args = parseArgs(rawArgs.join(' '));
@@ -119,7 +143,7 @@ const commands = {
   sites: listSites,
   site: infoSite,
   'site:delete': deleteSite,
-  'site:create': createSite
+  'site:create': createSite,
 };
 
 /**
@@ -128,6 +152,12 @@ const commands = {
  */
 export async function execCommand(input) {
   const [cmd, ...args] = input.split(' ');
+
+  
+  // Add the command to history (skip the "history" command itself)
+  if (cmd !== 'history') {
+    commandHistory.push(input);
+  }
 
   if (cmd === 'help') {
     // Handle help command
@@ -311,6 +341,11 @@ function showHelp(command) {
       ${chalk.cyan('!<command>')}
       Execute a command on the host machine.
       Example: !ls -la
+    `,
+    'history [line]': `
+      ${chalk.cyan('history [line]')}
+      Display history of commands or copy command by line number
+      Example: history 2
     `,
   };
 

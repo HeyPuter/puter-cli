@@ -7,7 +7,7 @@ import { PROJECT_NAME } from '../commons.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
-const rl = readline.createInterface({
+export const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: null

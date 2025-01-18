@@ -123,17 +123,17 @@ P.S. These commands consider the current directory as the base path for every op
 #### User Information
 - **Get User Info**: Display user information.
 ```bash
-  puter whoami
+  puter> whoami
 ```
 
 #### Disk Usage
 - **Check Disk Usage**: Display disk usage information.
 ```bash
-  puter df
+  puter> df
 ```
 - **Get Usage Info**: Fetch usage information for services.
 ```bash
-  puter usage
+  puter> usage
 ```
 
 #### Application Management
@@ -142,25 +142,25 @@ The **Application** are sepcial type of hosted web app, they're served from the 
 
 - **List Applications**: List all applications.
 ```bash
-  puter apps [period]
+  puter> apps [period]
 ```
 P.S. Please check the help command `help apps` for more details about any argument.
 
 - **Create Application**: Create a new application.
 ```bash
-  puter app:create <name> [<directory>] [--description="My App Description"] [--url=<url>]
+  puter> app:create <name> [<directory>] [--description="My App Description"] [--url=<url>]
 ```
 P.S. By default a new `index.html` with basic content will be created, but you can set a directory when you create a new application as follows: `app:create nameOfApp ./appDir`, so all files will be copied to the `AppData` directoy, you can then update your app using `app:update <name> <remote_dir>`. This command will attempt to create a subdomain with a random `uid` prefixed with the name of the app.
 
 - **Update Application**: Update an application.
 ```bash
-  puter app:update <name> <remote_dir>
+  puter> app:update <name> <remote_dir>
 ```
 **IMPORTANT** All existing files will be overwritten, new files are copied, other files are just ignored.
 
 - **Delete Application**: Delete an application.
 ```bash
-  puter app:delete [-f] <name>
+  puter> app:delete [-f] <name>
 ```
 P.S. This command will lookup for the allocated `subdomain` and attempt to delete it if it exists.
 
@@ -170,19 +170,30 @@ The static sites are served from the selected directory (or the current director
 
 - **Deploy Site**: Deploy a static website from a directory.
 ```bash
-  puter site:create <app_name> [<dir>] [--subdomain=<name>]
+  puter> site:create <app_name> [<dir>] [--subdomain=<name>]
 ```
 P.S. If the subdomain already exists, it will generate a new random one can set your own subdomain using `--subdomain` argument.
 
 - **List Sites**: List all hosted sites.
 ```bash
-  puter sites
+  puter> sites
 ```
 - **Delete Site**: Delete a hosted site.
 ```bash
-  puter site:delete <uid>
+  puter> site:delete <uid>
 ```
 P.S. You can find the `<uid>` in the list of `sites`.
+
+#### Commands history
+
+- **Display history**: Display the history executed commands
+```bash
+  puter> history
+```
+- **Copy command from history**: Copy a previous command from history by line number
+```bash
+  puter> history <line_number>
+```
 
 #### Interactive Shell
 - **Start Shell**: Launch an interactive shell.
@@ -198,10 +209,14 @@ or just type (you'll need to login):
 - **General Help**: Display a list of available commands.
 ```bash
   puter help
+  # or inside the interactive shell:
+  puter> help
 ```
 - **Command Help**: Display detailed help for a specific command.
 ```bash
   puter help <command>
+  # or inside the interactive shell:
+  puter> help <command>
 ```
 
 ---

@@ -11,7 +11,8 @@
   "scripts": {
     "start": "node bin/index.js",
     "test": "vitest run tests/*",
-    "test:watch": "vitest --watch tests/*"
+    "test:watch": "vitest --watch tests/*",
+    "version": "auto-changelog -p && git add CHANGELOG.md"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -38,6 +39,7 @@
     "yargs-parser": "^21.1.1"
   },
   "devDependencies": {
+    "auto-changelog": "^2.5.0",
     "vitest": "^2.1.8"
   },
   "repository": {

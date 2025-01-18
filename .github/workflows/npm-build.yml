@@ -8,12 +8,15 @@ on: push
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: ['18.x', '20.x', '23.x']
+    
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
-          node-version: 20
-          node-version: 23
+          node-version: ${{ matrix.node-version }}
       - run: npm ci
       - run: npm test

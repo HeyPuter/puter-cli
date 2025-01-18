@@ -1,5 +1,5 @@
 import  chalk from 'chalk';
-import { getAuthToken } from './auth.js';
+import { getAuthToken } from './commands/auth.js';
 
 export const PROJECT_NAME = 'puter-cli';
 export const API_BASE = 'https://api.puter.com';

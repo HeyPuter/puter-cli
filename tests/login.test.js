@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { login, logout, getUserInfo, isAuthenticated, getAuthToken, getCurrentUserName, 
-  getCurrentDirectory, getUsageInfo } from './commands/auth.js';
+  getCurrentDirectory, getUsageInfo } from '../src/commands/auth.js';
 import inquirer from 'inquirer';
 import ora from 'ora';
 import chalk from 'chalk';
 import fetch from 'node-fetch';
 import Conf from 'conf';
-import { BASE_URL } from '../commands/commons.js';
+import { BASE_URL } from '../src/commons.js';
 
 // Mock console to prevent actual logging
 vi.spyOn(console, 'log').mockImplementation(() => {});

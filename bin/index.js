@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { login, logout } from '../commands/auth.js';
-import { init } from '../commands/init.js';
-import { startShell } from '../commands/shell.js';
-import { PROJECT_NAME, getLatestVersion } from '../commands/commons.js';
+import { login, logout } from '../src/commands/auth.js';
+import { init } from '../src/commands/init.js';
+import { startShell } from '../src/commands/shell.js';
+import { PROJECT_NAME, getLatestVersion } from '../src/commons.js';
 
 async function main() {
   const { version } = await getLatestVersion(PROJECT_NAME);

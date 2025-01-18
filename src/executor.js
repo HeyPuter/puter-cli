@@ -1,12 +1,12 @@
 import chalk from 'chalk';
 import Conf from 'conf';
-import { listApps, appInfo, createApp, updateApp, deleteApp } from './apps.js';
-import { listSites, createSite, deleteSite, infoSite } from './sites.js';
+import { listApps, appInfo, createApp, updateApp, deleteApp } from './commands/apps.js';
+import { listSites, createSite, deleteSite, infoSite } from './commands/sites.js';
 import { listFiles, makeDirectory, renameFileOrDirectory, 
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
   getInfo, getDiskUsage, createFile, readFile, uploadFile, 
-  downloadFile, copyFile, syncDirectory } from './files.js';
-import { getUserInfo, getUsageInfo } from './auth.js';
+  downloadFile, copyFile, syncDirectory } from './commands/files.js';
+import { getUserInfo, getUsageInfo } from './commands/auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
@@ -26,7 +26,7 @@ const commands = {
   help: showHelp,
   exit: () => process.exit(0),
   logout: async () => {
-    await import('./auth.js').then(m => m.logout());
+    await import('./commands/auth.js').then(m => m.logout());
     process.exit(0);
   },
   whoami: getUserInfo,

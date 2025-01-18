@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import fetch from 'node-fetch';
-import { API_BASE, getHeaders } from './commons.js';
+import { API_BASE, getHeaders } from '../commons.js';
 
 /**
  * Get list of subdomains.

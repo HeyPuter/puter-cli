@@ -1,9 +1,9 @@
 import readline from 'node:readline';
 import chalk from 'chalk';
 import Conf from 'conf';
-import { execCommand, getPrompt } from './executor.js';
+import { execCommand, getPrompt } from '../executor.js';
 import { getAuthToken } from './auth.js';
-import { PROJECT_NAME } from './commons.js';
+import { PROJECT_NAME } from '../commons.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 

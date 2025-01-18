@@ -6,12 +6,12 @@ import chalk from 'chalk';
 import ora from 'ora';
 import Conf from 'conf';
 import fetch from 'node-fetch';
-import { API_BASE, BASE_URL, PROJECT_NAME, getHeaders, showDiskSpaceUsage, resolvePath } from './commons.js';
-import { formatDate, formatDateTime, formatSize } from './utils.js';
+import { API_BASE, BASE_URL, PROJECT_NAME, getHeaders, showDiskSpaceUsage, resolvePath } from '../commons.js';
+import { formatDate, formatDateTime, formatSize } from '../utils.js';
 import inquirer from 'inquirer';
 import { getAuthToken, getCurrentDirectory, getCurrentUserName } from './auth.js';
 import { updatePrompt } from './shell.js';
-import crypto from './crypto.js';
+import crypto from '../crypto.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 

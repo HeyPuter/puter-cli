@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import Conf from 'conf';
 import ora from 'ora';
 import fetch from 'node-fetch';
-import { PROJECT_NAME, API_BASE, getHeaders, BASE_URL } from './commons.js'
+import { PROJECT_NAME, API_BASE, getHeaders, BASE_URL } from '../commons.js'
 const config = new Conf({ projectName: PROJECT_NAME });
 
 /**

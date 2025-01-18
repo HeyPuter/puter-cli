@@ -2,13 +2,13 @@ import path from 'path';
 import chalk from 'chalk';
 import fetch from 'node-fetch';
 import Table from 'cli-table3';
-import { displayNonNullValues, formatDate } from './utils.js';
-import { API_BASE, getHeaders, getDefaultHomePage, isValidAppName, resolvePath } from './commons.js';
+import { displayNonNullValues, formatDate } from '../utils.js';
+import { API_BASE, getHeaders, getDefaultHomePage, isValidAppName, resolvePath } from '../commons.js';
 import { createSubdomain, getSubdomains } from './subdomains.js';
 import { deleteSite } from './sites.js';
 import { copyFile, createFile, listRemoteFiles, pathExists, removeFileOrDirectory } from './files.js';
 import { getCurrentDirectory } from './auth.js';
-import crypto from './crypto.js';
+import crypto from '../crypto.js';
 
 /**
  * List all apps

@@ -330,7 +330,7 @@ This project is licensed under the **[NoHarm License](https://github.com/raisely
 
 ## Support
 
-For issues or questions, please open an issue on [GitHub](https://github.com/bitsnaps/puter-cli/issues) or contact [puter's team](hey@puter.com) if you found an issue related to Puter's APIs.
+For issues or questions, please open an issue on [GitHub](https://github.com/bitsnaps/puter-cli/issues) or contact [puter's team](mailto:hey@puter.com) if you found an issue related to Puter's APIs.
 
 ---
 

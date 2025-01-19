@@ -97,9 +97,10 @@ export async function login() {
  * @returns void
  */
 export async function logout() {
-  const spinner = ora('Logging out from Puter...').start();
   
+  let spinner;
   try {
+    spinner = ora('Logging out from Puter...').start();
     const token = config.get('auth_token');
     if (!token) {
       spinner.info(chalk.yellow('Already logged out'));
@@ -109,7 +110,9 @@ export async function logout() {
     config.clear(); // Remove all stored data
     spinner.succeed(chalk.green('Successfully logged out from Puter!'));
   } catch (error) {
-    spinner.fail(chalk.red('Failed to logout'));
+    if (spinner){
+      spinner.fail(chalk.red('Failed to logout'));
+    }
     console.error(chalk.red(`Error: ${error.message}`));
   }
 }

@@ -6,7 +6,7 @@ import ora from 'ora';
 import chalk from 'chalk';
 import fetch from 'node-fetch';
 import Conf from 'conf';
-import { BASE_URL } from '../src/commons.js';
+import { BASE_URL, PROJECT_NAME } from '../src/commons.js';
 
 // Mock console to prevent actual logging
 vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -18,26 +18,19 @@ vi.mock('chalk', () => ({
   default: {
     green: vi.fn(text => text),
     red: vi.fn(text => text),
-    dim: vi.fn(text => text)
+    dim: vi.fn(text => text),
+    yellow: vi.fn(text => text),
+    cyan: vi.fn(text => text),
   }
 }));
 vi.mock('node-fetch');
-
-// Mock Conf
-vi.mock('conf', () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      set: vi.fn(),
-      get: vi.fn(),
-    }))
-  }
-});
 
 // Create a mock spinner object
 const mockSpinner = {
   start: vi.fn().mockReturnThis(),
   succeed: vi.fn().mockReturnThis(),
-  fail: vi.fn().mockReturnThis()
+  fail: vi.fn().mockReturnThis(),
+  info: vi.fn().mockReturnThis(),
 };
 
 // Mock ora
@@ -45,10 +38,23 @@ vi.mock('ora', () => ({
   default: vi.fn(() => mockSpinner)
 }));
 
+// Mock Conf
+vi.mock('conf', () => {
+  return {
+    default: vi.fn().mockImplementation(() => ({
+      set: vi.fn(),
+      get: vi.fn(),
+      clear: vi.fn(),
+    })),
+  };
+});
 
 describe('auth.js', () => {
+  // let config;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // config = new Conf({ projectName: PROJECT_NAME });
   });
 
   describe('login', () => {
@@ -85,69 +91,69 @@ describe('auth.js', () => {
       // Verify spinner methods were called
       expect(mockSpinner.start).toHaveBeenCalled();
       expect(mockSpinner.succeed).toHaveBeenCalled();
-      
     });
-/*
+
     it('should fail login with invalid credentials', async () => {
       inquirer.prompt.mockResolvedValue({ username: 'testuser', password: 'testpass' });
       fetch.mockResolvedValue({
         json: vi.fn().mockResolvedValue({ proceed: false }),
         ok: true,
       });
-      const spinner = { start: vi.fn(), fail: vi.fn() };
-      ora.mockReturnValue(spinner);
 
       await login();
-
-      expect(spinner.fail).toHaveBeenCalledWith(chalk.red('Login failed. Please check your credentials.'));
+      expect(mockSpinner.fail).toHaveBeenCalledWith(chalk.red('Login failed. Please check your credentials.'));
     });
 
     it('should handle login error', async () => {
       inquirer.prompt.mockResolvedValue({ username: 'testuser', password: 'testpass' });
       fetch.mockRejectedValue(new Error('Network error'));
-      const spinner = { start: vi.fn(), fail: vi.fn() };
-      ora.mockReturnValue(spinner);
 
-      await login();
-
-      expect(spinner.fail).toHaveBeenCalledWith(chalk.red('Failed to login'));
-    });*/
+      await expect(login()).rejects.toThrow('Network error');
+      expect(mockSpinner.fail).toHaveBeenCalledWith(chalk.red('Failed to login'));
+      expect(console.error).toHaveBeenCalledWith(chalk.red('Error: Network error'));
+    });
   });
-/*
+
+
   describe('logout', () => {
-    it('should logout successfully', async () => {
-      config.get.mockReturnValue('testtoken');
-      const spinner = { start: vi.fn(), succeed: vi.fn() };
-      ora.mockReturnValue(spinner);
+    let config;
 
+    beforeEach(() => {
+      vi.clearAllMocks();
+      config = new Conf({ projectName: PROJECT_NAME });
+      // config.clear = vi.fn();      
+    });
+
+    it.skip('should logout successfully', async () => {
+      // Mock config.get to return a token
+      config.get = vi.fn().mockReturnValue('testtoken');
       await logout();
-
+      // Verify config.clear was called
       expect(config.clear).toHaveBeenCalled();
-      expect(spinner.succeed).toHaveBeenCalledWith(chalk.green('Successfully logged out from Puter!'));
+      expect(mockSpinner.succeed).toHaveBeenCalledWith(chalk.green('Successfully logged out from Puter!'));
     });
 
     it('should handle already logged out', async () => {
-      config.get.mockReturnValue(null);
-      const spinner = { start: vi.fn(), info: vi.fn() };
-      ora.mockReturnValue(spinner);
+      config.get = vi.fn().mockReturnValue(null);
 
       await logout();
 
-      expect(spinner.info).toHaveBeenCalledWith(chalk.yellow('Already logged out'));
+      expect(mockSpinner.info).toHaveBeenCalledWith(chalk.yellow('Already logged out'));
     });
 
-    it('should handle logout error', async () => {
-      config.get.mockReturnValue('testtoken');
-      config.clear.mockImplementation(() => { throw new Error('Config error'); });
-      const spinner = { start: vi.fn(), fail: vi.fn() };
-      ora.mockReturnValue(spinner);
+    it.skip('should handle logout error', async () => {
+      config.get = vi.fn().mockReturnValue('testtoken');
+      config.clear = vi.fn().mockImplementation(() => { throw new Error('Config error'); });
 
       await logout();
 
-      expect(spinner.fail).toHaveBeenCalledWith(chalk.red('Failed to logout'));
+      expect(mockSpinner.fail).toHaveBeenCalled();
+      expect(mockSpinner.fail).toHaveBeenCalledWith(chalk.red('Failed to logout'));
     });
+    
   });
-
+  
+/*
   describe('getUserInfo', () => {
     it('should fetch user info successfully', async () => {
       fetch.mockResolvedValue({
@@ -265,4 +271,5 @@ describe('auth.js', () => {
     });
   });
   */
+
 });

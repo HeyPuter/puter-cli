@@ -1,5 +1,4 @@
 # This workflow will run tests using node on every push
-
 name: Build package
 
 on: push
@@ -11,11 +10,18 @@ jobs:
     strategy:
       matrix:
         node-version: ['18.x', '20.x', '23.x']
-    
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test
+    - uses: actions/checkout@v4
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 10
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'pnpm'
+    - name: Install dependencies
+      run: pnpm install
+    - name: Run tests
+      run: pnpm test

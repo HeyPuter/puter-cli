@@ -1,5 +1,8 @@
 import  chalk from 'chalk';
 import { getAuthToken } from './commands/auth.js';
+import { readFile } from 'fs/promises';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 export const PROJECT_NAME = 'puter-cli';
 export const API_BASE = 'https://api.puter.com';
@@ -297,6 +300,23 @@ export function getDefaultHomePage(appName) {
 
 
 /**
+ * Read latest package from package file
+ */
+export async function getVersionFromPackage() {
+    try {
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = dirname(__filename);        
+        const packageJson = JSON.parse(
+          await readFile(join(__dirname, 'package.json'), 'utf8')
+        );
+        return packageJson.version;
+    } catch (error) {
+        console.error(`Error fetching latest version:`, error.message);
+        return null;
+    }    
+}
+
+/**
  * Get latest package info from npm registery
  */
 export async function getLatestVersion(packageName) {
@@ -305,7 +325,6 @@ export async function getLatestVersion(packageName) {
       let data = await response.json();
       return data;
     } catch (error) {
-      console.error(`Error fetching latest version for ${packageName}:`, error.message);
-      return null;
+        return getVersionFromPackage();
     }
   }

@@ -2,6 +2,9 @@
 
 <p align="center">
     <img alt="test" src="https://github.com/bitsnaps/puter-cli/actions/workflows/npm-build.yml/badge.svg">
+    <a href="https://codecov.io/github/bitsnaps/puter-cli" > 
+      <img src="https://codecov.io/github/bitsnaps/puter-cli/graph/badge.svg?token=TFPCdwdFxF"/> 
+    </a>
     <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/bitsnaps/puter-cli">
 </p>
 

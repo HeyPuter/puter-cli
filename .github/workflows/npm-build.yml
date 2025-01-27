@@ -23,5 +23,11 @@ jobs:
         cache: 'pnpm'
     - name: Install dependencies
       run: pnpm install
-    - name: Run tests
-      run: pnpm test
+    - name: Run tests & coverage
+      run: pnpm run coverage
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: bitsnaps/puter-cli
+      

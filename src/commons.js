@@ -190,13 +190,19 @@ export function isValidAppName(name) {
    return true;
 }
 
-export function getDefaultHomePage(appName) {
+/**
+ * Generate the default home page for a new web application
+ * @param {string} appName The name of the web application
+ * @returns HTML template of the app
+ */
+export function getDefaultHomePage(appName, jsFiles = [], cssFiles= []) {
     const defaultIndexContent = `<!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${appName}</title>
+        ${cssFiles.map(css => `<link href="${css}" rel="stylesheet">`).join('\n  ')}
         <style>
             body {
                 font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -292,6 +298,11 @@ export function getDefaultHomePage(appName) {
         <footer class="footer">
             &copy; 2025 ${appName}. All rights reserved.
         </footer>
+
+        <div id="${(jsFiles.length && jsFiles.some(f => f.includes('react'))) ? 'root' : 'app'}"></div>
+  ${jsFiles.map(js => 
+    `<script ${js.endsWith('app.js') ? 'type="text/babel"' : ''} src="${js}"></script>`
+  ).join('\n  ')}
     </body>
     </html>`;
     

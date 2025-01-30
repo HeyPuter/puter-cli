@@ -6,6 +6,9 @@
       <img src="https://codecov.io/github/bitsnaps/puter-cli/graph/badge.svg?token=TFPCdwdFxF"/> 
     </a>
     <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/bitsnaps/puter-cli">
+    <a href="https://opensource.org/licenses/MIT" > 
+      <img alt="License" src="https://img.shields.io/badge/License-MIT-yellow.svg">
+    </a>
 </p>
 
 
@@ -327,7 +330,12 @@ We welcome contributions! Please follow these steps:
 
 ## License
 
-This project is licensed under the **[NoHarm License](https://github.com/raisely/NoHarm/blob/publish/LICENSE.md)**. See the [LICENSE](LICENSE.md) file for details.
+As of version v1.4.2, this project is licensed under the **[MIT License](LICENSE.md)**.
+
+## NoHarm
+
+This project was previously licensed under the "NoHarm" license to explicitly prevent its use for harmful purposes. While it is now licensed under the permissive MIT License to encourage broader usage and contribution, we strongly emphasize that this software should not be used in any way that causes harm, infringes on others' rights, or promotes unethical practices. By using this software, you are urged to adhere to these principles and use it responsibly.
+
 
 ---
 

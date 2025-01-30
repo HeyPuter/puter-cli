@@ -1,6 +1,6 @@
 {
   "name": "puter-cli",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Command line interface for Puter cloud platform",
   "main": "index.js",
   "bin": {

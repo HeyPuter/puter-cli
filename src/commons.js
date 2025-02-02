@@ -1,5 +1,6 @@
 import  chalk from 'chalk';
 import { getAuthToken } from './commands/auth.js';
+import { formatSize } from './utils.js';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -100,7 +101,6 @@ export function showDiskSpaceUsage(data) {
   // format the usagePercentage with 2 decimal floating point value:
   console.log(chalk.cyan(`Usage Percentage: `) + chalk.white(`${usagePercentage.toFixed(2)}%`));
   console.log(chalk.dim('----------------------------------------'));
-  console.log(chalk.green('Done.'));
 }
  
 /**

@@ -452,7 +452,6 @@ export async function getInfo(args = []) {
                 console.log(chalk.cyan(`Writable: `) + chalk.white(data.writable ? 'Yes' : 'No'));
                 console.log(chalk.cyan(`Owner: `) + chalk.white(data.owner.username));
                 console.log(chalk.dim('----------------------------------------'));
-                console.log(chalk.green('Done.'));
             } else {
                 console.error(chalk.red('Unable to get stat info. Please check your credentials.'));
             }
@@ -523,7 +522,6 @@ export async function getDiskUsage(body = null) {
         });
 
         const data = await response.json();
-        console.log(data);
         if (response.ok && data) {
             showDiskSpaceUsage(data);
         } else {
@@ -784,7 +782,7 @@ export async function uploadFile(args = []) {
         // Step 2: Check disk space
         const dfResponse = await fetch(`${API_BASE}/df`, {
             method: 'POST',
-            headers: getHeaders(), // Use a dummy boundary for non-multipart requests
+            headers: getHeaders(),
             body: null
         });
 

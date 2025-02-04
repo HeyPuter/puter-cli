@@ -315,7 +315,7 @@ This project is not equivalent [phoenix](https://github.com/HeyPuter/puter/blob/
 
 ## Configuration
 
-The CLI uses a configuration file to store user credentials and settings. By default, this file is located at `~/.config/puter-cli/config.json`. You can manually edit this file or use the `puter logout` to empty the file settings.
+The CLI uses a configuration file to store user credentials and settings. You can use the `puter logout` to clear the configuration settings.
 
 ---
 

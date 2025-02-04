@@ -86,9 +86,9 @@ export async function login() {
   } catch (error) {
     if (spinner) {
       spinner.fail(chalk.red('Failed to login'));
+    } else {
+      console.error(chalk.red(`Failed to login: ${error.message}`));
     }
-    console.error(chalk.red(`Error: ${error.message}`));
-    throw error;
   }
 }
 

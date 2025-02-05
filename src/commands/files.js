@@ -56,8 +56,8 @@ export async function listFiles(args = []) {
                 const name = file.name.padEnd(20);
                 const size = file.is_dir ? '0' : formatSize(file.size);
                 const modified = formatDateTime(file.modified);
-                const uid = file.uid;
-                console.log(`${type}${write}   ${name} ${size.padEnd(8)} ${modified}  ${uid}`);
+                const uid = file.uid?.split('-');
+                console.log(`${type}${write}   ${name} ${size.padEnd(8)} ${modified}  ${uid[0]}-...-${uid.slice(-1)}`);
             });
             console.log(chalk.green(`There are ${files.length} object(s).`));
         } else {

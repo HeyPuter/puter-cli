@@ -35,6 +35,7 @@ export async function listSites(args = {}) {
       // Format and add data to table
       let i = 0;
       data.result.forEach(domain => {
+        let appDir = domain?.root_dir?.path.split('/').pop().split('-');
         table.push([
           i++,
           domain.uid,
@@ -42,7 +43,7 @@ export async function listSites(args = {}) {
           formatDate(domain.created_at).split(',')[0],
           domain.protected ? chalk.red('Yes') : chalk.green('No'),
         //   domain.owner['username'],
-          domain?.root_dir?.path.split('/').pop()
+          appDir.length == 6?`${appDir[0]}-...-${appDir.slice(-1)}`:appDir.join('-')
         ]);
       });
   

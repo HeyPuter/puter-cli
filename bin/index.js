@@ -6,7 +6,7 @@ import { startShell } from '../src/commands/shell.js';
 import { PROJECT_NAME, getLatestVersion } from '../src/commons.js';
 
 async function main() {
-  const { version } = await getLatestVersion(PROJECT_NAME);
+  const version = await getLatestVersion(PROJECT_NAME);
 
   const program = new Command();
   program

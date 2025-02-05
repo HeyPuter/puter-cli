@@ -316,15 +316,25 @@ export function getDefaultHomePage(appName, jsFiles = [], cssFiles= []) {
 export async function getVersionFromPackage() {
     try {
         const __filename = fileURLToPath(import.meta.url);
-        const __dirname = dirname(__filename);        
-        const packageJson = JSON.parse(
-          await readFile(join(__dirname, 'package.json'), 'utf8')
-        );
-        return packageJson.version;
+        const __dirname = dirname(__filename);
+        
+        // First try parent directory (dev mode)
+        try {
+            const devPackage = JSON.parse(
+                await readFile(join(__dirname, '..', 'package.json'), 'utf8')
+            );
+            return devPackage.version;
+        } catch (devError) {
+            // Fallback to current directory (production)
+            const prodPackage = JSON.parse(
+                await readFile(join(__dirname, 'package.json'), 'utf8')
+            );
+            return prodPackage.version;
+        }
     } catch (error) {
         console.error(`Error fetching latest version:`, error.message);
         return null;
-    }    
+    }
 }
 
 /**
@@ -334,8 +344,13 @@ export async function getLatestVersion(packageName) {
     try {
       const response = await fetch(`https://registry.npmjs.org/${packageName}/latest`);
       let data = await response.json();
-      return data;
+      const currentVersion = await getVersionFromPackage();
+      if (data.version !== currentVersion){
+          return `v${currentVersion} (latest: ${data.version})`;
+      }
+      return `v${currentVersion}`;
     } catch (error) {
-        return getVersionFromPackage();
+        console.error(`ERROR: ${error.message}`);
+        return "<Unknown>";
     }
   }

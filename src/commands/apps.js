@@ -22,7 +22,7 @@ import crypto from '../crypto.js';
  * ```
  */
 export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
-    console.log(chalk.green(`Listing of apps during period "${chalk.red(statsPeriod)}":\n`));
+    console.log(chalk.green(`Listing of apps during period "${chalk.cyan(statsPeriod)}" (try also: today, yesterday, 7d, 30d, this_month, last_month):\n`));
     try {
         const response = await fetch(`${API_BASE}/drivers/call`, {
             method: 'POST',
@@ -72,7 +72,7 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
 
             // Display the table
             console.log(table.toString());
-            console.log(chalk.green(`You have in total: ${chalk.red(data['result'].length)} application(s).`));
+            console.log(chalk.green(`You have in total: ${chalk.cyan(data['result'].length)} application(s).`));
         } else {
             console.error(chalk.red('Unable to list your apps. Please check your credentials.'));
         }

@@ -53,12 +53,12 @@ puter --version
 
 ### Commands
 
-#### Initilize a project
-- **Create a new project**: Initilize a new project
+#### Initialize a project
+- **Create a new project**: Initialize a new project
 ```bash
   puter init
 ```
-Then just follow the prompts, this command doesn't require you to login.
+Then just follow the prompts, this command doesn't require you to log in.
 
 #### Authentication
 - **Login**: Log in to your Puter account.
@@ -72,7 +72,7 @@ Then just follow the prompts, this command doesn't require you to login.
 
 #### File Management
 
-We've adopted the most basic popluar linux system command line for daily file manipulation with some extra features, not out of the box though, we want to keep it simple.
+We've adopted the most basic popular Linux system command line for daily file manipulation with some extra features, not out of the box though, we want to keep it simple.
 
 - **List Files**: List files and directories.
 ```bash
@@ -157,7 +157,7 @@ P.S. Please check the help command `help apps` for more details about any argume
 ```bash
   puter> app:create <name> [<directory>] [--description="My App Description"] [--url=<url>]
 ```
-P.S. By default a new `index.html` with basic content will be created, but you can set a directory when you create a new application as follows: `app:create nameOfApp ./appDir`, so all files will be copied to the `AppData` directoy, you can then update your app using `app:update <name> <remote_dir>`. This command will attempt to create a subdomain with a random `uid` prefixed with the name of the app.
+P.S. By default a new `index.html` with basic content will be created, but you can set a directory when you create a new application as follows: `app:create nameOfApp ./appDir`, so all files will be copied to the `AppData` directory, you can then update your app using `app:update <name> <remote_dir>`. This command will attempt to create a subdomain with a random `uid` prefixed with the name of the app.
 
 - **Update Application**: Update an application.
 ```bash
@@ -169,7 +169,7 @@ P.S. By default a new `index.html` with basic content will be created, but you c
 ```bash
   puter> app:delete [-f] <name>
 ```
-P.S. This command will lookup for the allocated `subdomain` and attempt to delete it if it exists.
+P.S. This command will look for the allocated `subdomain` and attempt to delete it if it exists.
 
 #### Static Sites
 
@@ -179,7 +179,7 @@ The static sites are served from the selected directory (or the current director
 ```bash
   puter> site:create <app_name> [<dir>] [--subdomain=<name>]
 ```
-P.S. If the subdomain already exists, it will generate a new random one can set your own subdomain using `--subdomain` argument.
+P.S. If the subdomain already exists, it will generate a new random one. You can set your own subdomain using `--subdomain` argument.
 
 - **List Sites**: List all hosted sites.
 ```bash
@@ -282,7 +282,7 @@ If you want to customize this tool you can follow these steps:
 
 ## Known issues:
 
-Most of the functionalities are just working fine, however some APIs related to Puter's SDK have some known issues. We tried to fix most them but some of them are not related to us, so we let you about that in case it'll be fixed by Puter's in the future:
+Most of the functionalities are just working fine, however, some APIs related to Puter's SDK have some known issues. We tried to fix most of them but some of them are not related to us, so we let you about that in case it'll be fixed by Puter's in the future:
 
 ## Delete a subdomain
 When you try to delete a subdomain which you own, you'll get `Permission denied`:
@@ -290,7 +290,7 @@ When you try to delete a subdomain which you own, you'll get `Permission denied`
 Failed to delete subdomain: Permission denied.
 Site ID: "sd-b019b654-e06f-48a8-917e-ae1e83825ab7" may already be deleted!
 ```
-However, the query is executed successfully at the cloud and the subdomain is actually deleted.
+However, the query is executed successfully in the cloud and the subdomain is actually deleted.
 
 ## Interactive Shell prompt:
 If you want to stay in the interactive shell you should provide "-f" (aka: force delete) argument, when want to delete any object:
@@ -310,7 +310,7 @@ Otherwise, the Interactive Shell mode will be terminated.
 
 ## Notes
 
-This project is not equivalent [phoenix](https://github.com/HeyPuter/puter/blob/main/src/phoenix/README.md), niether an attempt to mimic some it's features, it's rather a CLI tool to do most the Puter's API from command line.
+This project is not equivalent [phoenix](https://github.com/HeyPuter/puter/blob/main/src/phoenix/README.md), neither an attempt to mimic some of its features, it's rather a CLI tool to do most the Puter's API from the command line.
 
 ---
 
@@ -324,7 +324,7 @@ The CLI uses a configuration file to store user credentials and settings. You ca
 
 We welcome contributions! Please follow these steps:
 1. Fork the repository.
-2. Create a new branch for your feature or bugfix with a reproducible steps.
+2. Create a new branch for your feature or bugfix with reproducible steps.
 3. Submit a pull request with a detailed description of your changes.
 
 ---
@@ -355,4 +355,4 @@ For issues or questions, please open an issue on [GitHub](https://github.com/bit
 ---
 
 
-Happy deploing with **Puter CLI**! 🚀
+Happy deploying with **Puter CLI**! 🚀

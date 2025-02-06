@@ -9,6 +9,7 @@
     <a href="https://opensource.org/licenses/MIT" > 
       <img alt="License" src="https://img.shields.io/badge/License-MIT-yellow.svg">
     </a>
+    <a href="https://www.npmjs.com/package/puter-cli"><img src="https://img.shields.io/npm/v/puter-cli?color=729B1B&label="></a>
 </p>
 
 

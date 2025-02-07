@@ -101,3 +101,22 @@ export function parseArgs(input, options = {}) {
   const result = yargsParser(input, options);
   return result;
 }
+
+/**
+ * Checks if a given string is a valid UUID of any version
+ * @param {string} uuid - The string to validate.
+ * @returns {boolean} - True if the string is a valid UUID, false otherwise.
+ */
+export function isValidAppUuid (uuid) {
+  return uuid.startsWith('app-') && is_valid_uuid4(uuid.slice(4));
+}
+
+/**
+ * Checks if a given string is a valid UUID version 4.
+ * @param {string} uuid - The string to validate.
+ * @returns {boolean} - True if the string is a valid UUID version 4, false otherwise.
+ */
+export function is_valid_uuid4 (uuid) {
+  const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidV4Regex.test(uuid);
+}

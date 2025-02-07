@@ -3,7 +3,7 @@ import fetch from 'node-fetch';
 import Table from 'cli-table3';
 import { getCurrentUserName, getCurrentDirectory } from './auth.js';
 import { API_BASE, getHeaders, generateAppName, resolvePath, isValidAppName } from '../commons.js';
-import { displayNonNullValues, formatDate, formatDateTime } from '../utils.js';
+import { displayNonNullValues, formatDate, isValidAppUuid } from '../utils.js';
 import { getSubdomains, createSubdomain, deleteSubdomain } from './subdomains.js';
 
 
@@ -43,7 +43,7 @@ export async function listSites(args = {}) {
           formatDate(domain.created_at).split(',')[0],
           domain.protected ? chalk.red('Yes') : chalk.green('No'),
         //   domain.owner['username'],
-          appDir && (appDir.length == 6?`${appDir[0]}-...-${appDir.slice(-1)}`:appDir.join('-'))
+          appDir && (isValidAppUuid(appDir.join('-'))?`${appDir[0]}-...-${appDir.slice(-1)}`:appDir.join('-'))
         ]);
       });
   

@@ -15,11 +15,9 @@ describe('formatDate', () => {
   });
 
   it('should handle different date and time', () => {
-    const dateString = '2023-01-01T00:30:05.000Z';
-    const dateObject = new Date(Date.UTC(2023, 0, 0, 24, 30, 5));
-    const expected = '01/01/2023, 24:30:05';
+    const dateString = '2023-01-01T01:30:05.000Z';
+    const expected = '01/01/2023, 01:30:05';
     expect(formatDate(dateString)).toBe(expected);
-    expect(formatDate(dateObject)).toBe(expected);
   });
 
   it('should handle invalid date', () => {

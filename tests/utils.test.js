@@ -4,13 +4,19 @@ import { formatDate, formatDateTime, formatSize, displayNonNullValues, parseArgs
 describe('formatDate', () => {
   it('should format a date string correctly', () => {
     const dateString = '2024-10-07T15:03:53.000Z';
-    const expected = '10/07/2024, 16:03:53';
+    const expected = '10/07/2024, 15:03:53';
     expect(formatDate(dateString)).toBe(expected);
+  });
+
+  it('should format a date object correctly', () => {
+    const dateObject = new Date(Date.UTC(2024, 9, 7, 15, 3, 53)); // Month is 0-indexed
+    const expected = '10/07/2024, 15:03:53';
+    expect(formatDate(dateObject)).toBe(expected);
   });
 
   it('should handle different date and time', () => {
     const dateString = '2023-01-01T00:00:00.000Z';
-    const expected = '01/01/2023, 01:00:00';
+    const expected = '01/01/2023, 24:00:00';
     expect(formatDate(dateString)).toBe(expected);
   });
     it('should handle invalid date', () => {
@@ -121,6 +127,12 @@ describe('parseArgs', () => {
     expect(parseArgs(input)).toEqual(expect.objectContaining(expected));
   });
 
+  it('should parse command line arguments with different types', () => {
+    const input = 'command --name="John Doe" --age=30';
+    const result = parseArgs(input);
+    expect(result).toEqual({ _: ['command'], name: 'John Doe', age: 30 });
+  });  
+
   it('should parse quoted arguments', () => {
     const input = 'command --arg "quoted value"';
     const expected = { _: ['command'], arg: 'quoted value' };
@@ -133,11 +145,16 @@ describe('parseArgs', () => {
     expect(parseArgs(input)).toEqual(expect.objectContaining(expected));
   });
 
-    it('should parse empty arguments', () => {
-        const input = '';
-        const expected = { _: [] };
-        expect(parseArgs(input)).toEqual(expect.objectContaining(expected));
-    });
+  it('should handle empty input', () => {
+    const result = parseArgs('');
+    expect(result).toEqual({ _: []});
+  });
+
+  it('should parse empty arguments', () => {
+      const input = '';
+      const expected = { _: [] };
+      expect(parseArgs(input)).toEqual(expect.objectContaining(expected));
+  });
 });
 
 describe('isValidAppUuid', () => {

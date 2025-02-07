@@ -15,14 +15,17 @@ describe('formatDate', () => {
   });
 
   it('should handle different date and time', () => {
-    const dateString = '2023-01-01T00:00:00.000Z';
-    const expected = '01/01/2023, 24:00:00';
+    const dateString = '2023-01-01T00:30:05.000Z';
+    const dateObject = new Date(Date.UTC(2023, 0, 0, 24, 30, 5));
+    const expected = '01/01/2023, 24:30:05';
     expect(formatDate(dateString)).toBe(expected);
+    expect(formatDate(dateObject)).toBe(expected);
   });
-    it('should handle invalid date', () => {
-        const dateString = 'invalid-date';
-        expect(formatDate(dateString)).toBe('Invalid Date');
-    });
+
+  it('should handle invalid date', () => {
+      const dateString = 'invalid-date';
+      expect(formatDate(dateString)).toBe('Invalid Date');
+  });
 });
 
 describe('formatDateTime', () => {

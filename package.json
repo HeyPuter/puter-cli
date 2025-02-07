@@ -10,10 +10,10 @@
   "type": "module",
   "scripts": {
     "start": "node bin/index.js",
-    "test": "vitest run tests/*",
-    "test:watch": "vitest --watch tests/*",
+    "test": "TZ=UTC vitest run tests/*",
+    "test:watch": "TZ=UTC vitest --watch tests/*",
     "version": "auto-changelog -p && git add CHANGELOG.md",
-    "coverage": "vitest run --coverage"
+    "coverage": "TZ=UTC vitest run --coverage"
   },
   "engines": {
     "node": ">=18.0.0"

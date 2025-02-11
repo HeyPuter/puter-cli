@@ -4,6 +4,8 @@ import Conf from 'conf';
 import { execCommand, getPrompt } from '../executor.js';
 import { getAuthToken, login } from './auth.js';
 import { PROJECT_NAME } from '../commons.js';
+import ErrorModule from '../modules/ErrorModule.js';
+import putility, { AdvancedBase } from '@heyputer/putility';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -32,6 +34,16 @@ export async function startShell() {
     process.exit(0);
   }
 
+  const modules = [
+    ErrorModule,
+  ];
+
+  const context = new putility.libs.context.Context({
+    events: new putility.libs.event.Emitter(),
+  });
+
+  for ( const module of modules ) module({ context });
+
   try {
     console.log(chalk.green('Welcome to Puter-CLI! Type "help" for available commands.'));
     rl.setPrompt(getPrompt());
@@ -41,7 +53,7 @@ export async function startShell() {
       const trimmedLine = line.trim();
       if (trimmedLine) {
         try {
-          await execCommand(trimmedLine);
+          await execCommand(context, trimmedLine);
         } catch (error) {
           console.error(chalk.red(error.message));
         }

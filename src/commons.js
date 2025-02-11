@@ -6,8 +6,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 export const PROJECT_NAME = 'puter-cli';
-export const API_BASE = 'https://api.puter.com';
-export const BASE_URL = 'https://puter.com';
+export const API_BASE = 'http://api.puter.localhost:4100';
+export const BASE_URL = 'http://puter.localhost:4100';
 
 /**
  * Get headers with the correct Content-Type for multipart form data.

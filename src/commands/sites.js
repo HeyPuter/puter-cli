@@ -5,12 +5,13 @@ import { getCurrentUserName, getCurrentDirectory } from './auth.js';
 import { API_BASE, getHeaders, generateAppName, resolvePath, isValidAppName } from '../commons.js';
 import { displayNonNullValues, formatDate, isValidAppUuid } from '../utils.js';
 import { getSubdomains, createSubdomain, deleteSubdomain } from './subdomains.js';
+import { ErrorAPI } from '../modules/ErrorModule.js';
 
 
 /**
  * Listing subdomains
  */
-export async function listSites(args = {}) {
+export async function listSites(args = {}, context) {
     try {
       const data = await getSubdomains(args);
 
@@ -57,6 +58,7 @@ export async function listSites(args = {}) {
       }
   
     } catch (error) {
+      context.events.emit('error', { error });
       console.error(chalk.red('Error listing sites:'), error.message);
       throw error;
     }

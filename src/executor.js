@@ -12,6 +12,7 @@ import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
 import { parseArgs } from './utils.js';
 import { rl } from './commands/shell.js';
+import { ErrorAPI } from './modules/ErrorModule.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -60,6 +61,9 @@ const commands = {
       // Simulate typing the command in the shell
       rl.write(commandToCopy);
     }
+  },
+  'last-error': async (_, context) => {
+    context[ErrorAPI].showLast();
   },
   'app:create': async (rawArgs) => {
     try {
@@ -150,7 +154,7 @@ const commands = {
  * Execute a command
  * @param {string} input The command line input
  */
-export async function execCommand(input) {
+export async function execCommand(context, input) {
   const [cmd, ...args] = input.split(' ');
 
   
@@ -184,7 +188,7 @@ export async function execCommand(input) {
   }
   if (commands[cmd]) {
     try {
-      await commands[cmd](args);
+      await commands[cmd](args, context);
     } catch (error) {
       console.error(chalk.red(`Error executing command: ${error.message}`));
     }

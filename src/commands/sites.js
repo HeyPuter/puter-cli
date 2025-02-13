@@ -123,9 +123,12 @@ export async function infoSite(args = []) {
         }
     
         const data = await response.json();
-        console.log(data);
+        if (Object.keys(data).length==0) {
+          console.log(chalk.green(`Site ID: "${uuid}" has been deleted.`));
+          return;
+        }
 
-        console.log(chalk.green(`Site ID: "${uuid}" has been deleted.`));
+        console.log(chalk.yellow(`Site ID: "${uuid}" should be deleted.`));
     } catch (error) {
         console.error(chalk.red('Error deleting site:'), error.message);
         return false;

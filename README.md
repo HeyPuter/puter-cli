@@ -284,14 +284,6 @@ If you want to customize this tool you can follow these steps:
 
 Most of the functionalities are just working fine, however, some APIs related to Puter's SDK have some known issues. We tried to fix most of them but some of them are not related to us, so we let you about that in case it'll be fixed by Puter's in the future:
 
-## Delete a subdomain
-When you try to delete a subdomain which you own, you'll get `Permission denied`:
-```bash
-Failed to delete subdomain: Permission denied.
-Site ID: "sd-b019b654-e06f-48a8-917e-ae1e83825ab7" may already be deleted!
-```
-However, the query is executed successfully in the cloud and the subdomain is actually deleted.
-
 ## Interactive Shell prompt:
 If you want to stay in the interactive shell you should provide "-f" (aka: force delete) argument, when want to delete any object:
 ```bash

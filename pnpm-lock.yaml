@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@heyputer/putility':
+    specifier: ^1.0.2
+    version: 1.0.2
   chalk:
     specifier: ^5.3.0
     version: 5.4.1
@@ -20,6 +23,9 @@ dependencies:
   cross-spawn:
     specifier: ^7.0.3
     version: 7.0.6
+  dotenv:
+    specifier: ^16.4.7
+    version: 16.4.7
   glob:
     specifier: ^11.0.0
     version: 11.0.0
@@ -306,6 +312,10 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
+
+  /@heyputer/putility@1.0.2:
+    resolution: {integrity: sha512-FbUKcxhdbpwkKqlDcRYxXflSUR04g46OlEzDOs5j3vo7Vb7TC1vQANnB37meT5pp8siGdUI7i2i4o0PH/AG1gw==}
+    dev: false
 
   /@inquirer/figures@1.0.3:
     resolution: {integrity: sha512-ErXXzENMH5pJt5/ssXV0DfWUZqly8nGzf0UcBV9xTnP+KyffE2mqyxIMBrZ8ijQck2nU0TQm40EQB53YreyWHw==}
@@ -864,6 +874,11 @@ packages:
     engines: {node: '>=16'}
     dependencies:
       type-fest: 3.13.1
+    dev: false
+
+  /dotenv@16.4.7:
+    resolution: {integrity: sha512-47qPchRCykZC03FhkYAhrvwU4xDBFIj1QPqaarj6mdM/hgUzfPHcpkHJOn3mJAufFeeAxAzeGsr5X0M4k6fLZQ==}
+    engines: {node: '>=12'}
     dev: false
 
   /eastasianwidth@0.2.0:

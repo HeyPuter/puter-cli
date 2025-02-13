@@ -32,6 +32,7 @@
     "commander": "^13.0.0",
     "conf": "^12.0.0",
     "cross-spawn": "^7.0.3",
+    "dotenv": "^16.4.7",
     "glob": "^11.0.0",
     "inquirer": "^9.2.12",
     "minimatch": "^10.0.1",

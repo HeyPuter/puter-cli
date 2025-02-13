@@ -273,7 +273,12 @@ If you want to customize this tool you can follow these steps:
  ```bash
    npm install
  ```
-3. Link the CLI globally:
+3. Set your own variable environnements:
+```
+cp .env.example .env
+# update your own values in .env file
+```
+4. Link the CLI globally:
  ```bash
    npm link
  ```
@@ -282,7 +287,7 @@ If you want to customize this tool you can follow these steps:
 
 ## Known issues:
 
-Most of the functionalities are just working fine, however, some APIs related to Puter's SDK have some known issues. We tried to fix most of them but some of them are not related to us, so we let you about that in case it'll be fixed by Puter's in the future:
+Most features are working fine. If you have any issues with this project or the Puter SDK, please let us know:
 
 ## Interactive Shell prompt:
 If you want to stay in the interactive shell you should provide "-f" (aka: force delete) argument, when want to delete any object:

@@ -123,14 +123,9 @@ export async function infoSite(args = []) {
         }
     
         const data = await response.json();
-        const result = await deleteSubdomain([uuid]);
-        if (result){
-            // check if data is empty object
-            if (Object.keys(data).length === 0){
-                console.log(chalk.green(`Site ID: "${uuid}" should be deleted.`));
-            }
-        }
-        console.log(chalk.yellow(`Site ID: "${uuid}" may already be deleted!`));
+        console.log(data);
+
+        console.log(chalk.green(`Site ID: "${uuid}" has been deleted.`));
     } catch (error) {
         console.error(chalk.red('Error deleting site:'), error.message);
         return false;

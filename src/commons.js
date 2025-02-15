@@ -10,8 +10,8 @@ dotenv.config();
 
 export const PROJECT_NAME = 'puter-cli';
 // If you haven't defined your own values in .env file, we'll assume you're running Puter on a local instance:
-export const API_BASE = process.env.PUTER_API_BASE || 'http://api.puter.localhost:4100';
-export const BASE_URL = process.env.PUTER_BASE_URL || 'http://puter.localhost:4100';
+export const API_BASE = process.env.PUTER_API_BASE || 'https://api.puter.com';
+export const BASE_URL = process.env.PUTER_BASE_URL || 'https://puter.com';
 
 /**
  * Get headers with the correct Content-Type for multipart form data.

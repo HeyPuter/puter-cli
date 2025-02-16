@@ -93,6 +93,7 @@ export async function createSubdomain(subdomain, remoteDir) {
     const data = await response.json();
     if (!data.success || !data.result) {
         if (data.error?.code === 'already_in_use') {
+            // data.error?.status===409
             console.log(chalk.yellow(`Subdomain already taken!\nMessage: ${data?.error?.message}`));
             return false;
         }

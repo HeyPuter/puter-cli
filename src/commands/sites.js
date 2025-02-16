@@ -192,12 +192,16 @@ export async function infoSite(args = []) {
                     }
                 }
             }
-        } else {
-            console.log(chalk.yellow(`The subdomain: "${subdomain}" is already taken, so let's generate a new random one:`));
-            subdomain = generateAppName(); // Generate a random subdomain
-            console.log(chalk.cyan(`New generated subdomain: "${subdomain}" will be used.`));
-        }
-  
+        } 
+        // else {
+            // console.log(chalk.yellow(`The subdomain: "${subdomain}" is already taken, so let's generate a new random one:`));
+            // subdomain = generateAppName(); // Generate a random subdomain
+            // console.log(chalk.cyan(`New generated subdomain: "${subdomain}" will be used.`));
+            // }
+            
+        // Use the chosen "subdomain"
+        console.log(chalk.cyan(`New generated subdomain: "${subdomain}" will be used if its not already in use.`));
+
         // Step 3: Host the current directory under the subdomain
         console.log(chalk.cyan(`Hosting app "${appName}" under subdomain "${subdomain}"...`));
         const site = await createSubdomain(subdomain, remoteDir);

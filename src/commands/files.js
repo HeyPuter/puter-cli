@@ -402,8 +402,8 @@ export async function deleteFolder(folderPath, skipConfirmation = false) {
         });
 
         const deleteData = await deleteResponse.json();
-        if (deleteResponse.ok) {
-            console.log(chalk.green(`Successfully deleted all contents of "${folderPath}"!`));
+        if (deleteResponse.ok && Object.keys(deleteData).length == 0) {
+            console.log(chalk.green(`Successfully deleted all contents from: ${chalk.cyan(folderPath)}`));
         } else {
             console.log(chalk.red('Failed to delete folder. Please check your input.'));
         }

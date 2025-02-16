@@ -1195,16 +1195,26 @@ async function resolveLocalDirectory(localPath) {
  * @param {string[]} args - Command-line arguments (e.g., [localDir, remoteDir]).
  */
 export async function syncDirectory(args = []) {
+    const usageMessage = 'Usage: update <local_directory> <remote_directory> [--delete]';
     if (args.length < 2) {
-        console.log(chalk.red('Usage: update <local_directory> <remote_directory> [--delete]'));
+        console.log(chalk.red(usageMessage));
         return;
     }
 
-    const localDir = await resolveLocalDirectory(args[0]);
-    const remoteDir = resolvePath(getCurrentDirectory(), args[1]);
-    const deleteFlag = args.includes('--delete'); // Whether to delete extra files
+    let localDir = '';
+    let remoteDir = '';
+    let deleteFlag = '';
+    try {
+        localDir = await resolveLocalDirectory(args[0]);
+        remoteDir = resolvePath(getCurrentDirectory(), args[1]);
+        deleteFlag = args.includes('--delete'); // Whether to delete extra files
+    } catch (error) {
+        console.error(chalk.red(error.message));
+        console.log(chalk.green(usageMessage));
+        return;
+    }
 
-    console.log(chalk.green(`Syncing local directory "${localDir}" with remote directory "${remoteDir}"...\n`));
+    console.log(chalk.green(`Syncing local directory ${chalk.cyan(localDir)}" with remote directory ${chalk.cyan(remoteDir)}"...\n`));
 
     try {
         // Step 1: Validate local directory

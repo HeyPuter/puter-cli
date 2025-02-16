@@ -63,8 +63,10 @@ Then just follow the prompts, this command doesn't require you to log in.
 #### Authentication
 - **Login**: Log in to your Puter account.
 ```bash
-  puter login
+  puter login [--save]
 ```
+P.S. You can add `--save` to save your authentication `token` to `.env` file as `PUTER_API_KEY` variable.
+
 - **Logout**: Log out of your Puter account.
 ```bash
   puter logout
@@ -157,7 +159,13 @@ P.S. Please check the help command `help apps` for more details about any argume
 ```bash
   puter> app:create <name> [<directory>] [--description="My App Description"] [--url=<url>]
 ```
+- This command works also from your system's terminal:
+```bash
+  $> puter app:create <name> [<directory>] [--description="My App Description"] [--url=<url>]
+```
+
 P.S. By default a new `index.html` with basic content will be created, but you can set a directory when you create a new application as follows: `app:create nameOfApp ./appDir`, so all files will be copied to the `AppData` directory, you can then update your app using `app:update <name> <remote_dir>`. This command will attempt to create a subdomain with a random `uid` prefixed with the name of the app.
+
 
 - **Update Application**: Update an application.
 ```bash

@@ -5,7 +5,7 @@ import { execCommand, getPrompt } from '../executor.js';
 import { getAuthToken, login } from './auth.js';
 import { PROJECT_NAME } from '../commons.js';
 import ErrorModule from '../modules/ErrorModule.js';
-import putility, { AdvancedBase } from '@heyputer/putility';
+import putility from '@heyputer/putility';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 

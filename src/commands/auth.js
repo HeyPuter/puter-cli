@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import Conf from 'conf';
@@ -10,7 +11,7 @@ const config = new Conf({ projectName: PROJECT_NAME });
  * Login user
  * @returns void
  */
-export async function login() {
+export async function login(args = {}) {
   const answers = await inquirer.prompt([
     {
       type: 'input',
@@ -80,6 +81,23 @@ export async function login() {
         spinner.succeed(chalk.green('Successfully logged in to Puter!'));
       }
       console.log(chalk.dim(`Token: ${data.token.slice(0, 5)}...${data.token.slice(-5)}`));
+      // Save token
+      if (args.save){
+        const localEnvFile = '.env';
+        try {
+            // Check if the file exists, if so then delete it before writing.
+            if (fs.existsSync(localEnvFile)) {
+              console.log(chalk.yellow(`File "${localEnvFile}" already exists... Adding token.`));
+              fs.appendFileSync(localEnvFile, `\nPUTER_API_KEY="${data.token}"`, 'utf8');
+            } else {
+              console.log(chalk.cyan(`Saving token to ${chalk.green(localEnvFile)} file.`));
+              fs.writeFileSync(localEnvFile, `PUTER_API_KEY="${data.token}"`, 'utf8');
+            }
+        } catch (error) {
+          console.error(chalk.red(`Cannot save token to .env file. Error: ${error.message}`));
+          console.log(chalk.cyan(`PUTER_API_KEY="${data.token}"`));
+        }
+      }
     } else {
       spinner.fail(chalk.red('Login failed. Please check your credentials.'));
     }

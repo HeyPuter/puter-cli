@@ -26,8 +26,10 @@ export async function init() {
     }
   ]);
 
-  let jsFiles = [];
+  let jsFiles = ['puter-sdk'];
+  let jsDevFiles = [];
   let cssFiles = [];
+  let jsExtraLibraries = [];
   let extraFiles = [];
   let bundlerAnswers = null;
   let frameworkAnswers = null;
@@ -73,14 +75,14 @@ export async function init() {
             content: `<template><h1>${answers.name}</h1></template>`
           });
           break;
-          case FULLSTACK_FRAMEWORKS[2]:
+        case FULLSTACK_FRAMEWORKS[2]:
             jsFiles.push('svelte@latest', 'sveltekit@latest');
             extraFiles.push({
               path: 'src/app.vue',
               content: `<template><h1>${answers.name}</h1></template>`
             });
             break;
-            case FULLSTACK_FRAMEWORKS[3]:
+        case FULLSTACK_FRAMEWORKS[3]:
               jsFiles.push('astro@latest', 'astro@latest');
               extraFiles.push({
                 path: 'src/pages/index.astro',
@@ -117,6 +119,7 @@ export async function init() {
           break;
         case JS_LIBRARIES[1]:
           jsFiles.push('vue@latest');
+          jsDevFiles.push('@vitejs/plugin-vue');
           const vueLibs = await inquirer.prompt([
             {
               type: 'checkbox',
@@ -126,10 +129,30 @@ export async function init() {
             }
           ]);
           jsFiles.push(...vueLibs.vueLibraries);
-          extraFiles.push({
+          extraFiles.push(
+            {
             path: 'src/App.vue',
             content: `<template><h1>${answers.name}</h1></template>`
-          });
+            },
+            {
+            path: 'vite.config.js',
+            content: `import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+
+export default defineConfig({
+  plugins: [vue()]
+})
+`},
+            {
+            path: 'main.js',
+            content: `import { createApp } from 'vue'
+import './style.css';
+import App from './App.vue';
+
+const app = createApp(App);
+app.mount('#app');
+            `},
+          );
           break;
         case JS_LIBRARIES[2]:
           jsFiles.push('@angular/core@latest');
@@ -196,15 +219,16 @@ export async function init() {
       case CSS_LIBRARIES[2]:
         cssFiles.push('https://cdn.tailwindcss.com');
         break;
-    }
+    }    
   }
 
+  
   const spinner = ora('Creating Puter app...').start();
 
   try {
     const useBundler = answers.useBundler === 'Yes';
     // Create basic app structure
-    await createAppStructure(answers.name, useBundler, bundlerAnswers, frameworkAnswers, jsFiles, cssFiles, extraFiles);
+    await createAppStructure(answers.name, useBundler, bundlerAnswers, frameworkAnswers, jsFiles, jsDevFiles, cssFiles, extraFiles);
     spinner.succeed(chalk.green('Successfully created Puter app!'));
 
     console.log('\nNext steps:');
@@ -221,7 +245,7 @@ export async function init() {
   }
 }
 
-async function createAppStructure(name, useBundler, bundlerAnswers, frameworkAnswers, jsFiles, cssFiles, extraFiles) {
+async function createAppStructure(name, useBundler, bundlerAnswers, frameworkAnswers, jsFiles, jsDevFiles, cssFiles, extraFiles) {
   // Create project directory
   await fs.mkdir(name, { recursive: true });
 
@@ -262,15 +286,21 @@ console.log('Puter app initialized!');`,
     const packageJson = {
       name: name,
       version: '1.0.0',
+      type: 'module',
       scripts,
       dependencies: {},
       devDependencies: {}
     };
 
+    
     jsFiles.forEach(lib => {
       if (!lib.startsWith('http')) {
         packageJson.dependencies[lib.split('@')[0].toString().toLowerCase()] = lib.split('@')[1] || 'latest';
       }
+    });
+
+    jsDevFiles.forEach(lib => {
+      packageJson.devDependencies[lib] = 'latest';
     });
 
     packageJson.devDependencies[bundler] = 'latest';

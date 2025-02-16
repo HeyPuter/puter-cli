@@ -1,11 +1,11 @@
 # Puter-CLI
 
 <p align="center">
-    <img alt="test" src="https://github.com/bitsnaps/puter-cli/actions/workflows/npm-build.yml/badge.svg">
-    <a href="https://codecov.io/github/bitsnaps/puter-cli" > 
-      <img src="https://codecov.io/github/bitsnaps/puter-cli/graph/badge.svg?token=TFPCdwdFxF"/> 
+    <img alt="test" src="https://github.com/HeyPuter/puter-cli/actions/workflows/npm-build.yml/badge.svg">
+    <a href="https://codecov.io/github/HeyPuter/puter-cli" > 
+      <img src="https://codecov.io/github/HeyPuter/puter-cli/graph/badge.svg?token=TFPCdwdFxF"/> 
     </a>
-    <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/bitsnaps/puter-cli">
+    <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/HeyPuter/puter-cli">
     <a href="https://opensource.org/licenses/MIT" > 
       <img alt="License" src="https://img.shields.io/badge/License-MIT-yellow.svg">
     </a>
@@ -266,7 +266,7 @@ If you want to customize this tool you can follow these steps:
 ### Steps
 1. Clone the repository:
  ```bash
-   git clone https://github.com/bitsnaps/puter-cli.git
+   git clone https://github.com/HeyPuter/puter-cli.git
    cd puter-cli
  ```
 2. Install dependencies:
@@ -339,7 +339,7 @@ This project was previously licensed under the "NoHarm" license to explicitly pr
 
 ## Support
 
-For issues or questions, please open an issue on [GitHub](https://github.com/bitsnaps/puter-cli/issues) or contact [puter's team](mailto:hey@puter.com) if you found an issue related to Puter's APIs.
+For issues or questions, please open an issue on [GitHub](https://github.com/HeyPuter/puter-cli/issues) or contact [puter's team](mailto:hey@puter.com) if you found an issue related to Puter's APIs.
 
 ---
 

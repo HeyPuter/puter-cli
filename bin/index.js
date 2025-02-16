@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
+import chalk from 'chalk';
 import { login, logout } from '../src/commands/auth.js';
 import { init } from '../src/commands/init.js';
 import { startShell } from '../src/commands/shell.js';
 import { PROJECT_NAME, getLatestVersion } from '../src/commons.js';
+import { createApp } from '../src/commands/apps.js';
 
 async function main() {
   const version = await getLatestVersion(PROJECT_NAME);
@@ -37,23 +39,24 @@ async function main() {
 
   // App commands
   program
-    .command('app:create <name>')
+    .command('app:create')
     .description('Create a new Puter application')
     .argument('<name>', 'Name of the application')
-    .argument('[directory]', 'Local directory path')
-    .option('-d, --description <description>', 'Application description')
+    .argument('[remoteDir]', 'Remote directory path')
+    .option('-d, --description [description]', 'Application description', '')
     .option('-u, --url <url>', 'Application URL', 'https://dev-center.puter.com/coming-soon.html')
-    .action(async (name, directory, options) => {
+    .action(async (name, remoteDir, options) => {
       try {
         await createApp({
           name,
-          directory: directory || '',
+          directory: remoteDir || '',
           description: options.description || '',
           url: options.url
         });
       } catch (error) {
         console.error(chalk.red(error.message));
       }
+      process.exit(0);
     });
 
   if (process.argv.length === 2) {

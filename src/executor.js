@@ -323,7 +323,7 @@ function showHelp(command) {
       Example: pull /path/to/file
     `,
     update: `
-      ${chalk.cyan('update <src> <dest>')}
+      ${chalk.cyan('update <src> <dest> [--delete] [-r]')}
       Sync local directory with remote cloud.
       Example: update /local/path /remote/path
     `,

@@ -1075,28 +1075,34 @@ export async function copyFile(args = []) {
 /**
  * List all files in a local directory.
  * @param {string} localDir - The local directory path.
+ * @param {boolean} recursive - Whether to recursively list files in subdirectories
  * @returns {Array} - Array of local file objects.
  */
-function listLocalFiles(localDir) {
+function listLocalFiles(localDir, recursive = false) {
     const files = [];
-    const walkDir = (dir) => {
+    const walkDir = (dir, baseDir) => {
+
         const entries = fs.readdirSync(dir, { withFileTypes: true });
         for (const entry of entries) {
             const fullPath = path.join(dir, entry.name);
+            const relativePath = path.relative(baseDir, fullPath);
             if (entry.isDirectory()) {
-                walkDir(fullPath);
+                if (recursive) {
+                    walkDir(fullPath, baseDir); // Recursively traverse directories if flag is set
+                }
             } else {
                 files.push({
-                    relativePath: path.relative(localDir, fullPath),
+                    relativePath: relativePath,
                     localPath: fullPath,
                     size: fs.statSync(fullPath).size,
                     modified: fs.statSync(fullPath).mtime.getTime()
                 });
             }
         }
+
     };
 
-    walkDir(localDir);
+    walkDir(localDir, localDir);
     return files;
 }
 
@@ -1190,12 +1196,40 @@ async function resolveLocalDirectory(localPath) {
     return absolutePath;
 }
 
+
+/**
+ * Ensure a remote directory exists, creating it if necessary
+ * @param {string} remotePath - The remote directory path
+ */
+async function ensureRemoteDirectoryExists(remotePath) {
+    try {
+        const exists = await pathExists(remotePath);
+        if (!exists) {
+            // Create the directory and any missing parents
+            await fetch(`${API_BASE}/mkdir`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    parent: path.dirname(remotePath),
+                    path: path.basename(remotePath),
+                    overwrite: false,
+                    dedupe_name: true,
+                    create_missing_parents: true
+                })
+            });
+        }
+    } catch (error) {
+        console.error(chalk.red(`Failed to create remote directory: ${remotePath}`));
+        throw error;
+    }
+}
+
 /**
  * Synchronize a local directory with a remote directory on Puter.
- * @param {string[]} args - Command-line arguments (e.g., [localDir, remoteDir]).
+ * @param {string[]} args - Command-line arguments (e.g., [localDir, remoteDir, --delete, -r]).
  */
 export async function syncDirectory(args = []) {
-    const usageMessage = 'Usage: update <local_directory> <remote_directory> [--delete]';
+    const usageMessage = 'Usage: update <local_directory> <remote_directory> [--delete] [-r]';
     if (args.length < 2) {
         console.log(chalk.red(usageMessage));
         return;
@@ -1204,10 +1238,12 @@ export async function syncDirectory(args = []) {
     let localDir = '';
     let remoteDir = '';
     let deleteFlag = '';
+    let recursiveFlag = false;
     try {
         localDir = await resolveLocalDirectory(args[0]);
         remoteDir = resolvePath(getCurrentDirectory(), args[1]);
         deleteFlag = args.includes('--delete'); // Whether to delete extra files
+        recursiveFlag = args.includes('-r'); // Whether to recursively process subdirectories
     } catch (error) {
         console.error(chalk.red(error.message));
         console.log(chalk.green(usageMessage));
@@ -1231,14 +1267,17 @@ export async function syncDirectory(args = []) {
         }
 
         // Step 3: List local files
-        const localFiles = listLocalFiles(localDir);
+        const localFiles = listLocalFiles(localDir, recursiveFlag);
 
         // Step 4: Compare local and remote files
         let { toUpload, toDownload, toDelete } = compareFiles(localFiles, remoteFiles, localDir, remoteDir);
+        let filteredToUpload = [...toUpload];
+        let filteredToDownload = [...toDownload];
 
         // Step 5: Handle conflicts (if any)
         const conflicts = findConflicts(toUpload, toDownload);
         if (conflicts.length > 0) {
+
             console.log(chalk.yellow('The following files have conflicts:'));
             conflicts.forEach(file => console.log(chalk.dim(`- ${file}`)));
 
@@ -1256,12 +1295,12 @@ export async function syncDirectory(args = []) {
             ]);
 
             if (resolve === 'local') {
-                toDownload = toDownload.filter(file => !conflicts.includes(file.relativePath));
+                filteredToDownload = filteredToDownload.filter(file => !conflicts.includes(file.relativePath));
             } else if (resolve === 'remote') {
-                toUpload = toUpload.filter(file => !conflicts.includes(file.relativePath));
+                filteredToUpload = filteredToUpload.filter(file => !conflicts.includes(file.relativePath));
             } else {
-                toUpload = toUpload.filter(file => !conflicts.includes(file.relativePath));
-                toDownload = toDownload.filter(file => !conflicts.includes(file.relativePath));
+                filteredToUpload = filteredToUpload.filter(file => !conflicts.includes(file.relativePath));
+                filteredToDownload = filteredToDownload.filter(file => !conflicts.includes(file.relativePath));
             }
         }
 
@@ -1269,18 +1308,30 @@ export async function syncDirectory(args = []) {
         console.log(chalk.green('Starting synchronization...'));
 
         // Upload new/updated files
-        for (const file of toUpload) {
+        for (const file of filteredToUpload) {
             console.log(chalk.cyan(`Uploading "${file.relativePath}"...`));
             const dedupeName = 'false';
             const overwrite = 'true';
-            await uploadFile([file.localPath, remoteDir, dedupeName, overwrite]);
+
+            // Create parent directories if needed
+            const remoteFilePath = path.join(remoteDir, file.relativePath);
+            const remoteFileDir = path.dirname(remoteFilePath);
+            
+            // Ensure remote directory exists
+            await ensureRemoteDirectoryExists(remoteFileDir);
+
+            await uploadFile([file.localPath, remoteFileDir, dedupeName, overwrite]);
         }
 
         // Download new/updated files
-        for (const file of toDownload) {
+        for (const file of filteredToDownload) {
             console.log(chalk.cyan(`Downloading "${file.relativePath}"...`));
             const overwrite = 'true';
-            await downloadFile([file.relativePath, file.localPath, overwrite]);
+            // Create local parent directories if needed
+            const localFilePath = path.join(localDir, file.relativePath);
+            // const localFileDir = path.dirname(localFilePath);
+
+            await downloadFile([file.remotePath, localFilePath, overwrite]);
         }
 
         // Delete extra files (if --delete flag is set)

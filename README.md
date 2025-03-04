@@ -129,6 +129,19 @@ Think of it as `git [push|pull]` commands, they're basically simplified equivale
 ```
 P.S. These commands consider the current directory as the base path for every operation, basic wildcards are supported: e.g. `push myapp/*.html`.
 
+- **Synchronize Files**: Bidirectional synchronization between local and remote directories.
+```bash
+  puter> update <local_directory> <remote_directory> [--delete] [-r]
+```
+P.S. The `--delete` flag removes files in the remote directory that don't exist locally. The `-r` flag enables recursive synchronization of subdirectories.
+
+#### User Information
+```
+
+The addition describes the `update` command which allows for bidirectional synchronization between local and remote directories, including the optional flags for deleting files and recursive synchronization.
+---
+
+
 #### User Information
 - **Get User Info**: Display user information.
 ```bash

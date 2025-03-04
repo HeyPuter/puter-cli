@@ -106,7 +106,7 @@ export function showDiskSpaceUsage(data) {
   console.log(chalk.cyan(`Usage Percentage: `) + chalk.white(`${usagePercentage.toFixed(2)}%`));
   console.log(chalk.dim('----------------------------------------'));
 }
- 
+
 /**
  * Resolve a relative path to an absolute path
  * @param {string} currentPath - The current working directory

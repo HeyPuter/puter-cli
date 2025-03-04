@@ -117,54 +117,87 @@ export async function makeDirectory(args = []) {
  */
 export async function renameFileOrDirectory(args = []) {
     if (args.length < 2) {
-        console.log(chalk.red('Usage: mv <old_name> <new_name>'));
+        console.log(chalk.red('Usage: mv <source> <destination>'));
         return;
     }
 
-    const currentPath = getCurrentDirectory();
-    const oldName = args[0];
-    const newName = args[1];
+    const sourcePath = args[0].startsWith('/') ? args[0] : resolvePath(getCurrentDirectory(), args[0]);
+    const destPath = args[1].startsWith('/') ? args[1] : resolvePath(getCurrentDirectory(), args[1]);
 
-    console.log(chalk.green(`Renaming "${oldName}" to "${newName}"...\n`));
+    console.log(chalk.green(`Moving "${sourcePath}" to "${destPath}"...\n`));
 
     try {
-        // Step 1: Get the UID of the file/directory using the old name
+        // Step 1: Get the source file/directory info
         const statResponse = await fetch(`${API_BASE}/stat`, {
             method: 'POST',
             headers: getHeaders(),
-            body: JSON.stringify({
-                path: `${currentPath}/${oldName}`
-            })
+            body: JSON.stringify({ path: sourcePath })
         });
 
         const statData = await statResponse.json();
         if (!statData || !statData.uid) {
-            console.log(chalk.red(`Could not find file or directory with name "${oldName}".`));
+            console.log(chalk.red(`Could not find source "${sourcePath}".`));
             return;
         }
 
-        const uid = statData.uid;
+        const sourceUid = statData.uid;
+        const sourceName = statData.name;
 
-        // Step 2: Perform the rename operation using the UID
-        const renameResponse = await fetch(`${API_BASE}/rename`, {
+        // Step 2: Check if destination is an existing directory
+        const destStatResponse = await fetch(`${API_BASE}/stat`, {
             method: 'POST',
             headers: getHeaders(),
-            body: JSON.stringify({
-                uid: uid,
-                new_name: newName
-            })
+            body: JSON.stringify({ path: destPath })
         });
 
-        const renameData = await renameResponse.json();
-        if (renameData && renameData.uid) {
-            console.log(chalk.green(`Successfully renamed "${oldName}" to "${newName}"!`));
-            console.log(chalk.dim(`Path: ${renameData.path}`));
-            console.log(chalk.dim(`UID: ${renameData.uid}`));
+        const destData = await destStatResponse.json();
+        
+        // Determine if this is a rename or move operation
+        const isMove = destData && destData.is_dir;
+        const newName = isMove ? sourceName : path.basename(destPath);
+        const destination = isMove ? destPath : path.dirname(destPath);
+
+        if (isMove) {
+            // Move operation: use /move endpoint
+            const moveResponse = await fetch(`${API_BASE}/move`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    source: sourceUid,
+                    destination: destination,
+                    overwrite: false,
+                    new_name: newName,
+                    create_missing_parents: false,
+                    new_metadata: {}
+                })
+            });
+
+            const moveData = await moveResponse.json();
+            if (moveData && moveData.moved) {
+                console.log(chalk.green(`Successfully moved "${sourcePath}" to "${moveData.moved.path}"!`));
+            } else {
+                console.log(chalk.red('Failed to move item. Please check your input.'));
+            }
         } else {
-            console.log(chalk.red('Failed to rename item. Please check your input.'));
+            // Rename operation: use /rename endpoint
+            const renameResponse = await fetch(`${API_BASE}/rename`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    uid: sourceUid,
+                    new_name: newName
+                })
+            });
+
+            const renameData = await renameResponse.json();
+            if (renameData && renameData.uid) {
+                console.log(chalk.green(`Successfully renamed "${sourcePath}" to "${renameData.path}"!`));
+            } else {
+                console.log(chalk.red('Failed to rename item. Please check your input.'));
+            }
         }
     } catch (error) {
-        console.log(chalk.red('Failed to rename item.'));
+        console.log(chalk.red('Failed to move/rename item.'));
         console.error(chalk.red(`Error: ${error.message}`));
     }
 }
@@ -205,7 +238,6 @@ async function findMatchingFiles(files, pattern, basePath) {
 
     return matchedPaths;
 }
-
 
 /**
  * Find files matching the pattern in the local directory (DEPRECATED: Not used)
@@ -1195,7 +1227,6 @@ async function resolveLocalDirectory(localPath) {
     }
     return absolutePath;
 }
-
 
 /**
  * Ensure a remote directory exists, creating it if necessary

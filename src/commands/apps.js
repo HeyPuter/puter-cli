@@ -284,7 +284,14 @@ export async function updateApp(args = []) {
         return;
     }
     const name = args[0]; // App name (required)
-    const remoteDir = resolvePath(getCurrentDirectory(), args[1] || '.');
+    // Fix: Properly handle absolute paths by checking if the path starts with '/'
+    let remoteDir;
+    if (args[1] && args[1].startsWith('/')) {
+        remoteDir = args[1]; // Use the absolute path as-is
+    } else {
+        remoteDir = resolvePath(getCurrentDirectory(), args[1] || '.');
+    }
+    
     const remoteDirExists = await pathExists(remoteDir);
     
     if (!remoteDirExists){

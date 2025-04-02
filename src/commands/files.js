@@ -1,17 +1,19 @@
 import fs from 'node:fs';
+import os from 'node:os';
+import { execSync } from 'node:child_process';
 import { glob } from 'glob';
 import path from 'path';
 import { minimatch } from 'minimatch';
 import chalk from 'chalk';
-import ora from 'ora';
 import Conf from 'conf';
 import fetch from 'node-fetch';
 import { API_BASE, BASE_URL, PROJECT_NAME, getHeaders, showDiskSpaceUsage, resolvePath } from '../commons.js';
-import { formatDate, formatDateTime, formatSize } from '../utils.js';
+import { formatDateTime, formatSize, getSystemEditor } from '../utils.js';
 import inquirer from 'inquirer';
 import { getAuthToken, getCurrentDirectory, getCurrentUserName } from './auth.js';
 import { updatePrompt } from './shell.js';
 import crypto from '../crypto.js';
+
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -1378,4 +1380,163 @@ export async function syncDirectory(args = []) {
         console.error(chalk.red('Failed to synchronize directories.'));
         console.error(chalk.red(`Error: ${error.message}`));
     }
+}
+
+/**
+ * Edit a remote file using the local system editor
+ * @param {Array} args - The file path to edit
+ * @returns {Promise<void>}
+ */
+export async function editFile(args = []) {
+  if (args.length < 1) {
+    console.log(chalk.red('Usage: edit <file>'));
+    return;
+  }
+
+  const filePath = args[0].startsWith('/') ? args[0] : resolvePath(getCurrentDirectory(), args[0]);
+  console.log(chalk.green(`Fetching file: ${filePath}`));
+
+  try {
+    // Step 1: Check if file exists
+    const statResponse = await fetch(`${API_BASE}/stat`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ path: filePath })
+    });
+    
+    const statData = await statResponse.json();
+    if (!statData || !statData.uid || statData.is_dir) {
+      console.log(chalk.red(`File not found or is a directory: ${filePath}`));
+      return;
+    }
+
+    // Step 2: Download the file content
+    const downloadResponse = await fetch(`${API_BASE}/read?file=${encodeURIComponent(filePath)}`, {
+      method: 'GET',
+      headers: getHeaders()
+    });
+    
+    if (!downloadResponse.ok) {
+      console.log(chalk.red(`Failed to download file: ${filePath}`));
+      return;
+    }
+    
+    const fileContent = await downloadResponse.text();
+    console.log(chalk.green(`File fetched: ${filePath} (${formatSize(fileContent.length)} bytes)`));
+
+    // Step 3: Create a temporary file
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'puter-'));
+    const tempFilePath = path.join(tempDir, path.basename(filePath));
+    fs.writeFileSync(tempFilePath, fileContent, 'utf-8');
+
+    // Step 4: Determine the editor to use
+    const editor = getSystemEditor();
+    console.log(chalk.cyan(`Opening file with ${editor}...`));
+    
+    // Step 5: Open the file in the editor using execSync instead of spawn
+    // This will block until the editor is closed, which is better for terminal-based editors
+    try {
+      execSync(`${editor} "${tempFilePath}"`, { 
+        stdio: 'inherit',
+        env: process.env
+      });
+      
+      // Read the updated content after editor closes
+      const updatedContent = fs.readFileSync(tempFilePath, 'utf8');
+      console.log(chalk.cyan('Uploading changes...'));
+      
+      // Step 7: Upload the updated file content
+      // Step 7.1: Check disk space
+      const dfResponse = await fetch(`${API_BASE}/df`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: null
+      });
+
+      if (!dfResponse.ok) {
+          console.log(chalk.red('Unable to check disk space.'));
+          return;
+      }
+
+      const dfData = await dfResponse.json();
+      if (dfData.used >= dfData.capacity) {
+          console.log(chalk.red('Not enough disk space to upload the file.'));
+          showDiskSpaceUsage(dfData); // Display disk usage info
+          return;
+      }
+
+      // Step 7.2: Uploading the updated file
+      const operationId = crypto.randomUUID(); // Generate a unique operation ID
+      const socketId = 'undefined'; // Placeholder socket ID
+      const boundary = `----WebKitFormBoundary${crypto.randomUUID().replace(/-/g, '')}`;
+      const fileName = path.basename(filePath);
+      const dirName = path.dirname(filePath);
+
+      // Prepare FormData
+      const formData = `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="operation_id"\r\n\r\n${operationId}\r\n` +
+          `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="socket_id"\r\n\r\n${socketId}\r\n` +
+          `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="original_client_socket_id"\r\n\r\n${socketId}\r\n` +
+          `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="fileinfo"\r\n\r\n${JSON.stringify({
+              name: fileName,
+              type: 'text/plain',
+              size: Buffer.byteLength(updatedContent, 'utf8')
+          })}\r\n` +
+          `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="operation"\r\n\r\n${JSON.stringify({
+              op: 'write',
+              dedupe_name: false,
+              overwrite: true,
+              operation_id: operationId,
+              path: dirName,
+              name: fileName,
+              item_upload_id: 0
+          })}\r\n` +
+          `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+          `Content-Type: text/plain\r\n\r\n${updatedContent}\r\n` +
+          `--${boundary}--\r\n`;
+
+      // Send the upload request
+      const uploadResponse = await fetch(`${API_BASE}/batch`, {
+          method: 'POST',
+          headers: getHeaders(`multipart/form-data; boundary=${boundary}`),
+          body: formData
+      });
+
+      if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.log(chalk.red(`Failed to save file. Server response: ${errorText}`));
+          return;
+      }
+
+      const uploadData = await uploadResponse.json();
+      if (uploadData && uploadData.results && uploadData.results.length > 0) {
+          const file = uploadData.results[0];
+          console.log(chalk.green(`File saved: ${file.path}`));
+      } else {
+          console.log(chalk.red('Failed to save file. Invalid response from server.'));
+      }
+    } catch (error) {
+      if (error.status === 130) {
+        // This is a SIGINT (Ctrl+C), which is normal for some editors
+        console.log(chalk.yellow('Editor closed without saving.'));
+      } else {
+        console.log(chalk.red(`Error during editing: ${error.message}`));
+      }
+    } finally {
+      // Clean up temporary files
+      try {
+        fs.unlinkSync(tempFilePath);
+        fs.rmdirSync(tempDir);
+      } catch (e) {
+        console.error(chalk.dim(`Failed to clean up temporary files: ${e.message}`));
+      }
+    }
+  } catch (error) {
+    console.log(chalk.red(`Error: ${error.message}`));
+  }
 }

@@ -135,6 +135,12 @@ P.S. These commands consider the current directory as the base path for every op
 ```
 P.S. The `--delete` flag removes files in the remote directory that don't exist locally. The `-r` flag enables recursive synchronization of subdirectories.
 
+**Edit a file**: Edit remote text files using your preferred local text editor.
+```bash
+  puter> edit <file>
+```
+P.S. This command will download the remote file to your local machine, open it in your default editor, and then upload the changes back to the remote instance. It uses `vim` by default, but you can change it by setting the `EDITOR` environment variable.
+
 #### User Information
 ```
 

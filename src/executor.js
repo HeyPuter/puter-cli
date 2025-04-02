@@ -5,12 +5,12 @@ import { listSites, createSite, deleteSite, infoSite } from './commands/sites.js
 import { listFiles, makeDirectory, renameFileOrDirectory, 
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
   getInfo, getDiskUsage, createFile, readFile, uploadFile, 
-  downloadFile, copyFile, syncDirectory } from './commands/files.js';
+  downloadFile, copyFile, syncDirectory, editFile } from './commands/files.js';
 import { getUserInfo, getUsageInfo } from './commands/auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
-import { parseArgs } from './utils.js';
+import { parseArgs, getSystemEditor } from './utils.js';
 import { rl } from './commands/shell.js';
 import { ErrorAPI } from './modules/ErrorModule.js';
 
@@ -144,6 +144,7 @@ const commands = {
   push: uploadFile,
   pull: downloadFile,
   update: syncDirectory,
+  edit: editFile,
   sites: listSites,
   site: infoSite,
   'site:delete': deleteSite,
@@ -326,6 +327,13 @@ function showHelp(command) {
       ${chalk.cyan('update <src> <dest> [--delete] [-r]')}
       Sync local directory with remote cloud.
       Example: update /local/path /remote/path
+    `,
+    edit: `
+      ${chalk.cyan('edit <file>')}
+      Edit a remote file using your local text editor.
+      Example: edit /path/to/file
+
+      System editor: ${chalk.green(getSystemEditor())}
     `,
     sites: `
       ${chalk.cyan('sites')}

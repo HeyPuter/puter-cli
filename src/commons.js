@@ -345,16 +345,46 @@ export async function getVersionFromPackage() {
  * Get latest package info from npm registery
  */
 export async function getLatestVersion(packageName) {
+    let currentVersion = 'unknown';
+    let latestVersion = null;
+    let status = 'offline'; // Default status
+
     try {
-      const response = await fetch(`https://registry.npmjs.org/${packageName}/latest`);
-      let data = await response.json();
-      const currentVersion = await getVersionFromPackage();
-      if (data.version !== currentVersion){
-          return `v${currentVersion} (latest: ${data.version})`;
-      }
-      return `v${currentVersion}`;
+        // Attempt to get the current version first
+        currentVersion = await getVersionFromPackage();
+        if (!currentVersion) {
+            currentVersion = 'unknown'; // Fallback if local version fetch fails
+        }
+
+        // Attempt to fetch the latest version from npm
+        try {
+            const response = await fetch(`https://registry.npmjs.org/${packageName}/latest`);
+            if (response.ok) {
+                const data = await response.json();
+                latestVersion = data.version;
+            }
+        } catch (fetchError) {
+            // Ignore fetch errors
+            // console.warn(chalk.yellow(`Could not fetch latest version for ${packageName}: ${fetchError.message}`));
+        }
+
+        // Determine the status based on fetched versions
+        if (latestVersion) {
+            if (currentVersion !== 'unknown' && latestVersion === currentVersion) {
+                status = 'up-to-date';
+            } else if (currentVersion !== 'unknown' && latestVersion !== currentVersion) {
+                status = `latest: ${latestVersion}`;
+            } else {
+                // If currentVersion is unknown but we got latest, show latest
+                status = `latest: ${latestVersion}`;
+            }
+        }
+        // status remains 'offline'...
+
     } catch (error) {
-        console.error(`ERROR: ${error.message}`);
-        return "<Unknown>";
+        // Catch errors from getVersionFromPackage or other unexpected issues
+        console.error(chalk.red(`Error determining version status: ${error.message}`));
+        status = 'error'; // Indicate an error occurred
     }
-  }
+    return `v${currentVersion} (${status})`;
+}

@@ -5,109 +5,17 @@ import Conf from 'conf';
 import ora from 'ora';
 import fetch from 'node-fetch';
 import { PROJECT_NAME, API_BASE, getHeaders, BASE_URL } from '../commons.js'
+import { ProfileAPI } from '../modules/ProfileModule.js';
+import { get_context } from '../temporary/context_helpers.js';
 const config = new Conf({ projectName: PROJECT_NAME });
 
 /**
  * Login user
  * @returns void
  */
-export async function login(args = {}) {
-  const answers = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'username',
-      message: 'Username:',
-      validate: input => input.length >= 1 || 'Username is required'
-    },
-    {
-      type: 'password',
-      name: 'password',
-      message: 'Password:',
-      mask: '*',
-      validate: input => input.length >= 1 || 'Password is required'
-    }
-  ]);
-
-  let spinner;
-  try {
-    spinner = ora('Logging in to Puter...').start();
-    
-    const response = await fetch(`${BASE_URL}/login`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({
-        username: answers.username,
-        password: answers.password
-      })
-    });
-
-    let data = await response.json();
-
-    while ( data.proceed && data.next_step ) {
-      if ( data.next_step === 'otp') {
-        spinner.succeed(chalk.green('2FA is enabled'));
-        const answers = await inquirer.prompt([
-          {
-            type: 'input',
-            name: 'otp',
-            message: 'Authenticator Code:',
-            validate: input => input.length === 6 || 'OTP must be 6 digits'
-          }
-        ]);
-        spinner = ora('Logging in to Puter...').start();
-        const response = await fetch(`${BASE_URL}/login/otp`, {
-          method: 'POST',
-          headers: getHeaders(),
-          body: JSON.stringify({
-            token: data.otp_jwt_token,
-            code: answers.otp,
-          }),
-        });
-        data = await response.json();
-        continue;
-      }
-
-      if ( data.next_step === 'complete' ) break;
-
-      spinner.fail(chalk.red(`Unrecognized login step "${data.next_step}"; you might need to update puter-cli.`));
-      return;
-    }
-
-    if (data.proceed && data.token) {
-      config.set('auth_token', data.token);
-      config.set('username', answers.username);
-      config.set('cwd', `/${answers.username}`);
-      if (spinner){
-        spinner.succeed(chalk.green('Successfully logged in to Puter!'));
-      }
-      console.log(chalk.dim(`Token: ${data.token.slice(0, 5)}...${data.token.slice(-5)}`));
-      // Save token
-      if (args.save){
-        const localEnvFile = '.env';
-        try {
-            // Check if the file exists, if so then delete it before writing.
-            if (fs.existsSync(localEnvFile)) {
-              console.log(chalk.yellow(`File "${localEnvFile}" already exists... Adding token.`));
-              fs.appendFileSync(localEnvFile, `\nPUTER_API_KEY="${data.token}"`, 'utf8');
-            } else {
-              console.log(chalk.cyan(`Saving token to ${chalk.green(localEnvFile)} file.`));
-              fs.writeFileSync(localEnvFile, `PUTER_API_KEY="${data.token}"`, 'utf8');
-            }
-        } catch (error) {
-          console.error(chalk.red(`Cannot save token to .env file. Error: ${error.message}`));
-          console.log(chalk.cyan(`PUTER_API_KEY="${data.token}"`));
-        }
-      }
-    } else {
-      spinner.fail(chalk.red('Login failed. Please check your credentials.'));
-    }
-  } catch (error) {
-    if (spinner) {
-      spinner.fail(chalk.red('Failed to login'));
-    } else {
-      console.error(chalk.red(`Failed to login: ${error.message}`));
-    }
-  }
+export async function login(args = {}, context) {
+  const profileAPI = context[ProfileAPI];
+  await profileAPI.switchProfileWizard();
 }
 
 /**
@@ -164,6 +72,7 @@ export async function getUserInfo() {
     }
   } catch (error) {
     console.error(chalk.red(`Failed to get user info.\nError: ${error.message}`));
+    console.log(error);
   }
 }
 export function isAuthenticated() {
@@ -171,7 +80,9 @@ export function isAuthenticated() {
 }
 
 export function getAuthToken() {
-  return config.get('auth_token');
+  const context = get_context();
+  const profileAPI = context[ProfileAPI];
+  return profileAPI.getAuthToken();
 }
 
 export function getCurrentUserName() {

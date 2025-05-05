@@ -6,7 +6,7 @@ import { listFiles, makeDirectory, renameFileOrDirectory,
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
   getInfo, getDiskUsage, createFile, readFile, uploadFile, 
   downloadFile, copyFile, syncDirectory, editFile } from './commands/files.js';
-import { getUserInfo, getUsageInfo } from './commands/auth.js';
+import { getUserInfo, getUsageInfo, login } from './commands/auth.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
@@ -34,6 +34,7 @@ const commands = {
     await import('./commands/auth.js').then(m => m.logout());
     process.exit(0);
   },
+  login: login,
   whoami: getUserInfo,
   stat: getInfo,
   apps: async (args) => {

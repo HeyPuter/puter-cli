@@ -20,7 +20,9 @@ async function main() {
     .command('login')
     .description('Login to Puter account')
     .option('-s, --save', 'Save authentication token in .env file', '')
-    .action(login);
+    .action(() => {
+      startShell('login');
+    });
 
   program
     .command('logout')

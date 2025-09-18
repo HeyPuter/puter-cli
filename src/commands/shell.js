@@ -2,9 +2,10 @@ import readline from 'node:readline';
 import chalk from 'chalk';
 import Conf from 'conf';
 import { execCommand, getPrompt } from '../executor.js';
-import { getAuthToken, login } from './auth.js';
 import { PROJECT_NAME } from '../commons.js';
+import SetContextModule from '../modules/SetContextModule.js';
 import ErrorModule from '../modules/ErrorModule.js';
+import ProfileModule from '../modules/ProfileModule.js';
 import putility from '@heyputer/putility';
 
 const config = new Conf({ projectName: PROJECT_NAME });
@@ -26,16 +27,11 @@ export function updatePrompt(currentPath) {
 /**
  * Start the interactive shell
  */
-export async function startShell() {
-  if (!getAuthToken()) {
-    console.log(chalk.cyan('Please login first (or use CTRL+C to exit):'));
-    await login();
-    console.log(chalk.green(`Now just type: ${chalk.cyan('puter')} to begin.`));
-    process.exit(0);
-  }
-
+export async function startShell(command) {
   const modules = [
+    SetContextModule,
     ErrorModule,
+    ProfileModule,
   ];
 
   const context = new putility.libs.context.Context({
@@ -43,6 +39,14 @@ export async function startShell() {
   });
 
   for ( const module of modules ) module({ context });
+
+  await context.events.emit('check-login', {});
+  
+  // This argument enables the `puter <subcommand>` commands
+  if ( command ) {
+    await execCommand(context, command);
+    process.exit(0);
+  }
 
   try {
     console.log(chalk.green('Welcome to Puter-CLI! Type "help" for available commands.'));

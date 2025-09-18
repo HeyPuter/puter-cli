@@ -10,8 +10,14 @@ dotenv.config();
 
 export const PROJECT_NAME = 'puter-cli';
 // If you haven't defined your own values in .env file, we'll assume you're running Puter on a local instance:
-export const API_BASE = process.env.PUTER_API_BASE || 'https://api.puter.com';
-export const BASE_URL = process.env.PUTER_BASE_URL || 'https://puter.com';
+export let API_BASE = process.env.PUTER_API_BASE || 'https://api.puter.com';
+export let BASE_URL = process.env.PUTER_BASE_URL || 'https://puter.com';
+export const NULL_UUID = '00000000-0000-0000-0000-000000000000';
+
+export const reconfigureURLs = ({ api, base }) => {
+    API_BASE = api;
+    BASE_URL = base;
+};
 
 /**
  * Get headers with the correct Content-Type for multipart form data.

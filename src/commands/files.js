@@ -588,6 +588,7 @@ export async function pathExists(filePath) {
         return statResponse.ok;
     } catch (error){
         console.error(chalk.red('Failed to check if file exists.'));
+        console.error('ERROR', error);
             return false;
     }    
 }

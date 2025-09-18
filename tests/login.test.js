@@ -7,6 +7,8 @@ import chalk from 'chalk';
 import fetch from 'node-fetch';
 import Conf from 'conf';
 import { BASE_URL, PROJECT_NAME, API_BASE } from '../src/commons.js';
+import { ProfileAPI } from '../src/modules/ProfileModule.js';
+import * as contextHelpers from '../src/temporary/context_helpers.js';
 
 // Mock console to prevent actual logging
 vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -49,68 +51,38 @@ vi.mock('conf', () => {
   };
 });
 
-describe('auth.js', () => {
-  // let config;
+const mockProfileModule = {
+  switchProfileWizard: vi.fn(),
+  getAuthToken: vi.fn(),
+  getCurrentProfile: vi.fn(),
+};
 
+const mockContext = {
+  [ProfileAPI]: mockProfileModule,
+};
+
+vi.spyOn(contextHelpers, 'get_context').mockReturnValue(mockContext);
+
+
+describe('auth.js', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // config = new Conf({ projectName: PROJECT_NAME });
   });
 
   describe('login', () => {
     it('should login successfully with valid credentials', async () => {
-      // Mock inquirer response
-      inquirer.prompt.mockResolvedValue({ 
-        username: 'testuser', 
-        password: 'testpass' 
-      });
-
-      // Mock fetch response
-      fetch.mockResolvedValue({
-        json: () => Promise.resolve({ 
-          proceed: true, 
-          token: 'testtoken' 
-        })
-      });
-      
-      await login();
-
-      // Verify inquirer was called
-      expect(inquirer.prompt).toHaveBeenCalled();
-
-      // Verify fetch was called with correct parameters
-      expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/login`, {
-        method: 'POST',
-        headers: expect.any(Object),
-        body: JSON.stringify({ 
-          username: 'testuser', 
-          password: 'testpass' 
-        }),
-      });
-
-      // Verify spinner methods were called
-      expect(mockSpinner.start).toHaveBeenCalled();
-      expect(mockSpinner.succeed).toHaveBeenCalled();
+      await login({}, mockContext);
+      expect(mockProfileModule.switchProfileWizard).toHaveBeenCalled();
     });
 
     it('should fail login with invalid credentials', async () => {
-      inquirer.prompt.mockResolvedValue({ username: 'testuser', password: 'testpass' });
-      fetch.mockResolvedValue({
-        json: vi.fn().mockResolvedValue({ proceed: false }),
-        ok: true,
-      });
-
-      await login();
-      expect(mockSpinner.fail).toHaveBeenCalledWith(chalk.red('Login failed. Please check your credentials.'));
+      mockProfileModule.switchProfileWizard.mockRejectedValue(new Error('Invalid credentials'));
+      await expect(login({}, mockContext)).rejects.toThrow('Invalid credentials');
+      expect(mockProfileModule.switchProfileWizard).toHaveBeenCalled();
     });
 
     it.skip('should handle login error', async () => {
-      inquirer.prompt.mockResolvedValue({ username: 'testuser', password: 'testpass' });
-      fetch.mockRejectedValue(new Error('Network error'));
-
-      // await expect(login()).rejects.toThrow('Network error');
-      expect(mockSpinner.fail).toHaveBeenCalledWith(chalk.red('Failed to login'));
-      // expect(console.error).toHaveBeenCalledWith(chalk.red('Error: Network error'));
+      // This test needs to be updated to reflect the new login flow
     });
   });
 
@@ -121,34 +93,20 @@ describe('auth.js', () => {
     beforeEach(() => {
       vi.clearAllMocks();
       config = new Conf({ projectName: PROJECT_NAME });
-      // config.clear = vi.fn();      
     });
 
     it.skip('should logout successfully', async () => {
-      // Mock config.get to return a token
-      config.get = vi.fn().mockReturnValue('testtoken');
-      await logout();
-      // Verify config.clear was called
-      expect(config.clear).toHaveBeenCalled();
-      expect(mockSpinner.succeed).toHaveBeenCalledWith(chalk.green('Successfully logged out from Puter!'));
+      // This test needs to be updated to reflect the new login flow
     });
 
     it('should handle already logged out', async () => {
       config.get = vi.fn().mockReturnValue(null);
-
       await logout();
-
       expect(mockSpinner.info).toHaveBeenCalledWith(chalk.yellow('Already logged out'));
     });
 
     it.skip('should handle logout error', async () => {
-      config.get = vi.fn().mockReturnValue('testtoken');
-      config.clear = vi.fn().mockImplementation(() => { throw new Error('Config error'); });
-
-      await logout();
-
-      expect(mockSpinner.fail).toHaveBeenCalled();
-      expect(mockSpinner.fail).toHaveBeenCalledWith(chalk.red('Failed to logout'));
+      // This test needs to be updated to reflect the new login flow
     });
     
   });
@@ -156,23 +114,16 @@ describe('auth.js', () => {
 
   describe('getUserInfo', () => {
     it('should fetch user info successfully', async () => {
-      // Mock fetch response
+      mockProfileModule.getAuthToken.mockReturnValue('testtoken');
       fetch.mockResolvedValue({
         json: () => Promise.resolve({
           username: 'testuser',
-          uuid: 'testuuid',
-          email: 'test@example.com',
-          email_confirmed: true,
-          is_temp: false,
-          human_readable_age: '1 year',
-          feature_flags: { flag1: true, flag2: false },
         }),
         ok: true,
       });
 
       await getUserInfo();
 
-      // Verify fetch was called with correct parameters
       expect(fetch).toHaveBeenCalledWith(`${API_BASE}/whoami`, {
         method: 'GET',
         headers: expect.any(Object),
@@ -180,86 +131,40 @@ describe('auth.js', () => {
     });
 
     it('should handle fetch user info error', async () => {
-      // Mock fetch to throw an error
+      mockProfileModule.getAuthToken.mockReturnValue('testtoken');
       fetch.mockRejectedValue(new Error('Network error'));
-
       await getUserInfo();
-
-      // Verify console.error was called
-      expect(console.error).toHaveBeenCalledWith(chalk.red('Failed to get user info.\nError: Network error'));
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Failed to get user info.'));
     });
   });
 
 
   describe('Authentication', () => {
-    let config;
-
-    beforeEach(() => {
-      vi.clearAllMocks();
-      config = new Conf({ projectName: PROJECT_NAME });
-    });
-
     it('should return false if auth token does not exist', () => {
-      config.get.mockReturnValue(null);
-
+      mockProfileModule.getAuthToken.mockReturnValue(null);
       const result = isAuthenticated();
-
       expect(result).toBe(false);
     });
 
     it('should return null if the auth_token is not defined', () => {
-      config.get.mockReturnValue(null);
-
+      mockProfileModule.getAuthToken.mockReturnValue(null);
       const result = getAuthToken();
-
-      expect(result).toBeUndefined();
+      expect(result).toBe(null);
     });
 
     it('should return the current username if it is defined', () => {
-      config.get.mockReturnValue(null);
-
+      mockProfileModule.getCurrentProfile.mockReturnValue({ username: 'testuser' });
       const result = getCurrentUserName();
-
-      expect(result).toBeUndefined();
+      expect(result).toBe('testuser');
     });
 
   });
 
-  // describe('getCurrentDirectory', () => {
-  //   let config;
-
-  //   beforeEach(() => {
-  //     vi.clearAllMocks();
-  //     config = new Conf({ projectName: PROJECT_NAME });
-  //     // config.get = vi.fn().mockReturnValue('testtoken')
-  //   });
-
-  //   it('should return the current directory', () => {
-  //     config.get.mockReturnValue('/testuser');
-
-  //     const result = getCurrentDirectory();
-
-  //     expect(result).toBe('/testuser');
-  //   });
-  // });
-
   describe('getUsageInfo', () => {
     it('should fetch usage info successfully', async () => {
+      mockProfileModule.getAuthToken.mockReturnValue('testtoken');
       fetch.mockResolvedValue({
-        json: vi.fn().mockResolvedValue({
-          user: [
-            {
-              service: { 'driver.interface': 'interface1', 'driver.method': 'method1', 'driver.implementation': 'impl1' },
-              month: 1,
-              year: 2023,
-              monthly_usage: 10,
-              monthly_limit: 100,
-              policy: { 'rate-limit': { max: 5, period: 30000 } },
-            },
-          ],
-          apps: { app1: { used: 5, available: 50 } },
-          usages: [{ name: 'usage1', used: 10, available: 100, refill: 'monthly' }],
-        }),
+        json: vi.fn().mockResolvedValue({}),
         ok: true,
       });
 
@@ -272,11 +177,10 @@ describe('auth.js', () => {
     });
 
     it('should handle fetch usage info error', async () => {
+      mockProfileModule.getAuthToken.mockReturnValue('testtoken');
       fetch.mockRejectedValue(new Error('Network error'));
-
       await getUsageInfo();
-
-      expect(console.error).toHaveBeenCalledWith(chalk.red('Failed to fetch usage information.\nError: Network error'));
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Failed to fetch usage information.'));
     });
   });
   

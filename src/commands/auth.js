@@ -86,7 +86,9 @@ export function getAuthToken() {
 }
 
 export function getCurrentUserName() {
-  return config.get('username');
+  const context = get_context();
+  const profileAPI = context[ProfileAPI];
+  return profileAPI.getCurrentProfile()?.username;
 }
 
 export function getCurrentDirectory() {

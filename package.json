@@ -8,6 +8,7 @@
   },
   "preferGlobal": true,
   "type": "module",
+  "packageManager": "pnpm@10.0.0",
   "scripts": {
     "start": "node bin/index.js",
     "test": "TZ=UTC vitest run tests/*",

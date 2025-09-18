@@ -13,6 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: List files
+        run: ls -la
+      - name: Check pnpm-lock.yaml
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            echo "pnpm-lock.yaml found"
+            ls -l pnpm-lock.yaml
+          else
+            echo "pnpm-lock.yaml NOT found"
+          fi
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -23,7 +35,14 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            echo "Installing with frozen lockfile"
+            pnpm install --frozen-lockfile
+          else
+            echo "Installing without frozen lockfile"
+            pnpm install
+          fi
       - name: Run tests
         run: pnpm test
 
@@ -32,6 +51,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: List files
+        run: ls -la
+      - name: Check pnpm-lock.yaml
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            echo "pnpm-lock.yaml found"
+            ls -l pnpm-lock.yaml
+          else
+            echo "pnpm-lock.yaml NOT found"
+          fi
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -43,7 +74,14 @@ jobs:
           registry-url: https://registry.npmjs.org/
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          if [ -f "pnpm-lock.yaml" ]; then
+            echo "Installing with frozen lockfile"
+            pnpm install --frozen-lockfile
+          else
+            echo "Installing without frozen lockfile"
+            pnpm install
+          fi
       - name: Publish to npm
         run: pnpm publish --no-git-checks
         env:

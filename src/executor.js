@@ -100,8 +100,9 @@ const commands = {
         'populate--': true
       }
     });
-    if (args.length < 1) {
-        console.log(chalk.red('Usage: app:delete <name>'));
+    if (args._.length < 1) {
+        console.log(chalk.red('You must specify the app name:'));
+        console.log(chalk.yellow('Example: app:delete <name>'));
         return;
     }
     const name = args._[0];

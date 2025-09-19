@@ -29,3 +29,17 @@ lerna-debug.log*
 
 # code coverage
 **/coverage/
+
+# ai
+.cursor
+.cursorignore
+.cursorindexingignore
+.cursorrules
+.windsurf
+.windsurfrules
+.kilocode/
+
+# agents
+AGENTS.md
+GEMINI.md
+QWEN.md

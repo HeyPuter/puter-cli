@@ -74,11 +74,7 @@ const commands = {
       //   alias: { d: 'description', u: 'url', },
       // });
 
-      if (!args.length < 1) {
-        console.log(chalk.red('Usage: app:create <name> [directory] [--description="My App Description"] [--url=app-url]'));
-        return;
-      }
-
+      // NOTE: Keep the check for now at the function level, move the check here so in the future we'll use the function for non-interactive command mode.
       await createApp({
         name: args._[0],
         directory: args._[1] || '',
@@ -252,7 +248,7 @@ function showHelp(command) {
       Example: app myapp
     `,
     'app:create': `
-      ${chalk.cyan('app:create <name> [<remote_dir>] [--description="<description>"] [--url=<url>]')}
+      ${chalk.cyan('app:create <name> <remote_dir>')}
       Create a new app.
       Example: app:create myapp https://myapp.puter.site
     `,

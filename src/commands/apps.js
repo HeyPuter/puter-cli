@@ -133,9 +133,11 @@ export async function appInfo(args = []) {
  */
 export async function createApp(args) {
     const name = args.name; // App name (required)
-    console.log(args);
-    if (!isValidAppName(name)) {
-        throw new Error('Invalid application name');
+    if (!name || !isValidAppName(name)) {
+        console.log(chalk.red('Usage: app:create <name> <directory>'));
+        console.log(chalk.yellow('Example: app:create myApp .'));
+        console.log(chalk.yellow('Example: app:create myApp ./myApp'));
+        return;
     }
     // Use the default home page if the root directory if none specified
     const localDir = args.directory ? resolvePath(getCurrentDirectory(), args.directory) : '';

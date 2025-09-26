@@ -141,14 +141,9 @@ P.S. The `--delete` flag removes files in the remote directory that don't exist 
 ```
 P.S. This command will download the remote file to your local machine, open it in your default editor, and then upload the changes back to the remote instance. It uses `vim` by default, but you can change it by setting the `EDITOR` environment variable.
 
-#### User Information
-```
-
-The addition describes the `update` command which allows for bidirectional synchronization between local and remote directories, including the optional flags for deleting files and recursive synchronization.
----
-
 
 #### User Information
+
 - **Get User Info**: Display user information.
 ```bash
   puter> whoami
@@ -314,10 +309,10 @@ cp .env.example .env
 
 ## Known issues:
 
-Most features are working fine. If you have any issues with this project or the Puter SDK, please let us know:
+Most features are working fine. If you have any issues with this project, please let us know:
 
 ## Interactive Shell prompt:
-If you want to stay in the interactive shell you should provide "-f" (aka: force delete) argument, when want to delete any object:
+If you want to stay in the interactive shell you should provide "-f" (aka: force delete) argument, when you want to delete any object:
 ```bash
 puter@username/myapp> rm README.md
 The following items will be moved to Trash:
@@ -334,13 +329,14 @@ Otherwise, the Interactive Shell mode will be terminated.
 
 ## Notes
 
-This project is not equivalent [phoenix](https://github.com/HeyPuter/puter/blob/main/src/phoenix/README.md), neither an attempt to mimic some of its features, it's rather a CLI tool to do most the Puter's API from the command line.
+This project is not equivalent [phoenix](https://github.com/HeyPuter/puter/blob/main/src/phoenix/README.md), neither an attempt to mimic some of its features, it's rather a CLI tool to do most the Puter's API actions from the command line.
 
 ---
 
 ## Configuration
 
 The CLI uses a configuration file to store user credentials and settings. You can use the `puter logout` to clear the configuration settings.
+You can create a `.env` file to use your own settings for `PUTER_API_BASE` and `PUTER_BASE_URL` in order to work on Puter locally for development purposes.
 
 ---
 

@@ -183,7 +183,7 @@ class ProfileModule {
 
 
             const contentType = response.headers.get('content-type');
-            console.log('content type?', '|' + contentType + '|');
+            //console.log('content type?', '|' + contentType + '|');
 
             // TODO: proper content type parsing
             if ( ! contentType.trim().startsWith('application/json') ) {
@@ -241,7 +241,7 @@ class ProfileModule {
                 if (args.save) {
                     const localEnvFile = '.env';
                     try {
-                        // Check if the file exists, if so then delete it before writing.
+                        // Check if the file exists, if so then append the api key to the EOF.
                         if (fs.existsSync(localEnvFile)) {
                             console.log(chalk.yellow(`File "${localEnvFile}" already exists... Adding token.`));
                             fs.appendFileSync(localEnvFile, `\nPUTER_API_KEY="${data.token}"`, 'utf8');

@@ -7,7 +7,7 @@ import { minimatch } from 'minimatch';
 import chalk from 'chalk';
 import Conf from 'conf';
 import fetch from 'node-fetch';
-import { API_BASE, BASE_URL, PROJECT_NAME, getHeaders, showDiskSpaceUsage, resolvePath } from '../commons.js';
+import { API_BASE, BASE_URL, PROJECT_NAME, getHeaders, showDiskSpaceUsage, resolvePath, resolveRemotePath } from '../commons.js';
 import { formatDateTime, formatSize, getSystemEditor } from '../utils.js';
 import inquirer from 'inquirer';
 import { getAuthToken, getCurrentDirectory, getCurrentUserName } from './auth.js';
@@ -1263,7 +1263,7 @@ async function ensureRemoteDirectoryExists(remotePath) {
  * @param {string[]} args - Command-line arguments (e.g., [localDir, remoteDir, --delete, -r]).
  */
 export async function syncDirectory(args = []) {
-    const usageMessage = 'Usage: update <local_directory> <remote_directory> [--delete] [-r]';
+    const usageMessage = 'Usage: update <local_directory> <remote_directory> [--delete] [-r] [--overwrite]';
     if (args.length < 2) {
         console.log(chalk.red(usageMessage));
         return;
@@ -1273,11 +1273,13 @@ export async function syncDirectory(args = []) {
     let remoteDir = '';
     let deleteFlag = '';
     let recursiveFlag = false;
+    let overwriteFlag = false;
     try {
         localDir = await resolveLocalDirectory(args[0]);
-        remoteDir = resolvePath(getCurrentDirectory(), args[1]);
+        remoteDir = resolveRemotePath(getCurrentDirectory(), args[1]);
         deleteFlag = args.includes('--delete'); // Whether to delete extra files
         recursiveFlag = args.includes('-r'); // Whether to recursively process subdirectories
+        overwriteFlag = args.includes('--overwrite');
     } catch (error) {
         console.error(chalk.red(error.message));
         console.log(chalk.green(usageMessage));
@@ -1294,10 +1296,10 @@ export async function syncDirectory(args = []) {
         }
 
         // Step 2: Fetch remote directory contents
-        const remoteFiles = await listRemoteFiles(remoteDir);
+        let remoteFiles = await listRemoteFiles(remoteDir);
         if (!Array.isArray(remoteFiles)) {
-            console.error(chalk.red('Failed to fetch remote directory contents.'));
-            return;
+            console.log(chalk.yellow('Remote directory is empty or does not exist. Continuing...'));
+            remoteFiles = [];
         }
 
         // Step 3: List local files
@@ -1311,30 +1313,34 @@ export async function syncDirectory(args = []) {
         // Step 5: Handle conflicts (if any)
         const conflicts = findConflicts(toUpload, toDownload);
         if (conflicts.length > 0) {
-
-            console.log(chalk.yellow('The following files have conflicts:'));
-            conflicts.forEach(file => console.log(chalk.dim(`- ${file}`)));
-
-            const { resolve } = await inquirer.prompt([
-                {
-                    type: 'list',
-                    name: 'resolve',
-                    message: 'How would you like to resolve conflicts?',
-                    choices: [
-                        { name: 'Keep local version', value: 'local' },
-                        { name: 'Keep remote version', value: 'remote' },
-                        { name: 'Skip conflicting files', value: 'skip' }
-                    ]
-                }
-            ]);
-
-            if (resolve === 'local') {
+            if (overwriteFlag) {
+                console.log(chalk.yellow('Overwriting existing files with local version.'));
                 filteredToDownload = filteredToDownload.filter(file => !conflicts.includes(file.relativePath));
-            } else if (resolve === 'remote') {
-                filteredToUpload = filteredToUpload.filter(file => !conflicts.includes(file.relativePath));
             } else {
-                filteredToUpload = filteredToUpload.filter(file => !conflicts.includes(file.relativePath));
-                filteredToDownload = filteredToDownload.filter(file => !conflicts.includes(file.relativePath));
+                console.log(chalk.yellow('The following files have conflicts:'));
+                conflicts.forEach(file => console.log(chalk.dim(`- ${file}`)));
+
+                const { resolve } = await inquirer.prompt([
+                    {
+                        type: 'list',
+                        name: 'resolve',
+                        message: 'How would you like to resolve conflicts?',
+                        choices: [
+                            { name: 'Keep local version', value: 'local' },
+                            { name: 'Keep remote version', value: 'remote' },
+                            { name: 'Skip conflicting files', value: 'skip' }
+                        ]
+                    }
+                ]);
+
+                if (resolve === 'local') {
+                    filteredToDownload = filteredToDownload.filter(file => !conflicts.includes(file.relativePath));
+                } else if (resolve === 'remote') {
+                    filteredToUpload = filteredToUpload.filter(file => !conflicts.includes(file.relativePath));
+                } else {
+                    filteredToUpload = filteredToUpload.filter(file => !conflicts.includes(file.relativePath));
+                    filteredToDownload = filteredToDownload.filter(file => !conflicts.includes(file.relativePath));
+                }
             }
         }
 

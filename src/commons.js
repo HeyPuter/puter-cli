@@ -156,6 +156,19 @@ export function resolvePath(currentPath, relativePath) {
 }
 
 /**
+ * Resolve a remote path to an absolute path, handling both absolute and relative paths.
+ * @param {string} currentPath - The current working directory.
+ * @param {string} remotePath - The remote path to resolve.
+ * @returns {string} The resolved absolute path.
+ */
+export function resolveRemotePath(currentPath, remotePath) {
+    if (remotePath.startsWith('/')) {
+        return remotePath;
+    }
+    return resolvePath(currentPath, remotePath);
+}
+
+/**
 * Checks if a given string is a valid app name.
 * The name must:
 *  - Not be '.' or '..'
@@ -207,114 +220,114 @@ export function isValidAppName(name) {
  */
 export function getDefaultHomePage(appName, jsFiles = [], cssFiles= []) {
     const defaultIndexContent = `<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${appName}</title>
-        ${cssFiles.map(css => `<link href="${css}" rel="stylesheet">`).join('\n  ')}
-        <style>
-            body {
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                line-height: 1.6;
-                max-width: 800px;
-                margin: 0 auto;
-                padding: 20px;
-                background: #f9fafb;
-                color: #1f2937;
-            }
-            .container {
-                background: white;
-                padding: 2rem;
-                border-radius: 8px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }
-            h1 {
-                color: #2563eb;
-                margin-bottom: 1rem;
-            }
-            .code-block {
-                background: #f1f5f9;
-                padding: 1rem;
-                border-radius: 4px;
-                font-family: monospace;
-                overflow-x: auto;
-            }
-            .tip {
-                background: #dbeafe;
-                border-left: 4px solid #2563eb;
-                padding: 1rem;
-                margin: 1rem 0;
-            }
-            .links {
-                display: flex;
-                gap: 1rem;
-                margin-top: 2rem;
-            }
-            .links a {
-                color: #2563eb;
-                text-decoration: none;
-            }
-            .links a:hover {
-                text-decoration: underline;
-            }
-            .footer {
-                text-align: center;
-                margin-top: 50px;
-                color: var(--color-grey);
-                font-size: 0.9rem;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>🚀 Welcome to ${appName}!</h1>
-            
-            <p>This is your new website powered by Puter. You can start customizing it right away!</p>
-    
-            <div class="tip">
-                <strong>Quick Tip:</strong> Replace this content with your own by editing the <code>index.html</code> file.
-            </div>
-    
-            <h2>🌟 Getting Started</h2>
-            
-            <p>Here's a simple example using Puter.js:</p>
-            
-            <div class="code-block">
-    &lt;script src="https://js.puter.com/v2/">&lt;/script>
-    &lt;script>
-        // Create a new file in the cloud
-        puter.fs.write('hello.txt', 'Hello, Puter!')
-            .then(file => console.log(\`File created at: \${file.path}\`));
-    &lt;/script>
-            </div>
-    
-            <h2>💡 Key Features</h2>
-            <ul>
-                <li>Cloud Storage</li>
-                <li>AI Services (GPT-4, DALL-E)</li>
-                <li>Static Website Hosting</li>
-                <li>Key-Value Store</li>
-                <li>Authentication</li>
-            </ul>
-    
-            <div class="links">
-                <a href="https://docs.puter.com" target="_blank">📚 Documentation</a>
-                <a href="https://discord.gg/puter" target="_blank">💬 Discord Community</a>
-                <a href="https://github.com/HeyPuter" target="_blank">👩‍💻 GitHub</a>
-            </div>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${appName}</title>
+    ${cssFiles.map(css => `<link href="${css}" rel="stylesheet">`).join('\n  ')}
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f9fafb;
+            color: #1f2937;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2563eb;
+            margin-bottom: 1rem;
+        }
+        .code-block {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        .tip {
+            background: #dbeafe;
+            border-left: 4px solid #2563eb;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .links {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        .links a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        .links a:hover {
+            text-decoration: underline;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            color: var(--color-grey);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Welcome to ${appName}!</h1>
+        
+        <p>This is your new website powered by Puter. You can start customizing it right away!</p>
+
+        <div class="tip">
+            <strong>Quick Tip:</strong> Replace this content with your own by editing the <code>index.html</code> file.
         </div>
 
-        <footer class="footer">
-            &copy; 2025 ${appName}. All rights reserved.
-        </footer>
+        <h2>🌟 Getting Started</h2>
+        
+        <p>Here's a simple example using Puter.js:</p>
+        
+        <div class="code-block">
+&lt;script src="https://js.puter.com/v2/">&lt;/script>
+&lt;script>
+    // Create a new file in the cloud
+    puter.fs.write('hello.txt', 'Hello, Puter!')
+        .then(file => console.log(\`File created at: \${file.path}\`));
+&lt;/script>
+        </div>
 
-        <div id="${(jsFiles.length && jsFiles.some(f => f.includes('react'))) ? 'root' : 'app'}"></div>
-  ${jsFiles.map(js => 
-    `<script ${js.endsWith('app.js') ? 'type="text/babel"' : ''} src="${js}"></script>`
-  ).join('\n  ')}
-    </body>
-    </html>`;
+        <h2>💡 Key Features</h2>
+        <ul>
+            <li>Cloud Storage</li>
+            <li>AI Services (GPT-4, DALL-E)</li>
+            <li>Static Website Hosting</li>
+            <li>Key-Value Store</li>
+            <li>Authentication</li>
+        </ul>
+
+        <div class="links">
+            <a href="https://docs.puter.com" target="_blank">📚 Documentation</a>
+            <a href="https://discord.gg/puter" target="_blank">💬 Discord Community</a>
+            <a href="https://github.com/HeyPuter" target="_blank">👩‍💻 GitHub</a>
+        </div>
+    </div>
+
+<footer class="footer">
+    &copy; 2025 ${appName}. All rights reserved.
+</footer>
+
+    <div id="${(jsFiles.length && jsFiles.some(f => f.includes('react'))) ? 'root' : 'app'}"></div>
+${jsFiles.map(js => 
+`<script ${js.endsWith('app.js') ? 'type="text/babel"' : ''} src="${js}"></script>`
+).join('\n  ')}
+</body>
+</html>`;
     
     return defaultIndexContent;
 }

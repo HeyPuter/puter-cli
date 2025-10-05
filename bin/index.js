@@ -6,6 +6,7 @@ import { init } from '../src/commands/init.js';
 import { startShell } from '../src/commands/shell.js';
 import { PROJECT_NAME, getLatestVersion } from '../src/commons.js';
 import { createApp } from '../src/commands/apps.js';
+import { deploy } from '../src/commands/deploy.js';
 
 async function main() {
   const version = await getLatestVersion(PROJECT_NAME);
@@ -61,6 +62,23 @@ async function main() {
       }
       process.exit(0);
     });
+
+  /*/ Deploy command
+  program
+    .command('site:deploy')
+    .description('Deploy a local web project to Puter')
+    .argument('[name]', 'Name of the site')
+    .argument('[remoteDir]', 'Remote directory path')
+    .option('--subdomain <subdomain>', 'Subdomain for the site')
+    .action(async (name, remoteDir, options) => {
+        try {
+            await deploy([name, remoteDir, `--subdomain=${options.subdomain}`].filter(Boolean));
+        } catch (error) {
+            console.error(chalk.red(error.message));
+        }
+        process.exit(0);
+    });
+    */
 
   if (process.argv.length === 2) {
     startShell();

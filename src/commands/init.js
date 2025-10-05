@@ -26,7 +26,7 @@ export async function init() {
     }
   ]);
 
-  let jsFiles = ['puter-sdk'];
+  let jsFiles = [];
   let jsDevFiles = [];
   let cssFiles = [];
   let jsExtraLibraries = [];

@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import fetch from 'node-fetch';
 import Table from 'cli-table3';
 import { getCurrentUserName, getCurrentDirectory } from './auth.js';
-import { API_BASE, getHeaders, generateAppName, resolvePath, isValidAppName } from '../commons.js';
+import { API_BASE, getHeaders, generateAppName, resolveRemotePath, isValidAppName } from '../commons.js';
 import { displayNonNullValues, formatDate, isValidAppUuid } from '../utils.js';
 import { getSubdomains, createSubdomain, deleteSubdomain } from './subdomains.js';
 import { ErrorAPI } from '../modules/ErrorModule.js';
@@ -98,7 +98,7 @@ export async function infoSite(args = []) {
       }
   }
   
-  /**
+ /**
   * Delete hosted web site
   * @param {any[]} args Array of site uuid
   */
@@ -109,6 +109,10 @@ export async function infoSite(args = []) {
     }
     for (const uuid of args)
         try {
+        if (!uuid){
+          console.log(chalk.yellow(`We could not find the site ID: ${uuid}`));
+          return false;
+        }      
         // The uuid must be prefixed with: 'subdomainObj-'
         const response = await fetch(`${API_BASE}/delete-site`, {
             headers: getHeaders(),
@@ -136,7 +140,7 @@ export async function infoSite(args = []) {
     return true;
   }
   
-  /**
+ /**
   * Create a static web app from the current directory to Puter cloud.
   * @param {string[]} args - Command-line arguments (e.g., [name, --subdomain=<subdomain>]).
   */
@@ -151,8 +155,10 @@ export async function infoSite(args = []) {
   
     const appName = args[0]; // Site name (required)
     const subdomainOption = args.find(arg => arg.toLocaleLowerCase().startsWith('--subdomain='))?.split('=')[1]; // Optional subdomain
+    const remoteDirArg = (args[1] && !args[1].startsWith('--')) ? args[1] : '.';
+    
     // Use the current directory as the root directory if none specified
-    const remoteDir = resolvePath(getCurrentDirectory(), (args[1] && !args[1].startsWith('--'))?args[1]:'.');
+    const remoteDir = resolveRemotePath(getCurrentDirectory(), remoteDirArg);
   
     console.log(chalk.dim(`Creating site ${chalk.green(appName)} from: ${chalk.green(remoteDir)}...\n`));
     try {
@@ -212,8 +218,10 @@ export async function infoSite(args = []) {
   
         console.log(chalk.green(`App ${chalk.dim(appName)} created successfully and accessible at:`));
         console.log(chalk.cyan(`https://${site.subdomain}.puter.site`));
+        return site;
     } catch (error) {
         console.error(chalk.red('Failed to create site.'));
         console.error(chalk.red(`Error: ${error.message}`));
+        return null;
     }
   }

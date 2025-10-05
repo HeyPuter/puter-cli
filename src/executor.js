@@ -7,6 +7,7 @@ import { listFiles, makeDirectory, renameFileOrDirectory,
   getInfo, getDiskUsage, createFile, readFile, uploadFile, 
   downloadFile, copyFile, syncDirectory, editFile } from './commands/files.js';
 import { getUserInfo, getUsageInfo, login } from './commands/auth.js';
+import { deploy } from './commands/deploy.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
 import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
@@ -147,6 +148,7 @@ const commands = {
   site: infoSite,
   'site:delete': deleteSite,
   'site:create': createSite,
+  'site:deploy': deploy,
 };
 
 /**
@@ -351,6 +353,11 @@ function showHelp(command) {
       ${chalk.cyan('site:create <app_name> [<dir>] [--subdomain=<name>]')}
       Create a static website from directory.
       Example: site:create mywebsite /path/to/dir --subdomain=mywebsite
+    `,
+    'site:deploy': `
+      ${chalk.cyan('site:deploy [<valid_name_app>] [<remote_dir>] [--subdomain=<subdomain>]')}
+      Deploy a local web project to Puter.
+      Example: site:deploy my-app ./my-app --subdomain my-app
     `,
     '!': `
       ${chalk.cyan('!<command>')}

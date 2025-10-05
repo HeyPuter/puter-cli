@@ -116,7 +116,7 @@ class ProfileModule {
             return this.addProfileWizard();
         }
         
-        console.log('doing this branch');
+        // console.log('doing this branch');
         const answer = await inquirer.prompt([
             {
                 name: 'profile',

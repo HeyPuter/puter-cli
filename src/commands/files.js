@@ -626,7 +626,9 @@ export async function createFile(args = []) {
             })
         });
 
-        if (statResponse.ok) {
+        if (!statResponse.ok) {
+            console.log(chalk.cyan('File does not exists. Il will be created.'));
+        } else {
             const statData = await statResponse.json();
             if (statData && statData.id) {
                 if (!overwrite) {
@@ -635,9 +637,6 @@ export async function createFile(args = []) {
                 }
                 console.log(chalk.yellow(`File "${filePath}" already exists. It will be overwritten.`));
             }
-        } else if (statResponse.status !== 404) {
-            console.error(chalk.red('Failed to check if file exists.'));
-            return false;
         }
 
         // Step 2: Check disk space

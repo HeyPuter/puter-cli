@@ -197,11 +197,17 @@ P.S. This command will look for the allocated `subdomain` and attempt to delete 
 
 The static sites are served from the selected directory (or the current directory if none is specified).
 
-- **Deploy Site**: Deploy a static website from a directory.
+- **Create Site**: Create a static website from a directory.
 ```bash
-  puter> site:create <app_name> [<dir>] [--subdomain=<name>]
+ puter> site:create <app_name> [<dir>] [--subdomain=<name>]
 ```
 P.S. If the subdomain already exists, it will generate a new random one. You can set your own subdomain using `--subdomain` argument.
+
+- **Deploy Site**: Deploy a static website from the current local directory to a remote directory. If no remote directory is specified, it deploys to the current directory on the remote instance.
+```bash
+ puter> site:deploy [<remote_dir>] [--subdomain=<name>]
+```
+P.S. If the subdomain is not provided, it will be generated from the app name. The `--subdomain` argument allows you to specify a custom subdomain. All files in the remote directory will overwritten.
 
 - **List Sites**: List all hosted sites.
 ```bash

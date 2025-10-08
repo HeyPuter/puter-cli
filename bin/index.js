@@ -67,7 +67,6 @@ async function main() {
   program
     .command('site:deploy')
     .description('Deploy a local web project to Puter')
-    .argument('[name]', 'Name of the site')
     .argument('[remoteDir]', 'Remote directory path')
     .option('--subdomain <subdomain>', 'Subdomain for the site')
     .action(async (name, remoteDir, options) => {

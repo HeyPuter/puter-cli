@@ -156,8 +156,7 @@ const commands = {
  * @param {string} input The command line input
  */
 export async function execCommand(context, input) {
-  const [cmd, ...args] = input.split(' ');
-
+  const [cmd, ...args] = input?input.split(' '):[];
   
   // Add the command to history (skip the "history" command itself)
   if (cmd !== 'history') {
@@ -355,9 +354,9 @@ function showHelp(command) {
       Example: site:create mywebsite /path/to/dir --subdomain=mywebsite
     `,
     'site:deploy': `
-      ${chalk.cyan('site:deploy [<valid_name_app>] [<remote_dir>] [--subdomain=<subdomain>]')}
+      ${chalk.cyan('site:deploy [<remote_dir>] [--subdomain=<subdomain>]')}
       Deploy a local web project to Puter.
-      Example: site:deploy my-app ./my-app --subdomain my-app
+      Example: site:deploy ./my-app --subdomain my-app
     `,
     '!': `
       ${chalk.cyan('!<command>')}

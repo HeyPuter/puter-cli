@@ -10,7 +10,7 @@ import { getSubdomains } from './subdomains.js';
  * @param {string[]} args - Command-line arguments (e.g., [<remote_dir>] [--subdomain=<subdomain>]).
  */
 export async function deploy(args = []) {
-  if (args.length < 1 || !isValidAppName(args[0])) {
+  if (args.length > 2 || args.some(arg => arg.startsWith('--') && !arg.startsWith('--subdomain='))) {
     console.log(chalk.red('Usage: site:deploy [<remote_dir>] [--subdomain=<subdomain>]'));
     console.log(chalk.yellow('Example: site:deploy'));
     console.log(chalk.yellow('Example: site:deploy'));
@@ -19,8 +19,8 @@ export async function deploy(args = []) {
     return;
   }
   const appName = generateAppName();
-  const remoteDirArg = args.find(arg => !arg.startsWith('--') && arg !== appName);
-  const remoteDir = remoteDirArg || '.'; // `./${appName}`;
+  const remoteDirArg = args.find(arg => !arg.startsWith('--'));
+  const remoteDir = remoteDirArg || '.';
   const subdomain = args.find(arg => arg.startsWith('--subdomain='))?.split('=')[1] || appName;
   const sourceDir = '.'; // Deploy from the current directory
 

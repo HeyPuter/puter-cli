@@ -7,18 +7,18 @@ import { getSubdomains } from './subdomains.js';
 
 /**
  * Deploy a local web project to Puter.
- * @param {string[]} args - Command-line arguments (e.g., <valid_site_app> [<remote_dir>] [--subdomain=<subdomain>]).
+ * @param {string[]} args - Command-line arguments (e.g., [<remote_dir>] [--subdomain=<subdomain>]).
  */
 export async function deploy(args = []) {
   if (args.length < 1 || !isValidAppName(args[0])) {
-    console.log(chalk.red('Usage: site:deploy <valid_site_app> [<remote_dir>] [--subdomain=<subdomain>]'));
+    console.log(chalk.red('Usage: site:deploy [<remote_dir>] [--subdomain=<subdomain>]'));
     console.log(chalk.yellow('Example: site:deploy'));
-    console.log(chalk.yellow('Example: site:deploy my-app'));
-    console.log(chalk.yellow('Example: site:deploy my-app ./my-app'));
-    console.log(chalk.yellow('Example: site:deploy my-app ./my-app --subdomain=my-app-new'));
+    console.log(chalk.yellow('Example: site:deploy'));
+    console.log(chalk.yellow('Example: site:deploy ./my-app'));
+    console.log(chalk.yellow('Example: site:deploy ./my-app --subdomain=my-app-new'));
     return;
   }
-  const appName = args[0]; // && !args[0].startsWith('--') ? args[0] : generateAppName();
+  const appName = generateAppName();
   const remoteDirArg = args.find(arg => !arg.startsWith('--') && arg !== appName);
   const remoteDir = remoteDirArg || '.'; // `./${appName}`;
   const subdomain = args.find(arg => arg.startsWith('--subdomain='))?.split('=')[1] || appName;

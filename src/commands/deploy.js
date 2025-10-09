@@ -8,12 +8,11 @@ import crypto from '../crypto.js';
 
 /**
  * Deploy a local web project to Puter.
- * @param {string[]} args - Command-line arguments (e.g., [<local_dir>] [--subdomain=<subdomain>]).
+ * @param {string[]} args - Command-line arguments (e.g., <local_dir> [--subdomain=<subdomain>]).
  */
 export async function deploy(args = []) {
-  if (args.length > 2 || args.some(arg => arg.startsWith('--') && !arg.startsWith('--subdomain='))) {
-    console.log(chalk.red('Usage: site:deploy [<local_dir>] [--subdomain=<subdomain>]'));
-    console.log(chalk.yellow('Example: site:deploy'));
+  if (args.length < 1) {
+    console.log(chalk.red('Usage: site:deploy <local_dir> [--subdomain=<subdomain>]'));
     console.log(chalk.yellow('Example: site:deploy .'));
     console.log(chalk.yellow('Example: site:deploy ./dist'));
     console.log(chalk.yellow('Example: site:deploy ./dist --subdomain=my-app-new'));

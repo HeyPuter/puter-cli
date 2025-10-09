@@ -4,25 +4,27 @@ import { syncDirectory } from './files.js';
 import { createSite } from './sites.js';
 import { getCurrentDirectory } from './auth.js';
 import { getSubdomains } from './subdomains.js';
+import crypto from '../crypto.js';
 
 /**
  * Deploy a local web project to Puter.
- * @param {string[]} args - Command-line arguments (e.g., [<remote_dir>] [--subdomain=<subdomain>]).
+ * @param {string[]} args - Command-line arguments (e.g., [<local_dir>] [--subdomain=<subdomain>]).
  */
 export async function deploy(args = []) {
   if (args.length > 2 || args.some(arg => arg.startsWith('--') && !arg.startsWith('--subdomain='))) {
-    console.log(chalk.red('Usage: site:deploy [<remote_dir>] [--subdomain=<subdomain>]'));
+    console.log(chalk.red('Usage: site:deploy [<local_dir>] [--subdomain=<subdomain>]'));
     console.log(chalk.yellow('Example: site:deploy'));
-    console.log(chalk.yellow('Example: site:deploy'));
-    console.log(chalk.yellow('Example: site:deploy ./my-app'));
-    console.log(chalk.yellow('Example: site:deploy ./my-app --subdomain=my-app-new'));
+    console.log(chalk.yellow('Example: site:deploy .'));
+    console.log(chalk.yellow('Example: site:deploy ./dist'));
+    console.log(chalk.yellow('Example: site:deploy ./dist --subdomain=my-app-new'));
     return;
   }
   const appName = generateAppName();
-  const remoteDirArg = args.find(arg => !arg.startsWith('--'));
-  const remoteDir = remoteDirArg || '.';
+  const sourceDirArg = args.find(arg => !arg.startsWith('--'));
+  const sourceDir = sourceDirArg || '.';
   const subdomain = args.find(arg => arg.startsWith('--subdomain='))?.split('=')[1] || appName;
-  const sourceDir = '.'; // Deploy from the current directory
+
+  const remoteDir = `deployments/site-${crypto.randomUUID()}`;
 
   console.log(chalk.cyan(`Deploying '${appName}' from local '${sourceDir}' to remote '${remoteDir}' at '${subdomain}.puter.site'...`));
 

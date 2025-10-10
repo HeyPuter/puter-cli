@@ -100,11 +100,11 @@ export async function infoSite(args = []) {
   
  /**
   * Delete hosted web site
-  * @param {any[]} args Array of site uuid
+  * @param {any[]} args Array of subdomain
   */
   export async function deleteSite(args = []) {
     if (args.length < 1){
-        console.log(chalk.red('Usage: site:delete <siteUUID>'));
+        console.log(chalk.red('Usage: site:delete <subdomain>'));
         return false;
     }
     await deleteSubdomain(args);

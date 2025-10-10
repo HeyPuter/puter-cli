@@ -35,7 +35,7 @@ export async function deleteSubdomain(args = []) {
         return false;
     }
     const subdomains = args;
-    for (const subdomainId of subdomains)
+    for (const subdomain of subdomains)
         try {
         const response = await fetch(`${API_BASE}/drivers/call`, {
             headers: getHeaders(),
@@ -44,7 +44,7 @@ export async function deleteSubdomain(args = []) {
             interface: 'puter-subdomains',
             method: 'delete',
             args: {
-                id: { subdomain: subdomainId }
+                id: { subdomain: subdomain }
             }
             })
         });
@@ -52,7 +52,7 @@ export async function deleteSubdomain(args = []) {
         const data = await response.json();
         if (!data.success) {
             if (data.error?.code === 'entity_not_found') {
-                console.log(chalk.red(`Subdomain ID: "${subdomainId}" not found`));
+                console.log(chalk.red(`Subdomain: "${subdomain}" not found`));
                 return false;
             }
             console.log(chalk.red(`Failed to delete subdomain: ${data.error?.message}`));

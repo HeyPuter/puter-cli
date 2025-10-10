@@ -102,3 +102,38 @@ export async function createSubdomain(subdomain, remoteDir) {
     }
     return data.result;
 }
+
+/**
+ * Update a subdomain into remote directory
+ * @param {string} subdomain - Subdomain name.
+ * @param {string} remoteDir - Remote directory path.
+ * @returns {Object} - Hosting details (e.g., subdomain).
+ */
+export async function updateSubdomain(subdomain, remoteDir) {
+    const response = await fetch(`${API_BASE}/drivers/call`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+            interface: 'puter-subdomains',
+            method: 'update',
+            args: {
+                id: {
+                    subdomain: subdomain,
+                },
+                object: {
+                    root_dir: remoteDir
+                }
+            }
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to update directory.');
+    }
+    const data = await response.json();
+    if (!data.success || !data.result) {
+        console.log(chalk.red(`Error when updating "${subdomain}".\nError: ${data?.error?.message}\nCode: ${data.error?.code}`));
+        return false;
+    }
+    return data.result;
+}

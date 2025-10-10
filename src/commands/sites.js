@@ -4,7 +4,7 @@ import Table from 'cli-table3';
 import { getCurrentUserName, getCurrentDirectory } from './auth.js';
 import { API_BASE, getHeaders, generateAppName, resolveRemotePath, isValidAppName } from '../commons.js';
 import { displayNonNullValues, formatDate, isValidAppUuid } from '../utils.js';
-import { getSubdomains, createSubdomain, deleteSubdomain } from './subdomains.js';
+import { getSubdomains, createSubdomain, deleteSubdomain, updateSubdomain } from './subdomains.js';
 import { ErrorAPI } from '../modules/ErrorModule.js';
 
 
@@ -159,22 +159,18 @@ export async function infoSite(args = []) {
                     return;
                 } else {
                     console.log(chalk.yellow(`However, It's linked to different directory at: ${subdomainObj.root_dir?.path}`));
-                    console.log(chalk.cyan(`We'll try to unlink this subdomain from that directory...`));
-                    const result = await deleteSubdomain([subdomain]);
+                    console.log(chalk.cyan(`Updating this subdomain directory...`));
+                    const result = await updateSubdomain(subdomain, remoteDir);
                     if (result) {
-                        console.log(chalk.green('Looks like this subdomain is free again, please try again.'));
+                        console.log(chalk.green('Updating subdomain directory successful.'));
                         return;
                     } else {
-                        console.log(chalk.red('Could not release this subdomain.'));
+                        console.log(chalk.red('Could not update this subdomain directory.'));
+                        return;
                     }
                 }
             }
         } 
-        // else {
-            // console.log(chalk.yellow(`The subdomain: "${subdomain}" is already taken, so let's generate a new random one:`));
-            // subdomain = generateAppName(); // Generate a random subdomain
-            // console.log(chalk.cyan(`New generated subdomain: "${subdomain}" will be used.`));
-            // }
             
         // Use the chosen "subdomain"
         console.log(chalk.cyan(`New generated subdomain: "${subdomain}" will be used if its not already in use.`));

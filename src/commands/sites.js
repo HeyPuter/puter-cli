@@ -107,36 +107,7 @@ export async function infoSite(args = []) {
         console.log(chalk.red('Usage: site:delete <siteUUID>'));
         return false;
     }
-    for (const uuid of args)
-        try {
-        if (!uuid){
-          console.log(chalk.yellow(`We could not find the site ID: ${uuid}`));
-          return false;
-        }      
-        // The uuid must be prefixed with: 'subdomainObj-'
-        const response = await fetch(`${API_BASE}/delete-site`, {
-            headers: getHeaders(),
-            method: 'POST',
-            body: JSON.stringify({
-                site_uuid: uuid
-            })
-        });
-    
-        if (!response.ok) {
-            throw new Error(`Failed to delete site (Status: ${response.status})`);
-        }
-    
-        const data = await response.json();
-        if (Object.keys(data).length==0) {
-          console.log(chalk.green(`Site ID: "${uuid}" has been deleted.`));
-          return;
-        }
-
-        console.log(chalk.yellow(`Site ID: "${uuid}" should be deleted.`));
-    } catch (error) {
-        console.error(chalk.red('Error deleting site:'), error.message);
-        return false;
-    }
+    await deleteSubdomain(args);
     return true;
   }
   
@@ -189,7 +160,7 @@ export async function infoSite(args = []) {
                 } else {
                     console.log(chalk.yellow(`However, It's linked to different directory at: ${subdomainObj.root_dir?.path}`));
                     console.log(chalk.cyan(`We'll try to unlink this subdomain from that directory...`));
-                    const result = await deleteSubdomain([subdomainObj?.uid]);
+                    const result = await deleteSubdomain([subdomain]);
                     if (result) {
                         console.log(chalk.green('Looks like this subdomain is free again, please try again.'));
                         return;

@@ -35,7 +35,7 @@ export async function deleteSubdomain(args = []) {
         return false;
     }
     const subdomains = args;
-    for (const subdomainId of subdomains)
+    for (const subdomain of subdomains)
         try {
         const response = await fetch(`${API_BASE}/drivers/call`, {
             headers: getHeaders(),
@@ -44,7 +44,7 @@ export async function deleteSubdomain(args = []) {
             interface: 'puter-subdomains',
             method: 'delete',
             args: {
-                id: { subdomain: subdomainId }
+                id: { subdomain: subdomain }
             }
             })
         });
@@ -52,7 +52,7 @@ export async function deleteSubdomain(args = []) {
         const data = await response.json();
         if (!data.success) {
             if (data.error?.code === 'entity_not_found') {
-                console.log(chalk.red(`Subdomain ID: "${subdomainId}" not found`));
+                console.log(chalk.red(`Subdomain: "${subdomain}" not found`));
                 return false;
             }
             console.log(chalk.red(`Failed to delete subdomain: ${data.error?.message}`));
@@ -98,6 +98,41 @@ export async function createSubdomain(subdomain, remoteDir) {
             return false;
         }
         console.log(chalk.red(`Error when creating "${subdomain}".\nError: ${data?.error?.message}\nCode: ${data.error?.code}`));
+        return false;
+    }
+    return data.result;
+}
+
+/**
+ * Update a subdomain into remote directory
+ * @param {string} subdomain - Subdomain name.
+ * @param {string} remoteDir - Remote directory path.
+ * @returns {Object} - Hosting details (e.g., subdomain).
+ */
+export async function updateSubdomain(subdomain, remoteDir) {
+    const response = await fetch(`${API_BASE}/drivers/call`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+            interface: 'puter-subdomains',
+            method: 'update',
+            args: {
+                id: {
+                    subdomain: subdomain,
+                },
+                object: {
+                    root_dir: remoteDir
+                }
+            }
+        })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to update directory.');
+    }
+    const data = await response.json();
+    if (!data.success || !data.result) {
+        console.log(chalk.red(`Error when updating "${subdomain}".\nError: ${data?.error?.message}\nCode: ${data.error?.code}`));
         return false;
     }
     return data.result;

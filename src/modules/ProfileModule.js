@@ -43,8 +43,6 @@ class ProfileModule {
             if ( ! config.get('selected_profile') ) {
                 console.log(chalk.cyan('Please login first (or use CTRL+C to exit):'));
                 await this.switchProfileWizard();
-                console.log(chalk.red('Please run "puter" command again (issue #11)'));
-                process.exit(0);
             }
             this.applyProfileToGlobals();
         });

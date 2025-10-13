@@ -63,21 +63,18 @@ async function main() {
       process.exit(0);
     });
 
-  /*/ Deploy command
-  program
-    .command('site:deploy')
+  const site = program
+  .command('site');
+
+  site
+    .command('deploy')
     .description('Deploy a local web project to Puter')
-    .argument('[remoteDir]', 'Remote directory path')
+    .argument('<local_dir>', 'Local directory path')
     .option('--subdomain <subdomain>', 'Subdomain for the site')
-    .action(async (name, remoteDir, options) => {
-        try {
-            await deploy([name, remoteDir, `--subdomain=${options.subdomain}`].filter(Boolean));
-        } catch (error) {
-            console.error(chalk.red(error.message));
-        }
-        process.exit(0);
+    .action(async (local_dir, options) => {
+      await startShell(`site:deploy ${local_dir}${options.subdomain ? ` --subdomain=${options.subdomain}`: ''}`)
+      process.exit(0);
     });
-    */
 
   if (process.argv.length === 2) {
     startShell();

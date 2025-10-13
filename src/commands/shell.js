@@ -10,11 +10,7 @@ import putility from '@heyputer/putility';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
-export const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-  prompt: null
-});
+export let rl;
 
 /**
  * Update the current shell prompt
@@ -47,6 +43,12 @@ export async function startShell(command) {
     await execCommand(context, command);
     process.exit(0);
   }
+
+  rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: null
+  })
 
   try {
     console.log(chalk.green('Welcome to Puter-CLI! Type "help" for available commands.'));

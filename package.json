@@ -26,6 +26,7 @@
   "author": "Ibrahim.H",
   "license": "MIT",
   "dependencies": {
+    "@heyputer/puter.js": "^2.0.15",
     "@heyputer/putility": "^1.0.2",
     "chalk": "^5.3.0",
     "cli-table3": "^0.6.5",

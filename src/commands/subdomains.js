@@ -1,6 +1,8 @@
 import chalk from 'chalk';
 import fetch from 'node-fetch';
 import { API_BASE, getHeaders } from '../commons.js';
+import { init } from "@heyputer/puter.js/src/init.cjs";
+import { getAuthToken } from './auth.js';
 
 /**
  * Get list of subdomains.
@@ -110,30 +112,15 @@ export async function createSubdomain(subdomain, remoteDir) {
  * @returns {Object} - Hosting details (e.g., subdomain).
  */
 export async function updateSubdomain(subdomain, remoteDir) {
-    const response = await fetch(`${API_BASE}/drivers/call`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-            interface: 'puter-subdomains',
-            method: 'update',
-            args: {
-                id: {
-                    subdomain: subdomain,
-                },
-                object: {
-                    root_dir: remoteDir
-                }
-            }
-        })
-    });
+    const puter = init(getAuthToken());
+    let result;
 
-    if (!response.ok) {
-        throw new Error('Failed to update directory.');
+    try {
+        result = await puter.hosting.update(subdomain, remoteDir);
+    } catch (error) {
+        console.log(chalk.red(`Error when updating "${subdomain}".\nError: ${error?.message}`));
+        return null;
     }
-    const data = await response.json();
-    if (!data.success || !data.result) {
-        console.log(chalk.red(`Error when updating "${subdomain}".\nError: ${data?.error?.message}\nCode: ${data.error?.code}`));
-        return false;
-    }
-    return data.result;
+
+    return result;
 }

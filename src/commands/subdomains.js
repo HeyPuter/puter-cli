@@ -1,6 +1,8 @@
 import chalk from 'chalk';
 import fetch from 'node-fetch';
 import { API_BASE, getHeaders } from '../commons.js';
+import { init } from "@heyputer/puter.js/src/init.cjs";
+import { getAuthToken } from './auth.js';
 
 /**
  * Get list of subdomains.
@@ -35,7 +37,7 @@ export async function deleteSubdomain(args = []) {
         return false;
     }
     const subdomains = args;
-    for (const subdomainId of subdomains)
+    for (const subdomain of subdomains)
         try {
         const response = await fetch(`${API_BASE}/drivers/call`, {
             headers: getHeaders(),
@@ -44,7 +46,7 @@ export async function deleteSubdomain(args = []) {
             interface: 'puter-subdomains',
             method: 'delete',
             args: {
-                id: { subdomain: subdomainId }
+                id: { subdomain: subdomain }
             }
             })
         });
@@ -52,7 +54,7 @@ export async function deleteSubdomain(args = []) {
         const data = await response.json();
         if (!data.success) {
             if (data.error?.code === 'entity_not_found') {
-                console.log(chalk.red(`Subdomain ID: "${subdomainId}" not found`));
+                console.log(chalk.red(`Subdomain: "${subdomain}" not found`));
                 return false;
             }
             console.log(chalk.red(`Failed to delete subdomain: ${data.error?.message}`));
@@ -101,4 +103,24 @@ export async function createSubdomain(subdomain, remoteDir) {
         return false;
     }
     return data.result;
+}
+
+/**
+ * Update a subdomain into remote directory
+ * @param {string} subdomain - Subdomain name.
+ * @param {string} remoteDir - Remote directory path.
+ * @returns {Object} - Hosting details (e.g., subdomain).
+ */
+export async function updateSubdomain(subdomain, remoteDir) {
+    const puter = init(getAuthToken());
+    let result;
+
+    try {
+        result = await puter.hosting.update(subdomain, remoteDir);
+    } catch (error) {
+        console.log(chalk.red(`Error when updating "${subdomain}".\nError: ${error?.message}`));
+        return null;
+    }
+
+    return result;
 }

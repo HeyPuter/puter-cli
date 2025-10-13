@@ -28,13 +28,24 @@ export async function logout() {
   try {
     spinner = ora('Logging out from Puter...').start();
     const token = config.get('auth_token');
-    if (!token) {
-      spinner.info(chalk.yellow('Already logged out'));
-      return;
-    }
+    const selected_profile = config.get('selected_profile');
 
-    config.clear(); // Remove all stored data
-    spinner.succeed(chalk.green('Successfully logged out from Puter!'));
+    if (token) {
+      // legacy auth
+      config.clear();
+      spinner.succeed(chalk.green('Successfully logged out from Puter!'));
+    } else if (selected_profile) {
+      // multi profile auth
+      config.delete('selected_profile');
+      config.delete('username');
+      config.delete('cwd');
+
+      const profiles = config.get('profiles');
+      config.set('profiles', profiles.filter(profile => profile.uuid != selected_profile));
+      spinner.succeed(chalk.green('Successfully logged out from Puter!'));
+    } else {
+      spinner.info(chalk.yellow('Already logged out'));
+    }
   } catch (error) {
     if (spinner){
       spinner.fail(chalk.red('Failed to logout'));

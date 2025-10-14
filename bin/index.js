@@ -7,6 +7,7 @@ import { startShell } from '../src/commands/shell.js';
 import { PROJECT_NAME, getLatestVersion } from '../src/commons.js';
 import { createApp } from '../src/commands/apps.js';
 import { deploy } from '../src/commands/deploy.js';
+import inquirer from 'inquirer';
 
 async function main() {
   const version = await getLatestVersion(PROJECT_NAME);
@@ -70,9 +71,32 @@ async function main() {
   site
     .command('deploy')
     .description('Deploy a local web project to Puter')
-    .argument('<local_dir>', 'Local directory path')
-    .argument('[<subdomain>]', 'Deployment subdomain (<subdomain>.puter.site)')
+    .argument('[local_dir]', 'Local directory path')
+    .argument('[subdomain]', 'Deployment subdomain (<subdomain>.puter.site)')
     .action(async (local_dir, subdomain) => {
+      if (!local_dir) {
+        const answer = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'local_dir',
+            message: 'Local directory path:',
+            default: '.'
+          }
+        ]);
+        local_dir = answer.local_dir;
+      }
+
+      if (!subdomain) {
+        const answer = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'subdomain',
+            message: 'Deployment subdomain (leave empty for random):',
+          }
+        ]);
+        subdomain = answer.subdomain;
+      }
+
       await startShell(`site:deploy ${local_dir}${subdomain ? ` --subdomain=${subdomain}`: ''}`)
       process.exit(0);
     });

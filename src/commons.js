@@ -45,7 +45,7 @@ export function getHeaders(contentType = 'application/json') {
  * @see: [randName](https://github.com/HeyPuter/puter/blob/06a67a3b223a6cbd7ec2e16853b6d2304f621a88/src/puter-js/src/index.js#L389)
  */
 export function generateAppName(separateWith = '-'){
-  console.log(chalk.cyan('Generating random app name...'));
+  console.log(chalk.cyan('Generating random name...'));
   try {        
       const first_adj = ['helpful','sensible', 'loyal', 'honest', 'clever', 'capable','calm', 'smart', 'genius', 'bright', 'charming', 'creative', 'diligent', 'elegant', 'fancy', 
       'colorful', 'avid', 'active', 'gentle', 'happy', 'intelligent', 'jolly', 'kind', 'lively', 'merry', 'nice', 'optimistic', 'polite', 
@@ -63,7 +63,7 @@ export function generateAppName(separateWith = '-'){
       // return a random combination of first_adj + noun + number (between 0 and 9999)
       // e.g. clever-idea-123
       const appName = first_adj[Math.floor(Math.random() * first_adj.length)] + separateWith + nouns[Math.floor(Math.random() * nouns.length)] + separateWith + Math.floor(Math.random() * 10000);
-      console.log(chalk.green(`AppName: "${appName}"`));
+      console.log(chalk.green(`Name: "${appName}"`));
       return appName;
   } catch (error) {
       console.error(`Error: ${error.message}`);

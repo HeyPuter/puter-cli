@@ -25,27 +25,19 @@ export async function deploy(args = []) {
 
   const remoteDir = `deployments/site-${crypto.randomUUID()}`;
 
-  console.log(chalk.cyan(`Deploying '${appName}' from local '${sourceDir}' to remote '${remoteDir}' at '${subdomain}.puter.site'...`));
+  console.log(chalk.cyan(`Deploying '${sourceDir}' to '${subdomain}.puter.site'...`));
 
   try {
     // 1. Upload files
-    console.log(chalk.cyan(`Uploading files from '${sourceDir}' to '${remoteDir}'...`));
     await syncDirectory([sourceDir, remoteDir, '--delete', '-r', '--overwrite']);
 
     // 2. Create the site
-    console.log(chalk.cyan(`Creating site...`));
     const site = await createSite([appName, remoteDir, `--subdomain=${subdomain}`]);
 
     if (site) {
       console.log(chalk.green('Deployment successful!'));      
     } else {
       console.log(chalk.yellow('Deployment successfuly updated!'));
-    }
-    if (subdomain){
-      console.log(chalk.cyan('Your site is live at:'));
-      console.log(chalk.green(`https://${subdomain}.puter.site`));
-    } else {
-      console.log(chalk.red('Deployment failed. Subdomain cannot be reserved!'));
     }
   } catch (error) {
     console.error(chalk.red(`Deployment failed: ${error.message}`));

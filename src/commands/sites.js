@@ -176,14 +176,14 @@ export async function infoSite(args = []) {
         console.log(chalk.cyan(`New generated subdomain: "${subdomain}" will be used if its not already in use.`));
 
         // Step 3: Host the current directory under the subdomain
-        console.log(chalk.cyan(`Hosting app "${appName}" under subdomain "${subdomain}"...`));
+        console.log(chalk.cyan(`Hosting site "${appName}" under subdomain "${subdomain}"...`));
         const site = await createSubdomain(subdomain, remoteDir);
         if (!site){
             console.error(chalk.red(`Failed to create subdomain: "${chalk.red(subdomain)}"`));
             return;
         }
   
-        console.log(chalk.green(`App ${chalk.dim(appName)} created successfully and accessible at:`));
+        console.log(chalk.green(`Site ${chalk.dim(appName)} created successfully and accessible at:`));
         console.log(chalk.cyan(`https://${site.subdomain}.puter.site`));
         return site;
     } catch (error) {

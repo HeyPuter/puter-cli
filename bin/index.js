@@ -13,7 +13,7 @@ async function main() {
 
   const program = new Command();
   program
-    .name(PROJECT_NAME)
+    .name('puter')
     .description('CLI tool for Puter cloud platform')
     .version(version);
 

@@ -64,15 +64,16 @@ async function main() {
     });
 
   const site = program
-  .command('site');
+  .command('site')
+  .description('Site management commands');
 
   site
     .command('deploy')
     .description('Deploy a local web project to Puter')
     .argument('<local_dir>', 'Local directory path')
-    .option('--subdomain <subdomain>', 'Subdomain for the site')
-    .action(async (local_dir, options) => {
-      await startShell(`site:deploy ${local_dir}${options.subdomain ? ` --subdomain=${options.subdomain}`: ''}`)
+    .argument('[<subdomain>]', 'Deployment subdomain (<subdomain>.puter.site)')
+    .action(async (local_dir, subdomain) => {
+      await startShell(`site:deploy ${local_dir}${subdomain ? ` --subdomain=${subdomain}`: ''}`)
       process.exit(0);
     });
 

@@ -6,6 +6,7 @@ import { API_BASE, getHeaders, generateAppName, resolveRemotePath, isValidAppNam
 import { displayNonNullValues, formatDate, isValidAppUuid } from '../utils.js';
 import { getSubdomains, createSubdomain, deleteSubdomain, updateSubdomain } from './subdomains.js';
 import { ErrorAPI } from '../modules/ErrorModule.js';
+import { getPuter } from '../modules/PuterModule.js';
 
 
 /**
@@ -13,11 +14,7 @@ import { ErrorAPI } from '../modules/ErrorModule.js';
  */
 export async function listSites(args = {}, context) {
     try {
-      const data = await getSubdomains(args);
-
-      if (!data.success || !Array.isArray(data.result)) {
-        throw new Error('Failed to fetch subdomains');
-      }
+      const result = await getSubdomains(args);
   
       // Create table instance
       const table = new Table({
@@ -35,7 +32,7 @@ export async function listSites(args = {}, context) {
   
       // Format and add data to table
       let i = 0;
-      data.result.forEach(domain => {
+      result.forEach(domain => {
         let appDir = domain?.root_dir?.path.split('/').pop().split('-');
         table.push([
           i++,
@@ -49,12 +46,12 @@ export async function listSites(args = {}, context) {
       });
   
       // Print table
-      if (data.result.length === 0) {
+      if (result.length === 0) {
         console.log(chalk.yellow('No subdomains found'));
       } else {
         console.log(chalk.bold('\nYour Sites:'));
         console.log(table.toString());
-        console.log(chalk.dim(`Total Sites: ${data.result.length}`));
+        console.log(chalk.dim(`Total Sites: ${result.length}`));
       }
   
     } catch (error) {
@@ -73,26 +70,11 @@ export async function infoSite(args = []) {
         console.log(chalk.red('Usage: site <siteUID>'));
         return;
     }
-    for (const subdomainId of args)
+    const puter = getPuter();
+    for (const subdomain of args)
       try {
-        const response = await fetch(`${API_BASE}/drivers/call`, {
-          method: 'POST',
-          headers: getHeaders(),
-          body: JSON.stringify({
-              interface: 'puter-subdomains',
-              method: 'read',
-              args: { uid: subdomainId }
-          })
-        });
-      
-        if (!response.ok) {
-            throw new Error('Failed to fetch subdomains.');
-        }
-        const data = await response.json();
-        if (!data.success || !data.result) {
-          throw new Error(`Failed to get site info: ${data.error?.message}`);
-        }
-        displayNonNullValues(data.result);
+        const result = await puter.hosting.get(subdomain);
+        displayNonNullValues(result);
       } catch (error) {
         console.error(chalk.red('Error getting site info:'), error.message);
       }
@@ -142,12 +124,7 @@ export async function infoSite(args = []) {
         }
   
         // Step 2: Check if the subdomain already exists
-        const data = await getSubdomains();
-        if (!data.success || !Array.isArray(data.result)) {
-          throw new Error('Failed to fetch subdomains');
-        }
-  
-        const subdomains = data.result;
+        const subdomains = await getSubdomains();;
         const subdomainObj = subdomains.find(sd => sd.subdomain === subdomain);      
         if (subdomainObj) {
             console.error(chalk.cyan(`The subdomain "${subdomain}" is already in use and owned by: "${subdomainObj.owner['username']}"`));

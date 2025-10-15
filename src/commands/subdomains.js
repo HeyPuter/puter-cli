@@ -1,8 +1,7 @@
 import chalk from 'chalk';
 import fetch from 'node-fetch';
 import { API_BASE, getHeaders } from '../commons.js';
-import { init } from "@heyputer/puter.js/src/init.cjs";
-import { getAuthToken } from './auth.js';
+import { getPuter } from '../modules/PuterModule.js';
 
 /**
  * Get list of subdomains.
@@ -112,7 +111,7 @@ export async function createSubdomain(subdomain, remoteDir) {
  * @returns {Object} - Hosting details (e.g., subdomain).
  */
 export async function updateSubdomain(subdomain, remoteDir) {
-    const puter = init(getAuthToken());
+    const puter = getPuter();
     let result;
 
     try {

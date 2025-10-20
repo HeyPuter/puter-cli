@@ -7,6 +7,7 @@ import SetContextModule from '../modules/SetContextModule.js';
 import ErrorModule from '../modules/ErrorModule.js';
 import ProfileModule from '../modules/ProfileModule.js';
 import putility from '@heyputer/putility';
+import { initPuterModule } from '../modules/PuterModule.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -37,6 +38,8 @@ export async function startShell(command) {
   for ( const module of modules ) module({ context });
 
   await context.events.emit('check-login', {});
+
+  initPuterModule();
   
   // This argument enables the `puter <subcommand>` commands
   if ( command ) {

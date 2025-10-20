@@ -9,6 +9,7 @@ import { deleteSite } from './sites.js';
 import { copyFile, createFile, listRemoteFiles, pathExists, removeFileOrDirectory } from './files.js';
 import { getCurrentDirectory } from './auth.js';
 import crypto from '../crypto.js';
+import { getPuter } from '../modules/PuterModule.js';
 
 /**
  * List all apps
@@ -23,22 +24,13 @@ import crypto from '../crypto.js';
  */
 export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
     console.log(chalk.green(`Listing of apps during period "${chalk.cyan(statsPeriod)}" (try also: today, yesterday, 7d, 30d, this_month, last_month):\n`));
+    const puter = getPuter();
     try {
-        const response = await fetch(`${API_BASE}/drivers/call`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                interface: "puter-apps",
-                method: "select",
-                args: {
-                    params: { icon_size: iconSize },
-                    predicate: ["user-can-edit"],
-                    stats_period: statsPeriod,
-                }
-            })
+        const result = await puter.apps.list({
+            icon_size: iconSize,
+            stats_period: statsPeriod
         });
-        const data = await response.json();
-        if (data && data['result']) {
+        if (result) {
             // Create a new table instance
             const table = new Table({
                 head: [
@@ -57,7 +49,7 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
 
             // Populate the table with app data
             let i = 0;
-            for (const app of data['result']) {
+            for (const app of result) {
                 table.push([
                     i++,
                     app['title'],
@@ -72,7 +64,7 @@ export async function listApps({ statsPeriod = 'all', iconSize = 64 } = {}) {
 
             // Display the table
             console.log(table.toString());
-            console.log(chalk.green(`You have in total: ${chalk.cyan(data['result'].length)} application(s).`));
+            console.log(chalk.green(`You have in total: ${chalk.cyan(result.length)} application(s).`));
         } else {
             console.error(chalk.red('Unable to list your apps. Please check your credentials.'));
         }
@@ -97,24 +89,12 @@ export async function appInfo(args = []) {
     }
     const appName = args[0].trim()
     console.log(chalk.green(`Looking for "${chalk.dim(appName)}" app informations:\n`));
+    const puter = getPuter();
     try {
-        const response = await fetch(`${API_BASE}/drivers/call`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                interface: "puter-apps",
-                method: "read",
-                args: {
-                    id: {
-                        name: appName
-                    }
-                }
-            })
-        });
-        const data = await response.json();
-        if (data && data['result']) {
+        const result = await puter.apps.get(appName);
+        if (result) {
             // Display the informations
-            displayNonNullValues(data['result']);
+            displayNonNullValues(result);
         } else {
             console.error(chalk.red('Could not find this app.'));
         }
@@ -150,6 +130,7 @@ export async function createApp(args) {
     console.log(chalk.dim(`Description: ${description}`));
     console.log(chalk.dim(`URL: ${url}`));
 
+    const puter = getPuter();
     try {
         // Step 1: Create the app
         const createAppResponse = await fetch(`${API_BASE}/drivers/call`, {
@@ -246,23 +227,11 @@ export async function createApp(args) {
 
         // Step 5: Update the app's index_url to point to the subdomain
         console.log(chalk.green(`Set "${chalk.dim(subdomainName)}" as a subdomain for app: "${chalk.dim(appName)}"...\n`));
-        const updateAppResponse = await fetch(`${API_BASE}/drivers/call`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                interface: "puter-apps",
-                method: "update",
-                args: {
-                    id: { name: appName },
-                    object: {
-                        index_url: `https://${subdomainName}.puter.site`,
-                        title: name
-                    }
-                }
-            })
-        });
-        const updateAppData = await updateAppResponse.json();
-        if (!updateAppData || !updateAppData.success) {
+        const updateAppData = await puter.apps.update(appName, {
+            indexURL: `https://${subdomainName}.puter.site`,
+            title: name
+        })
+        if (!updateAppData) {
             console.error(chalk.red(`Failed to update app "${name}" with new subdomain`));
             return;
         }
@@ -301,35 +270,25 @@ export async function updateApp(args = []) {
         return;
     }
 
+    const puter = getPuter();
     console.log(chalk.green(`Updating app: "${chalk.dim(name)}" from directory: ${chalk.dim(remoteDir)}\n`));
     try {
         // Step 1: Get the app info
-        const appResponse = await fetch(`${API_BASE}/drivers/call`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                interface: "puter-apps",
-                method: "read",
-                args: {
-                    id: { name }
-                }
-            })
-        });
-        const data = await appResponse.json();
-        if (!data || !data.success) {
+        const data = await puter.apps.get(name);
+        if (!data) {
             console.error(chalk.red(`Failed to find app: "${name}"`));
             return;
         }
-        const appUid = data.result.uid;
-        const appName = data.result.name;
-        const username = data.result.owner.username;
-        const indexUrl = data.result.index_url;
+        const appUid = data.uid;
+        const appName = data.name;
+        const username = data.owner.username;
+        const indexUrl = data.index_url;
         const appDir = `/${username}/AppData/${appUid}`;
         console.log(chalk.cyan(`AppName: ${chalk.dim(appName)}\nUID: ${chalk.dim(appUid)}\nUsername: ${chalk.dim(username)}`));
 
         // Step 2: Find the path from subdomain
         const subdomains = await getSubdomains();
-        const appSubdomain = subdomains.result.find(sd => sd.root_dir?.dirname?.endsWith(appUid));
+        const appSubdomain = subdomains.find(sd => sd.root_dir?.dirname?.endsWith(appUid));
         if (!appSubdomain){
             console.error(chalk.red(`Sorry! We could not find the subdomain for ${chalk.cyan(name)} application.`));
             return;
@@ -361,6 +320,7 @@ export async function updateApp(args = []) {
         console.log(chalk.dim(indexUrl));
     } catch (error) {
         console.error(chalk.red(`Failed to update app "${name}".\nError: ${error.message}`));
+        console.error(error);
     }
 }
 
@@ -374,24 +334,13 @@ export async function deleteApp(name) {
         console.log(chalk.red('Usage: app:delete <name>'));
         return false;
     }
+    const puter = getPuter();
     console.log(chalk.green(`Checking app "${name}"...\n`));
     try {
         // Step 1: Read app details
-        const readResponse = await fetch(`${API_BASE}/drivers/call`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                interface: "puter-apps",
-                method: "read",
-                args: {
-                    id: { name }
-                }
-            })
-        });
-        
-        const readData = await readResponse.json();
+        const readData = await puter.apps.get(name);
 
-        if (!readData.success || !readData.result) {
+        if (!readData) {
             console.log(chalk.red(`App "${chalk.bold(name)}" not found.`));
             return false;
         }
@@ -399,35 +348,24 @@ export async function deleteApp(name) {
         // Show app details and confirm deletion
         console.log(chalk.cyan('\nApp Details:'));
         console.log(chalk.dim('----------------------------------------'));
-        console.log(chalk.dim(`Name: ${chalk.cyan(readData.result.name)}`));
-        console.log(chalk.dim(`Title: ${chalk.cyan(readData.result.title)}`));
-        console.log(chalk.dim(`Created: ${chalk.cyan(formatDate(readData.result.created_at))}`));
-        console.log(chalk.dim(`URL: ${readData.result.index_url}`));
+        console.log(chalk.dim(`Name: ${chalk.cyan(readData.name)}`));
+        console.log(chalk.dim(`Title: ${chalk.cyan(readData.title)}`));
+        console.log(chalk.dim(`Created: ${chalk.cyan(formatDate(readData.created_at))}`));
+        console.log(chalk.dim(`URL: ${readData.index_url}`));
         console.log(chalk.dim('----------------------------------------'));
 
         // Step 2: Delete the app
         console.log(chalk.green(`Deleting app "${chalk.red(name)}"...`));
-        const deleteResponse = await fetch(`${API_BASE}/drivers/call`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                interface: "puter-apps",
-                method: "delete",
-                args: {
-                    id: { name }
-                }
-            })
-        });path
 
-        const deleteData = await deleteResponse.json();
-        if (!deleteData.success) {
+        const deleteData = await puter.apps.delete(name);
+        if (!deleteData) {
             console.error(chalk.red(`Failed to delete app "${name}".\nP.S. Make sure to provide the 'name' attribute not the 'title'.`));
             return false;
         }
         
         // Lookup subdomainUID then delete it
         const subdomains = await getSubdomains();
-        const appSubdomain = subdomains.result.find(sd => sd.root_dir?.dirname?.endsWith(readData.result.uid));
+        const appSubdomain = subdomains.find(sd => sd.root_dir?.dirname?.endsWith(readData.uid));
         const subdomainDeleted = await deleteSite([appSubdomain.uid]);
         if (subdomainDeleted){
             console.log(chalk.green(`Subdomain: ${chalk.dim(appSubdomain.uid)} deleted.`));

@@ -7,6 +7,7 @@ import fetch from 'node-fetch';
 import { PROJECT_NAME, API_BASE, getHeaders, BASE_URL } from '../commons.js'
 import { ProfileAPI } from '../modules/ProfileModule.js';
 import { get_context } from '../temporary/context_helpers.js';
+import { getPuter } from '../modules/PuterModule.js';
 const config = new Conf({ projectName: PROJECT_NAME });
 
 /**
@@ -56,12 +57,9 @@ export async function logout() {
 
 export async function getUserInfo() {
   console.log(chalk.green('Getting user info...\n'));
+  const puter = getPuter();
   try {
-    const response = await fetch(`${API_BASE}/whoami`, {
-      method: 'GET',
-      headers: getHeaders()
-    });
-    const data = await response.json();
+    const data = await puter.auth.getUser();
     if (data) {
       console.log(chalk.cyan('User Information:'));
       console.log(chalk.dim('----------------------------------------'));

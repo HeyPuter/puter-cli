@@ -8,6 +8,7 @@ import fetch from 'node-fetch';
 import Conf from 'conf';
 import { BASE_URL, PROJECT_NAME, API_BASE } from '../src/commons.js';
 import { ProfileAPI } from '../src/modules/ProfileModule.js';
+import * as PuterModule from '../src/modules/PuterModule.js';
 import * as contextHelpers from '../src/temporary/context_helpers.js';
 
 // Mock console to prevent actual logging
@@ -26,6 +27,7 @@ vi.mock('chalk', () => ({
   }
 }));
 vi.mock('node-fetch');
+vi.mock('../src/modules/PuterModule.js');
 
 // Create a mock spinner object
 const mockSpinner = {
@@ -113,26 +115,35 @@ describe('auth.js', () => {
   
 
   describe('getUserInfo', () => {
+    const mockPuter = {
+      auth: {
+        getUser: vi.fn(),
+      },
+    };
+
+    beforeEach(() => {
+      vi.spyOn(PuterModule, 'getPuter').mockReturnValue(mockPuter);
+    });
+    
     it('should fetch user info successfully', async () => {
-      mockProfileModule.getAuthToken.mockReturnValue('testtoken');
-      fetch.mockResolvedValue({
-        json: () => Promise.resolve({
-          username: 'testuser',
-        }),
-        ok: true,
+      mockPuter.auth.getUser.mockResolvedValue({
+        username: 'testuser',
+        uuid: 'testuuid',
+        email: 'test@puter.com',
+        email_confirmed: true,
+        is_temp: false,
+        human_readable_age: '1 day',
+        feature_flags: {},
       });
 
       await getUserInfo();
 
-      expect(fetch).toHaveBeenCalledWith(`${API_BASE}/whoami`, {
-        method: 'GET',
-        headers: expect.any(Object),
-      });
+      expect(mockPuter.auth.getUser).toHaveBeenCalled();
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('User Information:'));
     });
 
     it('should handle fetch user info error', async () => {
-      mockProfileModule.getAuthToken.mockReturnValue('testtoken');
-      fetch.mockRejectedValue(new Error('Network error'));
+      mockPuter.auth.getUser.mockRejectedValue(new Error('Network error'));
       await getUserInfo();
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Failed to get user info.'));
     });

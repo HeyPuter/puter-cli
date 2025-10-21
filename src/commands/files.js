@@ -82,20 +82,14 @@ export async function makeDirectory(args = []) {
     const directoryName = args[0];
     console.log(chalk.green(`Creating directory "${directoryName}" in "${getCurrentDirectory()}"...\n`));
 
-    try {
-        const response = await fetch(`${API_BASE}/mkdir`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                parent: getCurrentDirectory(),
-                path: directoryName,
-                overwrite: false,
-                dedupe_name: true,
-                create_missing_parents: false
-            })
-        });
+    const puter = getPuter();
 
-        const data = await response.json();
+    try {
+        const data = await puter.fs.mkdir(`${getCurrentDirectory()}/${directoryName}`, {
+            overwrite: false,
+            dedupeName: true,
+            createMissingParents: false
+        })
         if (data && data.id) {
             console.log(chalk.green(`Directory "${directoryName}" created successfully!`));
             console.log(chalk.dim(`Path: ${data.path}`));

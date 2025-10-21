@@ -526,8 +526,12 @@ export async function pathExists(filePath) {
     const puter = getPuter();
     try {
         // Step 1: Check if the file already exists
-        return puter.fs.stat(filePath);
+        await puter.fs.stat(filePath);
+        return true;
     } catch (error){
+        if (error.code == "subject_does_not_exist") {
+            return false;
+        }
         console.error(chalk.red('Failed to check if file exists.'));
         console.error('ERROR', error);
             return false;
@@ -1167,21 +1171,16 @@ async function resolveLocalDirectory(localPath) {
  * @param {string} remotePath - The remote directory path
  */
 async function ensureRemoteDirectoryExists(remotePath) {
+    const puter = getPuter();
     try {
         const exists = await pathExists(remotePath);
         if (!exists) {
             // Create the directory and any missing parents
-            await fetch(`${API_BASE}/mkdir`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({
-                    parent: path.dirname(remotePath),
-                    path: path.basename(remotePath),
-                    overwrite: false,
-                    dedupe_name: true,
-                    create_missing_parents: true
-                })
-            });
+            await puter.fs.mkdir(remotePath, {
+                overwrite: false,
+                dedupeName: true,
+                createMissingParents: true
+            })
         }
     } catch (error) {
         console.error(chalk.red(`Failed to create remote directory: ${remotePath}`));
@@ -1227,10 +1226,11 @@ export async function syncDirectory(args = []) {
         }
 
         // Step 2: Fetch remote directory contents
-        let remoteFiles = await listRemoteFiles(remoteDir);
-        if (!Array.isArray(remoteFiles)) {
+        let remoteFiles = [];
+        try {
+            remoteFiles = await listRemoteFiles(remoteDir);
+        } catch (error) {
             console.log(chalk.yellow('Remote directory is empty or does not exist. Continuing...'));
-            remoteFiles = [];
         }
 
         // Step 3: List local files

@@ -556,6 +556,7 @@ export async function createFile(args = []) {
     const dedupeName = false; // Default: false
     const overwrite = true; // Default: true
 
+    const puter = getPuter();
     console.log(chalk.green(`Creating file:\nFileName: "${chalk.dim(fileName)}"\nPath: "${chalk.dim(dirName)}"\nContent Length: ${chalk.dim(content.length)}`));
     try {
         // Step 1: Check if the file already exists
@@ -610,17 +611,11 @@ export async function createFile(args = []) {
 
         if (!dirStatResponse.ok || dirStatResponse.status === 404) {
             // Create the directory if it doesn't exist
-            await fetch(`${API_BASE}/mkdir`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({
-                    parent: path.dirname(dirName),
-                    path: path.basename(dirName),
-                    overwrite: false,
-                    dedupe_name: true,
-                    create_missing_parents: true
-                })
-            });
+            await puter.fs.mkdir(dirName, {
+                overwrite: false,
+                dedupeName: true,
+                createMissingParents: true
+            })
         }
 
         // Step 4: Create the file using /batch

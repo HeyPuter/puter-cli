@@ -172,18 +172,11 @@ export async function createApp(args) {
         const uid = crypto.randomUUID();
         const appDir = `/${username}/AppData/${appUid}`;
         console.log(chalk.green(`Creating directory...\nPath: ${chalk.dim(appDir)}\nApp: ${chalk.dim(name)}\nUID: ${chalk.dim(uid)}\n`));
-        const createDirResponse = await fetch(`${API_BASE}/mkdir`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                parent: appDir,
-                path: `app-${uid}`,
-                overwrite: true,
-                dedupe_name: false,
-                create_missing_parents: true
-            })
-        });
-        const createDirData = await createDirResponse.json();
+        const createDirData = await puter.fs.mkdir(`${appDir}/app-${uid}`, {
+            overwrite: true,
+            dedupeName: false,
+            createMissingParents: true,
+        })
         if (!createDirData || !createDirData.uid) {
             console.error(chalk.red(`Failed to create directory for app "${name}"`));
             return;

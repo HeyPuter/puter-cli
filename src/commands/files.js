@@ -305,40 +305,20 @@ export async function removeFileOrDirectory(args = []) {
                 console.log(chalk.green(`Preparing to remove "${path}"...`));
 
                 // Step 4.1: Get the UID of the file/directory
-                const statResponse = await fetch(`${API_BASE}/stat`, {
-                    method: 'POST',
-                    headers: getHeaders(),
-                    body: JSON.stringify({ path })
-                });
-
-                const statData = await statResponse.json();
+                const statData = await puter.fs.stat(path);
                 if (!statData || !statData.uid) {
                     console.error(chalk.red(`Could not find file or directory with path "${path}".`));
                     continue;
                 }
 
                 const uid = statData.uid;
-                const originalPath = statData.path;
 
                 // Step 4.2: Perform the move operation to Trash
-                const moveResponse = await fetch(`${API_BASE}/move`, {
-                    method: 'POST',
-                    headers: getHeaders(),
-                    body: JSON.stringify({
-                        source: uid,
-                        destination: `/${getCurrentUserName()}/Trash`,
-                        overwrite: false,
-                        new_name: uid, // Use the UID as the new name in Trash
-                        create_missing_parents: false,
-                        new_metadata: {
-                            original_name: path.split('/').pop(),
-                            original_path: originalPath,
-                            trashed_ts: Math.floor(Date.now() / 1000) // Current timestamp
-                        }
-                    })
+                const moveData = await puter.fs.move(uid, `/${getCurrentUserName()}/Trash`, {
+                    overwrite: false,
+                    newName: uid,
+                    createMissingParents: false,
                 });
-
-                const moveData = await moveResponse.json();
                 if (moveData && moveData.moved) {
                     console.log(chalk.green(`Successfully moved "${path}" to Trash!`));
                     console.log(chalk.dim(`Moved to: ${moveData.moved.path}`));

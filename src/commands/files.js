@@ -185,6 +185,7 @@ export async function renameFileOrDirectory(args = []) {
  */
 async function findMatchingFiles(files, pattern, basePath) {
     const matchedPaths = [];
+    const puter = getPuter();
 
     for (const file of files) {
         const filePath = path.join(basePath, file.name);
@@ -196,14 +197,8 @@ async function findMatchingFiles(files, pattern, basePath) {
 
         // If it's a directory, recursively search its contents
         if (file.is_dir) {
-            const dirResponse = await fetch(`${API_BASE}/readdir`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({ path: filePath })
-            });
-
-            if (dirResponse.ok) {
-                const dirFiles = await dirResponse.json();
+            const dirFiles = await puter.fs.readdir(filePath);
+            if (dirFiles && dirFiles.length > 0) {
                 const dirMatches = await findMatchingFiles(dirFiles, pattern, filePath);
                 matchedPaths.push(...dirMatches);
             }

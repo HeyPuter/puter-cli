@@ -133,38 +133,21 @@ export async function createApp(args) {
     const puter = getPuter();
     try {
         // Step 1: Create the app
-        const createAppResponse = await fetch(`${API_BASE}/drivers/call`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                interface: "puter-apps",
-                method: "create",
-                args: {
-                    object: {
-                        name: name,
-                        index_url: url,
-                        title: name,
-                        description: description,
-                        maximize_on_start: false,
-                        background: false,
-                        metadata: {
-                            window_resizable: true
-                        }
-                    },
-                    options: {
-                        dedupe_name: true
-                    }
-                }
-            })
+        const createAppData = await puter.apps.create({
+            name: name,
+            indexURL: url,
+            title: name,
+            description: description,
+            maximizeOnStart: false,
+            dedupeName: true
         });
-        const createAppData = await createAppResponse.json();
-        if (!createAppData || !createAppData.success) {
+        if (!createAppData) {
             console.error(chalk.red(`Failed to create app "${name}"`));
             return;
         }
-        const appUid = createAppData.result.uid;
-        const appName = createAppData.result.name;
-        const username = createAppData.result.owner.username;
+        const appUid = createAppData.uid;
+        const appName = createAppData.name;
+        const username = createAppData.owner.username;
         console.log(chalk.green(`App "${chalk.dim(name)}" created successfully!`));
         console.log(chalk.cyan(`AppName: ${chalk.dim(appName)}\nUID: ${chalk.dim(appUid)}\nUsername: ${chalk.dim(username)}`));
 

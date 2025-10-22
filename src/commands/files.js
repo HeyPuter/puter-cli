@@ -918,25 +918,20 @@ export async function copyFile(args = []) {
     const destinationPath = args[1].startsWith(`/${getCurrentUserName()}`) ? args[1] : resolvePath(getCurrentDirectory(), args[1]); // Resolve the destination path
 
     console.log(chalk.green(`Copy: "${chalk.dim(sourcePath)}" to: "${chalk.dim(destinationPath)}"...\n`));
+    const puter = getPuter();
     try {
         // Step 1: Check if the source is a directory or a file
-        const statResponse = await fetch(`${API_BASE}/stat`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                path: sourcePath
-            })
-        });
-
-        if (!statResponse.ok) {
-            console.error(chalk.red(`Failed to check source path. Server response: ${await statResponse.text()}`));
-            return;
-        }
-
-        const statData = await statResponse.json();
-        if (!statData || !statData.id) {
-            console.error(chalk.red(`Source path "${sourcePath}" does not exist.`));
-            return;
+        let statData;
+        try {
+            statData = await puter.fs.stat(sourcePath);
+        } catch (error) {
+            if (error == "subject_does_not_exist") {
+                console.error(chalk.red(`Source path "${sourcePath}" does not exist.`));
+                return;
+            } else {
+                console.error(chalk.red(`Failed to check source path. Server response: ${await statResponse.text()}`));
+                return;
+            }
         }
 
         if (statData.is_dir) {
@@ -946,21 +941,7 @@ export async function copyFile(args = []) {
                 const relativePath = file.path.replace(sourcePath, '');
                 const destPath = path.join(destinationPath, relativePath);
 
-                const copyResponse = await fetch(`${API_BASE}/copy`, {
-                    method: 'POST',
-                    headers: getHeaders(),
-                    body: JSON.stringify({
-                        source: file.path,
-                        destination: destPath
-                    })
-                });
-
-                if (!copyResponse.ok) {
-                    console.error(chalk.red(`Failed to copy file "${file.path}". Server response: ${await copyResponse.text()}`));
-                    continue;
-                }
-
-                const copyData = await copyResponse.json();
+                const copyData = await puter.fs.copy(file.path, destPath);
                 if (copyData && copyData.length > 0 && copyData[0].copied) {
                     console.log(chalk.green(`File "${chalk.dim(file.path)}" copied successfully to "${chalk.dim(copyData[0].copied.path)}"!`));
                 } else {
@@ -969,21 +950,7 @@ export async function copyFile(args = []) {
             }
         } else {
             // Step 3: If source is a file, copy it directly
-            const copyResponse = await fetch(`${API_BASE}/copy`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({
-                    source: sourcePath,
-                    destination: destinationPath
-                })
-            });
-
-            if (!copyResponse.ok) {
-                console.error(chalk.red(`Failed to copy file. Server response: ${await copyResponse.text()}`));
-                return;
-            }
-
-            const copyData = await copyResponse.json();
+            const copyData = await puter.fs.copy(sourcePath, destinationPath);
             if (copyData && copyData.length > 0 && copyData[0].copied) {
                 console.log(chalk.green(`File "${sourcePath}" copied successfully to "${copyData[0].copied.path}"!`));
                 console.log(chalk.dim(`UID: ${copyData[0].copied.uid}`));

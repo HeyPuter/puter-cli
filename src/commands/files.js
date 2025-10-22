@@ -839,21 +839,10 @@ export async function downloadFile(args = []) {
     const overwrite = args.length > 2 ? args[2] === 'true' : false; // Default: false
 
     console.log(chalk.green(`Downloading files matching "${remotePathPattern}" to "${localBasePath}"...\n`));
-
+    const puter = getPuter();
     try {
         // Step 1: Fetch the list of files and directories from the server
-        const listResponse = await fetch(`${API_BASE}/readdir`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({ path: getCurrentDirectory() })
-        });
-
-        if (!listResponse.ok) {
-            console.error(chalk.red('Failed to list files from the server.'));
-            return;
-        }
-
-        const files = await listResponse.json();
+        const files = await puter.fs.readdir(getCurrentDirectory());
         if (!Array.isArray(files) || files.length === 0) {
             console.error(chalk.red('No files or directories found on the server.'));
             return;

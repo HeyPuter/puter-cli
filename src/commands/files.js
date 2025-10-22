@@ -122,13 +122,7 @@ export async function renameFileOrDirectory(args = []) {
     const puter = getPuter();
     try {
         // Step 1: Get the source file/directory info
-        const statResponse = await fetch(`${API_BASE}/stat`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({ path: sourcePath })
-        });
-
-        const statData = await statResponse.json();
+        const statData = await puter.fs.stat(sourcePath);
         if (!statData || !statData.uid) {
             console.log(chalk.red(`Could not find source "${sourcePath}".`));
             return;
@@ -138,13 +132,16 @@ export async function renameFileOrDirectory(args = []) {
         const sourceName = statData.name;
 
         // Step 2: Check if destination is an existing directory
-        const destStatResponse = await fetch(`${API_BASE}/stat`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({ path: destPath })
-        });
-
-        const destData = await destStatResponse.json();
+        let destData = null;
+        try {
+            destData = await puter.fs.stat(destPath);
+        } catch (error) {
+            if (error.code == "subject_does_not_exist") {
+                // no-op
+            } else {
+                throw (error);
+            }
+        }
         
         // Determine if this is a rename or move operation
         const isMove = destData && destData.is_dir;

@@ -82,20 +82,14 @@ export async function makeDirectory(args = []) {
     const directoryName = args[0];
     console.log(chalk.green(`Creating directory "${directoryName}" in "${getCurrentDirectory()}"...\n`));
 
-    try {
-        const response = await fetch(`${API_BASE}/mkdir`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                parent: getCurrentDirectory(),
-                path: directoryName,
-                overwrite: false,
-                dedupe_name: true,
-                create_missing_parents: false
-            })
-        });
+    const puter = getPuter();
 
-        const data = await response.json();
+    try {
+        const data = await puter.fs.mkdir(`${getCurrentDirectory()}/${directoryName}`, {
+            overwrite: false,
+            dedupeName: true,
+            createMissingParents: false
+        })
         if (data && data.id) {
             console.log(chalk.green(`Directory "${directoryName}" created successfully!`));
             console.log(chalk.dim(`Path: ${data.path}`));
@@ -128,13 +122,7 @@ export async function renameFileOrDirectory(args = []) {
     const puter = getPuter();
     try {
         // Step 1: Get the source file/directory info
-        const statResponse = await fetch(`${API_BASE}/stat`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({ path: sourcePath })
-        });
-
-        const statData = await statResponse.json();
+        const statData = await puter.fs.stat(sourcePath);
         if (!statData || !statData.uid) {
             console.log(chalk.red(`Could not find source "${sourcePath}".`));
             return;
@@ -144,13 +132,16 @@ export async function renameFileOrDirectory(args = []) {
         const sourceName = statData.name;
 
         // Step 2: Check if destination is an existing directory
-        const destStatResponse = await fetch(`${API_BASE}/stat`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({ path: destPath })
-        });
-
-        const destData = await destStatResponse.json();
+        let destData = null;
+        try {
+            destData = await puter.fs.stat(destPath);
+        } catch (error) {
+            if (error.code == "subject_does_not_exist") {
+                // no-op
+            } else {
+                throw (error);
+            }
+        }
         
         // Determine if this is a rename or move operation
         const isMove = destData && destData.is_dir;
@@ -194,6 +185,7 @@ export async function renameFileOrDirectory(args = []) {
  */
 async function findMatchingFiles(files, pattern, basePath) {
     const matchedPaths = [];
+    const puter = getPuter();
 
     for (const file of files) {
         const filePath = path.join(basePath, file.name);
@@ -205,14 +197,8 @@ async function findMatchingFiles(files, pattern, basePath) {
 
         // If it's a directory, recursively search its contents
         if (file.is_dir) {
-            const dirResponse = await fetch(`${API_BASE}/readdir`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({ path: filePath })
-            });
-
-            if (dirResponse.ok) {
-                const dirFiles = await dirResponse.json();
+            const dirFiles = await puter.fs.readdir(filePath);
+            if (dirFiles && dirFiles.length > 0) {
                 const dirMatches = await findMatchingFiles(dirFiles, pattern, filePath);
                 matchedPaths.push(...dirMatches);
             }
@@ -319,40 +305,20 @@ export async function removeFileOrDirectory(args = []) {
                 console.log(chalk.green(`Preparing to remove "${path}"...`));
 
                 // Step 4.1: Get the UID of the file/directory
-                const statResponse = await fetch(`${API_BASE}/stat`, {
-                    method: 'POST',
-                    headers: getHeaders(),
-                    body: JSON.stringify({ path })
-                });
-
-                const statData = await statResponse.json();
+                const statData = await puter.fs.stat(path);
                 if (!statData || !statData.uid) {
                     console.error(chalk.red(`Could not find file or directory with path "${path}".`));
                     continue;
                 }
 
                 const uid = statData.uid;
-                const originalPath = statData.path;
 
                 // Step 4.2: Perform the move operation to Trash
-                const moveResponse = await fetch(`${API_BASE}/move`, {
-                    method: 'POST',
-                    headers: getHeaders(),
-                    body: JSON.stringify({
-                        source: uid,
-                        destination: `/${getCurrentUserName()}/Trash`,
-                        overwrite: false,
-                        new_name: uid, // Use the UID as the new name in Trash
-                        create_missing_parents: false,
-                        new_metadata: {
-                            original_name: path.split('/').pop(),
-                            original_path: originalPath,
-                            trashed_ts: Math.floor(Date.now() / 1000) // Current timestamp
-                        }
-                    })
+                const moveData = await puter.fs.move(uid, `/${getCurrentUserName()}/Trash`, {
+                    overwrite: false,
+                    newName: uid,
+                    createMissingParents: false,
                 });
-
-                const moveData = await moveResponse.json();
                 if (moveData && moveData.moved) {
                     console.log(chalk.green(`Successfully moved "${path}" to Trash!`));
                     console.log(chalk.dim(`Moved to: ${moveData.moved.path}`));
@@ -532,8 +498,12 @@ export async function pathExists(filePath) {
     const puter = getPuter();
     try {
         // Step 1: Check if the file already exists
-        return puter.fs.stat(filePath);
+        await puter.fs.stat(filePath);
+        return true;
     } catch (error){
+        if (error.code == "subject_does_not_exist") {
+            return false;
+        }
         console.error(chalk.red('Failed to check if file exists.'));
         console.error('ERROR', error);
             return false;
@@ -562,27 +532,24 @@ export async function createFile(args = []) {
     const dedupeName = false; // Default: false
     const overwrite = true; // Default: true
 
+    const puter = getPuter();
     console.log(chalk.green(`Creating file:\nFileName: "${chalk.dim(fileName)}"\nPath: "${chalk.dim(dirName)}"\nContent Length: ${chalk.dim(content.length)}`));
     try {
         // Step 1: Check if the file already exists
-        const statResponse = await fetch(`${API_BASE}/stat`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                path: fullPath
-            })
-        });
-
-        if (!statResponse.ok) {
-            console.log(chalk.cyan('File does not exists. Il will be created.'));
-        } else {
-            const statData = await statResponse.json();
+        try {
+            const statData = await puter.fs.stat(fullPath);
             if (statData && statData.id) {
                 if (!overwrite) {
                     console.error(chalk.red(`File "${filePath}" already exists. Use --overwrite=true to replace it.`));
                     return false;
                 }
                 console.log(chalk.yellow(`File "${filePath}" already exists. It will be overwritten.`));
+            }
+        } catch (error) {
+            if (error.code == "subject_does_not_exist") {
+                console.log(chalk.cyan('File does not exists. It will be created.'));
+            } else {
+                throw error;
             }
         }
 
@@ -606,27 +573,19 @@ export async function createFile(args = []) {
         }
 
         // Step 3: Create the nested directories if they don't exist
-        const dirStatResponse = await fetch(`${API_BASE}/stat`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                path: dirName
-            })
-        });
-
-        if (!dirStatResponse.ok || dirStatResponse.status === 404) {
-            // Create the directory if it doesn't exist
-            await fetch(`${API_BASE}/mkdir`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({
-                    parent: path.dirname(dirName),
-                    path: path.basename(dirName),
+        try {
+            await puter.fs.stat(dirName);
+        } catch (error) {
+            if (error.code == "subject_does_not_exist") {
+                // Create the directory if it doesn't exist
+                await puter.fs.mkdir(dirName, {
                     overwrite: false,
-                    dedupe_name: true,
-                    create_missing_parents: true
+                    dedupeName: true,
+                    createMissingParents: true
                 })
-            });
+            } else {
+                throw error;
+            }
         }
 
         // Step 4: Create the file using /batch
@@ -880,21 +839,10 @@ export async function downloadFile(args = []) {
     const overwrite = args.length > 2 ? args[2] === 'true' : false; // Default: false
 
     console.log(chalk.green(`Downloading files matching "${remotePathPattern}" to "${localBasePath}"...\n`));
-
+    const puter = getPuter();
     try {
         // Step 1: Fetch the list of files and directories from the server
-        const listResponse = await fetch(`${API_BASE}/readdir`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({ path: getCurrentDirectory() })
-        });
-
-        if (!listResponse.ok) {
-            console.error(chalk.red('Failed to list files from the server.'));
-            return;
-        }
-
-        const files = await listResponse.json();
+        const files = await puter.fs.readdir(getCurrentDirectory());
         if (!Array.isArray(files) || files.length === 0) {
             console.error(chalk.red('No files or directories found on the server.'));
             return;
@@ -970,25 +918,20 @@ export async function copyFile(args = []) {
     const destinationPath = args[1].startsWith(`/${getCurrentUserName()}`) ? args[1] : resolvePath(getCurrentDirectory(), args[1]); // Resolve the destination path
 
     console.log(chalk.green(`Copy: "${chalk.dim(sourcePath)}" to: "${chalk.dim(destinationPath)}"...\n`));
+    const puter = getPuter();
     try {
         // Step 1: Check if the source is a directory or a file
-        const statResponse = await fetch(`${API_BASE}/stat`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                path: sourcePath
-            })
-        });
-
-        if (!statResponse.ok) {
-            console.error(chalk.red(`Failed to check source path. Server response: ${await statResponse.text()}`));
-            return;
-        }
-
-        const statData = await statResponse.json();
-        if (!statData || !statData.id) {
-            console.error(chalk.red(`Source path "${sourcePath}" does not exist.`));
-            return;
+        let statData;
+        try {
+            statData = await puter.fs.stat(sourcePath);
+        } catch (error) {
+            if (error == "subject_does_not_exist") {
+                console.error(chalk.red(`Source path "${sourcePath}" does not exist.`));
+                return;
+            } else {
+                console.error(chalk.red(`Failed to check source path. Server response: ${await statResponse.text()}`));
+                return;
+            }
         }
 
         if (statData.is_dir) {
@@ -998,21 +941,7 @@ export async function copyFile(args = []) {
                 const relativePath = file.path.replace(sourcePath, '');
                 const destPath = path.join(destinationPath, relativePath);
 
-                const copyResponse = await fetch(`${API_BASE}/copy`, {
-                    method: 'POST',
-                    headers: getHeaders(),
-                    body: JSON.stringify({
-                        source: file.path,
-                        destination: destPath
-                    })
-                });
-
-                if (!copyResponse.ok) {
-                    console.error(chalk.red(`Failed to copy file "${file.path}". Server response: ${await copyResponse.text()}`));
-                    continue;
-                }
-
-                const copyData = await copyResponse.json();
+                const copyData = await puter.fs.copy(file.path, destPath);
                 if (copyData && copyData.length > 0 && copyData[0].copied) {
                     console.log(chalk.green(`File "${chalk.dim(file.path)}" copied successfully to "${chalk.dim(copyData[0].copied.path)}"!`));
                 } else {
@@ -1021,21 +950,7 @@ export async function copyFile(args = []) {
             }
         } else {
             // Step 3: If source is a file, copy it directly
-            const copyResponse = await fetch(`${API_BASE}/copy`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({
-                    source: sourcePath,
-                    destination: destinationPath
-                })
-            });
-
-            if (!copyResponse.ok) {
-                console.error(chalk.red(`Failed to copy file. Server response: ${await copyResponse.text()}`));
-                return;
-            }
-
-            const copyData = await copyResponse.json();
+            const copyData = await puter.fs.copy(sourcePath, destinationPath);
             if (copyData && copyData.length > 0 && copyData[0].copied) {
                 console.log(chalk.green(`File "${sourcePath}" copied successfully to "${copyData[0].copied.path}"!`));
                 console.log(chalk.dim(`UID: ${copyData[0].copied.uid}`));
@@ -1178,21 +1093,16 @@ async function resolveLocalDirectory(localPath) {
  * @param {string} remotePath - The remote directory path
  */
 async function ensureRemoteDirectoryExists(remotePath) {
+    const puter = getPuter();
     try {
         const exists = await pathExists(remotePath);
         if (!exists) {
             // Create the directory and any missing parents
-            await fetch(`${API_BASE}/mkdir`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({
-                    parent: path.dirname(remotePath),
-                    path: path.basename(remotePath),
-                    overwrite: false,
-                    dedupe_name: true,
-                    create_missing_parents: true
-                })
-            });
+            await puter.fs.mkdir(remotePath, {
+                overwrite: false,
+                dedupeName: true,
+                createMissingParents: true
+            })
         }
     } catch (error) {
         console.error(chalk.red(`Failed to create remote directory: ${remotePath}`));
@@ -1238,10 +1148,11 @@ export async function syncDirectory(args = []) {
         }
 
         // Step 2: Fetch remote directory contents
-        let remoteFiles = await listRemoteFiles(remoteDir);
-        if (!Array.isArray(remoteFiles)) {
+        let remoteFiles = [];
+        try {
+            remoteFiles = await listRemoteFiles(remoteDir);
+        } catch (error) {
             console.log(chalk.yellow('Remote directory is empty or does not exist. Continuing...'));
-            remoteFiles = [];
         }
 
         // Step 3: List local files

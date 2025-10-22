@@ -536,24 +536,20 @@ export async function createFile(args = []) {
     console.log(chalk.green(`Creating file:\nFileName: "${chalk.dim(fileName)}"\nPath: "${chalk.dim(dirName)}"\nContent Length: ${chalk.dim(content.length)}`));
     try {
         // Step 1: Check if the file already exists
-        const statResponse = await fetch(`${API_BASE}/stat`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                path: fullPath
-            })
-        });
-
-        if (!statResponse.ok) {
-            console.log(chalk.cyan('File does not exists. Il will be created.'));
-        } else {
-            const statData = await statResponse.json();
+        try {
+            const statData = await puter.fs.stat(fullPath);
             if (statData && statData.id) {
                 if (!overwrite) {
                     console.error(chalk.red(`File "${filePath}" already exists. Use --overwrite=true to replace it.`));
                     return false;
                 }
                 console.log(chalk.yellow(`File "${filePath}" already exists. It will be overwritten.`));
+            }
+        } catch (error) {
+            if (error.code == "subject_does_not_exist") {
+                console.log(chalk.cyan('File does not exists. It will be created.'));
+            } else {
+                throw error;
             }
         }
 
@@ -577,21 +573,19 @@ export async function createFile(args = []) {
         }
 
         // Step 3: Create the nested directories if they don't exist
-        const dirStatResponse = await fetch(`${API_BASE}/stat`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({
-                path: dirName
-            })
-        });
-
-        if (!dirStatResponse.ok || dirStatResponse.status === 404) {
-            // Create the directory if it doesn't exist
-            await puter.fs.mkdir(dirName, {
-                overwrite: false,
-                dedupeName: true,
-                createMissingParents: true
-            })
+        try {
+            await puter.fs.stat(dirName);
+        } catch (error) {
+            if (error.code == "subject_does_not_exist") {
+                // Create the directory if it doesn't exist
+                await puter.fs.mkdir(dirName, {
+                    overwrite: false,
+                    dedupeName: true,
+                    createMissingParents: true
+                })
+            } else {
+                throw error;
+            }
         }
 
         // Step 4: Create the file using /batch

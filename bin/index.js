@@ -39,7 +39,7 @@ async function main() {
   program
     .command('shell')
     .description('Start interactive shell')
-    .action(startShell);
+    .action(() => startShell());
 
 
   // App commands

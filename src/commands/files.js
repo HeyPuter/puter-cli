@@ -468,15 +468,10 @@ export async function changeDirectory(args) {
  */
 export async function getDiskUsage(body = null) {
     console.log(chalk.green('Fetching disk usage information...\n'));
+    const puter = getPuter();
     try {
-        const response = await fetch(`${API_BASE}/df`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: body ? JSON.stringify(body) : null
-        });
-
-        const data = await response.json();
-        if (response.ok && data) {
+        const data = await puter.fs.space();
+        if (data) {
             showDiskSpaceUsage(data);
         } else {
             console.error(chalk.red('Unable to fetch disk usage information.'));
@@ -554,18 +549,7 @@ export async function createFile(args = []) {
         }
 
         // Step 2: Check disk space
-        const dfResponse = await fetch(`${API_BASE}/df`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: null
-        });
-
-        if (!dfResponse.ok) {
-            console.error(chalk.red('Unable to check disk space.'));
-            return false;
-        }
-
-        const dfData = await dfResponse.json();
+        const dfData = await puter.fs.space();
         if (dfData.used >= dfData.capacity) {
             console.error(chalk.red('Not enough disk space to create the file.'));
             showDiskSpaceUsage(dfData); // Display disk usage info
@@ -706,6 +690,7 @@ export async function uploadFile(args = []) {
     const overwrite = args.length > 3 ? args[3] === 'true' : false; // Default: false
 
     console.log(chalk.green(`Uploading files from "${localPath}" to "${remotePath}"...\n`));
+    const puter = getPuter();
     try {
         // Step 1: Find all matching files (excluding hidden files)
         const files = glob.sync(localPath, { nodir: true, dot: false });
@@ -716,18 +701,7 @@ export async function uploadFile(args = []) {
         }
 
         // Step 2: Check disk space
-        const dfResponse = await fetch(`${API_BASE}/df`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: null
-        });
-
-        if (!dfResponse.ok) {
-            console.error(chalk.red('Unable to check disk space.'));
-            return;
-        }
-
-        const dfData = await dfResponse.json();
+        const dfData = await puter.fs.space();
         if (dfData.used >= dfData.capacity) {
             console.error(chalk.red('Not enough disk space to upload the files.'));
             showDiskSpaceUsage(dfData); // Display disk usage info
@@ -1298,18 +1272,7 @@ export async function editFile(args = []) {
       
       // Step 7: Upload the updated file content
       // Step 7.1: Check disk space
-      const dfResponse = await fetch(`${API_BASE}/df`, {
-          method: 'POST',
-          headers: getHeaders(),
-          body: null
-      });
-
-      if (!dfResponse.ok) {
-          console.log(chalk.red('Unable to check disk space.'));
-          return;
-      }
-
-      const dfData = await dfResponse.json();
+      const dfData = await puter.fs.space();
       if (dfData.used >= dfData.capacity) {
           console.log(chalk.red('Not enough disk space to upload the file.'));
           showDiskSpaceUsage(dfData); // Display disk usage info

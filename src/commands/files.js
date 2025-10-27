@@ -573,61 +573,16 @@ export async function createFile(args = []) {
         }
 
         // Step 4: Create the file using /batch
-        const operationId = crypto.randomUUID(); // Generate a unique operation ID
-        const socketId = 'undefined'; // Placeholder socket ID
-        const boundary = `----WebKitFormBoundary${crypto.randomUUID().replace(/-/g, '')}`;
         const fileBlob = new Blob([content || ''], { type: 'text/plain' });
 
-        const formData = `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="operation_id"\r\n\r\n${operationId}\r\n` +
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="socket_id"\r\n\r\n${socketId}\r\n` +
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="original_client_socket_id"\r\n\r\n${socketId}\r\n` +
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="fileinfo"\r\n\r\n${JSON.stringify({
-                name: fileName,
-                type: 'text/plain',
-                size: fileBlob.size
-            })}\r\n` +
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="operation"\r\n\r\n${JSON.stringify({
-                op: 'write',
-                dedupe_name: dedupeName,
-                overwrite: overwrite,
-                operation_id: operationId,
-                path: dirName,
-                name: fileName,
-                item_upload_id: 0
-            })}\r\n` +
-            `--${boundary}\r\n` +
-            `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
-            `Content-Type: text/plain\r\n\r\n${content || ''}\r\n` +
-            `--${boundary}--\r\n`;
-
-        // Send the request
-        const createResponse = await fetch(`${API_BASE}/batch`, {
-            method: 'POST',
-            headers: getHeaders(`multipart/form-data; boundary=${boundary}`),
-            body: formData
+        const createData = await puter.fs.upload(fileBlob, dirName, {
+            overwrite: overwrite,
+            dedupeName: dedupeName,
+            name: fileName
         });
-
-        if (!createResponse.ok) {
-            const errorText = await createResponse.text();
-            console.error(chalk.red(`Failed to create file. Server response: ${errorText}. status: ${createResponse.status}`));
-            return false;
-        }
-
-        const createData = await createResponse.json();
-        if (createData && createData.results && createData.results.length > 0) {
-            const file = createData.results[0];
-            console.log(chalk.green(`File "${filePath}" created successfully!`));
-            console.log(chalk.dim(`Path: ${file.path}`));
-            console.log(chalk.dim(`UID: ${file.uid}`));
-        } else {
-            console.error(chalk.red('Failed to create file. Invalid response from server.'));
-            return false;
-        }
+        console.log(chalk.green(`File "${createData.name}" created successfully!`));
+        console.log(chalk.dim(`Path: ${createData.path}`));
+        console.log(chalk.dim(`UID: ${createData.uid}`));
     } catch (error) {
         console.error(chalk.red(`Failed to create file.\nError: ${error.message}`));
         return false;

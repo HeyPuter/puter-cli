@@ -711,63 +711,17 @@ export async function uploadFile(args = []) {
         // Step 3: Upload each file
         for (const filePath of files) {
             const fileName = path.basename(filePath);
-            const fileContent = fs.readFileSync(filePath, 'utf8');
+            const fileContent = fs.readFileSync(filePath);
+            const blob = new Blob([fileContent]);
 
-            // Prepare the upload request
-            const operationId = crypto.randomUUID(); // Generate a unique operation ID
-            const socketId = 'undefined'; // Placeholder socket ID
-            const boundary = `----WebKitFormBoundary${crypto.randomUUID().replace(/-/g, '')}`;
-
-            // Prepare FormData
-            const formData = `--${boundary}\r\n` +
-                `Content-Disposition: form-data; name="operation_id"\r\n\r\n${operationId}\r\n` +
-                `--${boundary}\r\n` +
-                `Content-Disposition: form-data; name="socket_id"\r\n\r\n${socketId}\r\n` +
-                `--${boundary}\r\n` +
-                `Content-Disposition: form-data; name="original_client_socket_id"\r\n\r\n${socketId}\r\n` +
-                `--${boundary}\r\n` +
-                `Content-Disposition: form-data; name="fileinfo"\r\n\r\n${JSON.stringify({
-                    name: fileName,
-                    type: 'text/plain',
-                    size: Buffer.byteLength(fileContent, 'utf8')
-                })}\r\n` +
-                `--${boundary}\r\n` +
-                `Content-Disposition: form-data; name="operation"\r\n\r\n${JSON.stringify({
-                    op: 'write',
-                    dedupe_name: dedupeName,
-                    overwrite: overwrite,
-                    operation_id: operationId,
-                    path: remotePath,
-                    name: fileName,
-                    item_upload_id: 0
-                })}\r\n` +
-                `--${boundary}\r\n` +
-                `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
-                `Content-Type: text/plain\r\n\r\n${fileContent}\r\n` +
-                `--${boundary}--\r\n`;
-
-            // Send the upload request
-            const uploadResponse = await fetch(`${API_BASE}/batch`, {
-                method: 'POST',
-                headers: getHeaders(`multipart/form-data; boundary=${boundary}`),
-                body: formData
+            const uploadData = await puter.fs.upload(blob, remotePath, {
+                overwrite: overwrite,
+                dedupeName: dedupeName,
+                name: fileName
             });
-
-            if (!uploadResponse.ok) {
-                const errorText = await uploadResponse.text();
-                console.error(chalk.red(`Failed to upload file "${fileName}". Server response: ${errorText}`));
-                continue;
-            }
-
-            const uploadData = await uploadResponse.json();
-            if (uploadData && uploadData.results && uploadData.results.length > 0) {
-                const file = uploadData.results[0];
-                console.log(chalk.green(`File "${fileName}" uploaded successfully!`));
-                console.log(chalk.dim(`Path: ${file.path}`));
-                console.log(chalk.dim(`UID: ${file.uid}`));
-            } else {
-                console.error(chalk.red(`Failed to upload file "${fileName}". Invalid response from server.`));
-            }
+            console.log(chalk.green(`File "${uploadData.name}" uploaded successfully!`));
+            console.log(chalk.dim(`Path: ${uploadData.path}`));
+            console.log(chalk.dim(`UID: ${uploadData.uid}`));
         }
     } catch (error) {
         console.error(chalk.red(`Failed to upload files.\nError: ${error.message}`));

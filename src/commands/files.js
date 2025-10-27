@@ -684,30 +684,6 @@ export async function uploadFile(args = []) {
 }
 
 /**
- * Get a temporary CSRF Token
- * @returns The CSRF token
- */
-async function getCsrfToken() {
-    const csrfResponse = await fetch(`${BASE_URL}/get-anticsrf-token`, {
-        method: 'GET',
-        headers: getHeaders()
-    });
-
-    if (!csrfResponse.ok) {
-        console.error(chalk.red('Failed to fetch CSRF token.'));
-        return;
-    }
-
-    const csrfData = await csrfResponse.json();
-    if (!csrfData || !csrfData.token) {
-        console.error(chalk.red('Failed to fetch anti-CSRF token.'));
-        return;
-    }
-
-    return csrfData.token;
-}
-
-/**
  * Download a file from the Puter server to the host machine 
  * @param {Array} args - The arguments passed to the command (remote file path, Optional: local path).
  */
@@ -751,18 +727,8 @@ export async function downloadFile(args = []) {
 
             console.log(chalk.green(`Downloading file "${remoteFilePath}" to "${localFilePath}"...`));
 
-                    // Fetch the anti-CSRF token
-            const antiCsrfToken = await getCsrfToken();
-
-            const downloadResponse = await fetch(`${BASE_URL}/down?path=${remoteFilePath}`, {
-                method: 'POST',
-                headers: {
-                    ...getHeaders('application/x-www-form-urlencoded'),
-                    "cookie": `puter_auth_token=${getAuthToken()};`
-                },
-                "referrerPolicy": "strict-origin-when-cross-origin",
-                body: `anti_csrf=${antiCsrfToken}`
-            });
+            const fileUrl = await puter.fs.getReadURL(remoteFilePath);
+            const downloadResponse = await fetch(fileUrl);
 
             if (!downloadResponse.ok) {
                 console.error(chalk.red(`Failed to download file "${remoteFilePath}". Server response: ${downloadResponse.statusText}`));

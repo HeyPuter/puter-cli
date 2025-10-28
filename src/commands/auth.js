@@ -109,93 +109,83 @@ export function getCurrentDirectory() {
  */
 export async function getUsageInfo() {
   console.log(chalk.green('Fetching usage information...\n'));
+  const puter = getPuter();
   try {
-      const response = await fetch(`${API_BASE}/drivers/usage`, {
-          method: 'GET',
-          headers: getHeaders()
-      });
-
-      const data = await response.json();
+      const data = await puter.auth.getMonthlyUsage();
       if (data) {
-          console.log(chalk.cyan('Usage Information:'));
-          console.log(chalk.dim('========================================'));
-
-          // Display user usage in a table
-          if (data.user && data.user.length > 0) {
-              console.log(chalk.cyan('User Usage:'));
-              console.log(chalk.dim('----------------------------------------'));
-              console.log(
-                  chalk.bold('Service'.padEnd(30)) +
-                  chalk.bold('Implementation'.padEnd(20)) +
-                  chalk.bold('Month'.padEnd(10)) +
-                  chalk.bold('Usage'.padEnd(10)) +
-                  chalk.bold('Limit'.padEnd(10)) +
-                  chalk.bold('Rate Limit')
-              );
-              console.log(chalk.dim('----------------------------------------'));
-              data.user.forEach(usage => {
-                  const service = `${usage.service['driver.interface']}.${usage.service['driver.method']}`;
-                  const implementation = usage.service['driver.implementation'];
-                  const month = `${usage.month}/${usage.year}`;
-                  const monthlyUsage = usage.monthly_usage?.toString();
-                  const monthlyLimit = usage.monthly_limit ? usage.monthly_limit.toString() : 'No Limit';
-                  const rateLimit = usage.policy ? `${usage.policy['rate-limit'].max} req/${usage.policy['rate-limit'].period / 1000}s` : 'N/A';
-
-                  console.log(
-                      service.padEnd(30) +
-                      implementation.padEnd(20) +
-                      month.padEnd(10) +
-                      monthlyUsage.padEnd(10) +
-                      monthlyLimit.padEnd(10) +
-                      rateLimit
-                  );
-              });
-              console.log(chalk.dim('----------------------------------------'));
+          // Display allowance information
+          if (data.allowanceInfo) {
+              console.log(chalk.cyan('Allowance Information:'));
+              console.log(chalk.dim('='.repeat(100)));
+              console.log(chalk.cyan(`Month Usage Allowance: `) + chalk.white(data.allowanceInfo.monthUsageAllowance.toLocaleString()));
+              console.log(chalk.cyan(`Remaining: `) + chalk.white(data.allowanceInfo.remaining.toLocaleString()));
+              const usedPercentage = ((data.allowanceInfo.monthUsageAllowance - data.allowanceInfo.remaining) / data.allowanceInfo.monthUsageAllowance * 100).toFixed(2);
+              console.log(chalk.cyan(`Used: `) + chalk.white(`${usedPercentage}%`));
+              console.log(chalk.dim('='.repeat(100)));
           }
 
-          // Display app usage in a table (if available)
-          if (data.apps && Object.keys(data.apps).length > 0) {
-              console.log(chalk.cyan('\nApp Usage:'));
-              console.log(chalk.dim('----------------------------------------'));
+          // Display usage information per API
+          if (data.usage) {
+              console.log(chalk.cyan('\nAPI Usage:'));
+              console.log(chalk.dim('='.repeat(100)));
               console.log(
-                  chalk.bold('App'.padEnd(30)) +
-                  chalk.bold('Usage'.padEnd(10)) +
-                  chalk.bold('Limit'.padEnd(10))
+                  chalk.bold('API'.padEnd(50)) +
+                  chalk.bold('Count'.padEnd(15)) +
+                  chalk.bold('Cost'.padEnd(20)) +
+                  chalk.bold('Units')
               );
-              console.log(chalk.dim('----------------------------------------'));
-              for (const [app, usage] of Object.entries(data.apps)) {
+              console.log(chalk.dim('='.repeat(100)));
+
+              // Filter out 'total' and sort entries by cost (descending)
+              const usageEntries = Object.entries(data.usage)
+                  .filter(([key]) => key !== 'total')
+                  .sort(([, a], [, b]) => b.cost - a.cost);
+
+              usageEntries.forEach(([api, details]) => {
                   console.log(
-                      app.padEnd(30) +
-                      usage.used.toString().padEnd(10) +
-                      usage.available.toString().padEnd(10)
+                      api.padEnd(50) +
+                      details.count.toString().padEnd(15) +
+                      details.cost.toLocaleString().padEnd(20) +
+                      details.units.toLocaleString()
+                  );
+              });
+
+              // Display total if available
+              if (data.usage.total !== undefined) {
+                  console.log(chalk.dim('='.repeat(100)));
+                  console.log(
+                      chalk.bold('TOTAL'.padEnd(50)) +
+                      ''.padEnd(15) +
+                      chalk.bold(data.usage.total.toLocaleString())
                   );
               }
-              console.log(chalk.dim('----------------------------------------'));
+              console.log(chalk.dim('='.repeat(100)));
           }
 
-          // Display general usages in a table (if available)
-          if (data.usages && data.usages.length > 0) {
-              console.log(chalk.cyan('\nGeneral Usages:'));
-              console.log(chalk.dim('----------------------------------------'));
+          // Display app totals
+          if (data.appTotals && Object.keys(data.appTotals).length > 0) {
+              console.log(chalk.cyan('\nApp Totals:'));
+              console.log(chalk.dim('='.repeat(100)));
               console.log(
-                  chalk.bold('Name'.padEnd(30)) +
-                  chalk.bold('Used'.padEnd(10)) +
-                  chalk.bold('Available'.padEnd(10)) +
-                  chalk.bold('Refill')
+                  chalk.bold('App'.padEnd(50)) +
+                  chalk.bold('Count'.padEnd(15)) +
+                  chalk.bold('Total')
               );
-              console.log(chalk.dim('----------------------------------------'));
-              data.usages.forEach(usage => {
+              console.log(chalk.dim('='.repeat(100)));
+
+              // Sort by total (descending)
+              const appEntries = Object.entries(data.appTotals)
+                  .sort(([, a], [, b]) => b.total - a.total);
+
+              appEntries.forEach(([app, details]) => {
                   console.log(
-                      usage.name.padEnd(30) +
-                      usage.used.toString().padEnd(10) +
-                      usage.available.toString().padEnd(10) +
-                      usage.refill
+                      app.padEnd(50) +
+                      details.count.toString().padEnd(15) +
+                      details.total.toLocaleString()
                   );
               });
-              console.log(chalk.dim('----------------------------------------'));
+              console.log(chalk.dim('='.repeat(100)));
           }
-
-          console.log(chalk.dim('========================================'));
           console.log(chalk.green('Done.'));
       } else {
           console.error(chalk.red('Unable to fetch usage information.'));

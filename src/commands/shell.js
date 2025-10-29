@@ -3,11 +3,8 @@ import chalk from 'chalk';
 import Conf from 'conf';
 import { execCommand, getPrompt } from '../executor.js';
 import { PROJECT_NAME } from '../commons.js';
-import SetContextModule from '../modules/SetContextModule.js';
-import ErrorModule from '../modules/ErrorModule.js';
-import ProfileModule from '../modules/ProfileModule.js';
+import { getProfileModule } from '../modules/ProfileModule.js';
 import putility from '@heyputer/putility';
-import { initPuterModule } from '../modules/PuterModule.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -25,25 +22,19 @@ export function updatePrompt(currentPath) {
  * Start the interactive shell
  */
 export async function startShell(command) {
-  const modules = [
-    SetContextModule,
-    ErrorModule,
-    ProfileModule,
-  ];
+  // const modules = [
+  //   SetContextModule,
+  //   ErrorModule,
+  // ];
 
-  const context = new putility.libs.context.Context({
-    events: new putility.libs.event.Emitter(),
-  });
+  // for (const module of modules) module({ context });
 
-  for ( const module of modules ) module({ context });
+  const profileModule = getProfileModule();
+  await profileModule.checkLogin();
 
-  await context.events.emit('check-login', {});
-
-  initPuterModule();
-  
   // This argument enables the `puter <subcommand>` commands
-  if ( command ) {
-    await execCommand(context, command);
+  if (command) {
+    await execCommand(command);
     process.exit(0);
   }
 
@@ -62,7 +53,7 @@ export async function startShell(command) {
       const trimmedLine = line.trim();
       if (trimmedLine) {
         try {
-          await execCommand(context, trimmedLine);
+          await execCommand(trimmedLine);
         } catch (error) {
           console.error(chalk.red(error.message));
         }

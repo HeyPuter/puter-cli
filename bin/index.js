@@ -8,8 +8,14 @@ import { PROJECT_NAME, getLatestVersion } from '../src/commons.js';
 import { createApp } from '../src/commands/apps.js';
 import { deploy } from '../src/commands/deploy.js';
 import inquirer from 'inquirer';
+import { initProfileModule } from '../src/modules/ProfileModule.js';
+import { initPuterModule } from '../src/modules/PuterModule.js';
+import { listSites } from '../src/commands/sites.js';
 
 async function main() {
+  initProfileModule();
+  initPuterModule();
+
   const version = await getLatestVersion(PROJECT_NAME);
 
   const program = new Command();
@@ -64,9 +70,17 @@ async function main() {
       process.exit(0);
     });
 
+  program
+    .command('sites')
+    .description('List sites and subdomains.')
+    .action(async () => {
+      await listSites();
+      process.exit(0);
+    });
+
   const site = program
-  .command('site')
-  .description('Site management commands');
+    .command('site')
+    .description('Site management commands');
 
   site
     .command('deploy')
@@ -97,7 +111,7 @@ async function main() {
         subdomain = answer.subdomain;
       }
 
-      await startShell(`site:deploy ${local_dir}${subdomain ? ` --subdomain=${subdomain}`: ''}`)
+      await startShell(`site:deploy ${local_dir}${subdomain ? ` --subdomain=${subdomain}` : ''}`)
       process.exit(0);
     });
 

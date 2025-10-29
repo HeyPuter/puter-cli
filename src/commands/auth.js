@@ -1,12 +1,8 @@
-import fs from 'node:fs';
-import inquirer from 'inquirer';
 import chalk from 'chalk';
 import Conf from 'conf';
 import ora from 'ora';
-import fetch from 'node-fetch';
-import { PROJECT_NAME, API_BASE, getHeaders, BASE_URL } from '../commons.js'
-import { ProfileAPI } from '../modules/ProfileModule.js';
-import { get_context } from '../temporary/context_helpers.js';
+import { PROJECT_NAME, } from '../commons.js'
+import { getProfileModule } from '../modules/ProfileModule.js';
 import { getPuter } from '../modules/PuterModule.js';
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -14,8 +10,8 @@ const config = new Conf({ projectName: PROJECT_NAME });
  * Login user
  * @returns void
  */
-export async function login(args = {}, context) {
-  const profileAPI = context[ProfileAPI];
+export async function login() {
+  const profileAPI = getProfileModule();;
   await profileAPI.switchProfileWizard();
 }
 
@@ -24,7 +20,7 @@ export async function login(args = {}, context) {
  * @returns void
  */
 export async function logout() {
-  
+
   let spinner;
   try {
     spinner = ora('Logging out from Puter...').start();
@@ -48,7 +44,7 @@ export async function logout() {
       spinner.info(chalk.yellow('Already logged out'));
     }
   } catch (error) {
-    if (spinner){
+    if (spinner) {
       spinner.fail(chalk.red('Failed to logout'));
     }
     console.error(chalk.red(`Error: ${error.message}`));
@@ -89,14 +85,12 @@ export function isAuthenticated() {
 }
 
 export function getAuthToken() {
-  const context = get_context();
-  const profileAPI = context[ProfileAPI];
+  const profileAPI = getProfileModule();;
   return profileAPI.getAuthToken();
 }
 
 export function getCurrentUserName() {
-  const context = get_context();
-  const profileAPI = context[ProfileAPI];
+  const profileAPI = getProfileModule();;
   return profileAPI.getCurrentProfile()?.username;
 }
 
@@ -111,86 +105,86 @@ export async function getUsageInfo() {
   console.log(chalk.green('Fetching usage information...\n'));
   const puter = getPuter();
   try {
-      const data = await puter.auth.getMonthlyUsage();
-      if (data) {
-          // Display allowance information
-          if (data.allowanceInfo) {
-              console.log(chalk.cyan('Allowance Information:'));
-              console.log(chalk.dim('='.repeat(100)));
-              console.log(chalk.cyan(`Month Usage Allowance: `) + chalk.white(data.allowanceInfo.monthUsageAllowance.toLocaleString()));
-              console.log(chalk.cyan(`Remaining: `) + chalk.white(data.allowanceInfo.remaining.toLocaleString()));
-              const usedPercentage = ((data.allowanceInfo.monthUsageAllowance - data.allowanceInfo.remaining) / data.allowanceInfo.monthUsageAllowance * 100).toFixed(2);
-              console.log(chalk.cyan(`Used: `) + chalk.white(`${usedPercentage}%`));
-              console.log(chalk.dim('='.repeat(100)));
-          }
-
-          // Display usage information per API
-          if (data.usage) {
-              console.log(chalk.cyan('\nAPI Usage:'));
-              console.log(chalk.dim('='.repeat(100)));
-              console.log(
-                  chalk.bold('API'.padEnd(50)) +
-                  chalk.bold('Count'.padEnd(15)) +
-                  chalk.bold('Cost'.padEnd(20)) +
-                  chalk.bold('Units')
-              );
-              console.log(chalk.dim('='.repeat(100)));
-
-              // Filter out 'total' and sort entries by cost (descending)
-              const usageEntries = Object.entries(data.usage)
-                  .filter(([key]) => key !== 'total')
-                  .sort(([, a], [, b]) => b.cost - a.cost);
-
-              usageEntries.forEach(([api, details]) => {
-                  console.log(
-                      api.padEnd(50) +
-                      details.count.toString().padEnd(15) +
-                      details.cost.toLocaleString().padEnd(20) +
-                      details.units.toLocaleString()
-                  );
-              });
-
-              // Display total if available
-              if (data.usage.total !== undefined) {
-                  console.log(chalk.dim('='.repeat(100)));
-                  console.log(
-                      chalk.bold('TOTAL'.padEnd(50)) +
-                      ''.padEnd(15) +
-                      chalk.bold(data.usage.total.toLocaleString())
-                  );
-              }
-              console.log(chalk.dim('='.repeat(100)));
-          }
-
-          // Display app totals
-          if (data.appTotals && Object.keys(data.appTotals).length > 0) {
-              console.log(chalk.cyan('\nApp Totals:'));
-              console.log(chalk.dim('='.repeat(100)));
-              console.log(
-                  chalk.bold('App'.padEnd(50)) +
-                  chalk.bold('Count'.padEnd(15)) +
-                  chalk.bold('Total')
-              );
-              console.log(chalk.dim('='.repeat(100)));
-
-              // Sort by total (descending)
-              const appEntries = Object.entries(data.appTotals)
-                  .sort(([, a], [, b]) => b.total - a.total);
-
-              appEntries.forEach(([app, details]) => {
-                  console.log(
-                      app.padEnd(50) +
-                      details.count.toString().padEnd(15) +
-                      details.total.toLocaleString()
-                  );
-              });
-              console.log(chalk.dim('='.repeat(100)));
-          }
-          console.log(chalk.green('Done.'));
-      } else {
-          console.error(chalk.red('Unable to fetch usage information.'));
+    const data = await puter.auth.getMonthlyUsage();
+    if (data) {
+      // Display allowance information
+      if (data.allowanceInfo) {
+        console.log(chalk.cyan('Allowance Information:'));
+        console.log(chalk.dim('='.repeat(100)));
+        console.log(chalk.cyan(`Month Usage Allowance: `) + chalk.white(data.allowanceInfo.monthUsageAllowance.toLocaleString()));
+        console.log(chalk.cyan(`Remaining: `) + chalk.white(data.allowanceInfo.remaining.toLocaleString()));
+        const usedPercentage = ((data.allowanceInfo.monthUsageAllowance - data.allowanceInfo.remaining) / data.allowanceInfo.monthUsageAllowance * 100).toFixed(2);
+        console.log(chalk.cyan(`Used: `) + chalk.white(`${usedPercentage}%`));
+        console.log(chalk.dim('='.repeat(100)));
       }
+
+      // Display usage information per API
+      if (data.usage) {
+        console.log(chalk.cyan('\nAPI Usage:'));
+        console.log(chalk.dim('='.repeat(100)));
+        console.log(
+          chalk.bold('API'.padEnd(50)) +
+          chalk.bold('Count'.padEnd(15)) +
+          chalk.bold('Cost'.padEnd(20)) +
+          chalk.bold('Units')
+        );
+        console.log(chalk.dim('='.repeat(100)));
+
+        // Filter out 'total' and sort entries by cost (descending)
+        const usageEntries = Object.entries(data.usage)
+          .filter(([key]) => key !== 'total')
+          .sort(([, a], [, b]) => b.cost - a.cost);
+
+        usageEntries.forEach(([api, details]) => {
+          console.log(
+            api.padEnd(50) +
+            details.count.toString().padEnd(15) +
+            details.cost.toLocaleString().padEnd(20) +
+            details.units.toLocaleString()
+          );
+        });
+
+        // Display total if available
+        if (data.usage.total !== undefined) {
+          console.log(chalk.dim('='.repeat(100)));
+          console.log(
+            chalk.bold('TOTAL'.padEnd(50)) +
+            ''.padEnd(15) +
+            chalk.bold(data.usage.total.toLocaleString())
+          );
+        }
+        console.log(chalk.dim('='.repeat(100)));
+      }
+
+      // Display app totals
+      if (data.appTotals && Object.keys(data.appTotals).length > 0) {
+        console.log(chalk.cyan('\nApp Totals:'));
+        console.log(chalk.dim('='.repeat(100)));
+        console.log(
+          chalk.bold('App'.padEnd(50)) +
+          chalk.bold('Count'.padEnd(15)) +
+          chalk.bold('Total')
+        );
+        console.log(chalk.dim('='.repeat(100)));
+
+        // Sort by total (descending)
+        const appEntries = Object.entries(data.appTotals)
+          .sort(([, a], [, b]) => b.total - a.total);
+
+        appEntries.forEach(([app, details]) => {
+          console.log(
+            app.padEnd(50) +
+            details.count.toString().padEnd(15) +
+            details.total.toLocaleString()
+          );
+        });
+        console.log(chalk.dim('='.repeat(100)));
+      }
+      console.log(chalk.green('Done.'));
+    } else {
+      console.error(chalk.red('Unable to fetch usage information.'));
+    }
   } catch (error) {
-      console.error(chalk.red(`Failed to fetch usage information.\nError: ${error.message}`));
+    console.error(chalk.red(`Failed to fetch usage information.\nError: ${error.message}`));
   }
 }

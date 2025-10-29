@@ -5,8 +5,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 
 // project
-import { API_BASE, BASE_URL, NULL_UUID, PROJECT_NAME, getHeaders, reconfigureURLs } from '../commons.js'
-import { getAuthToken, login } from '../commands/auth.js';
+import { BASE_URL, NULL_UUID, PROJECT_NAME, getHeaders, reconfigureURLs } from '../commons.js'
 
 // builtin
 import fs from 'node:fs';
@@ -15,43 +14,38 @@ import crypto from 'node:crypto';
 // initializations
 const config = new Conf({ projectName: PROJECT_NAME });
 
-export const ProfileAPI = Symbol('ProfileAPI');
+let profileModule;
 
 function toApiSubdomain(inputUrl) {
     const url = new URL(inputUrl);
     const hostParts = url.hostname.split('.');
-    
+
     // Insert 'api' before the domain
     hostParts.splice(-2, 0, 'api');
     url.hostname = hostParts.join('.');
 
     let output = url.toString();
-    if ( output.endsWith('/') ) {
+    if (output.endsWith('/')) {
         output = output.slice(0, -1);
     }
     return output;
 }
 
 class ProfileModule {
-    constructor({ context }) {
-        this.context = context;
-
-        context.events.on('check-login', async () => {
-            if ( config.get('auth_token') ) {
-                await this.migrateLegacyConfig();
-            }
-            if ( ! config.get('selected_profile') ) {
-                console.log(chalk.cyan('Please login first (or use CTRL+C to exit):'));
-                await this.switchProfileWizard();
-            }
-            this.applyProfileToGlobals();
-        });
-
+    async checkLogin() {
+        if (config.get('auth_token')) {
+            this.migrateLegacyConfig();
+        }
+        if (!config.get('selected_profile')) {
+            console.log(chalk.cyan('Please login first (or use CTRL+C to exit):'));
+            await this.switchProfileWizard();
+        }
+        this.applyProfileToGlobals();
     }
-    migrateLegacyConfig () {
+    migrateLegacyConfig() {
         const auth_token = config.get('auth_token');
         const username = config.get('username');
-        
+
         this.addProfile({
             host: BASE_URL,
             username,
@@ -59,13 +53,13 @@ class ProfileModule {
             token: auth_token,
             uuid: NULL_UUID,
         });
-        
+
         config.delete('auth_token');
         config.delete('username');
     }
     getDefaultProfile() {
         const auth_token = config.get('auth_token');
-        if ( ! auth_token ) return;
+        if (!auth_token) return;
         return {
             host: 'puter.com',
             username: config.get('username'),
@@ -78,7 +72,7 @@ class ProfileModule {
     }
     addProfile(newProfile) {
         const profiles = [
-            ...this.getProfiles().filter(p => ! p.transient),
+            ...this.getProfiles().filter(p => !p.transient),
             newProfile,
         ];
         config.set('profiles', profiles);
@@ -95,25 +89,25 @@ class ProfileModule {
         return profiles.find(p => p.uuid === uuid);
     }
     applyProfileToGlobals(profile) {
-        if ( ! profile ) profile = this.getCurrentProfile();
+        if (!profile) profile = this.getCurrentProfile();
         reconfigureURLs({
             base: profile.host,
             api: toApiSubdomain(profile.host),
         });
     }
-    getAuthToken () {
+    getAuthToken() {
         const uuid = config.get('selected_profile');
         const profiles = this.getProfiles();
         const profile = profiles.find(v => v.uuid === uuid);
         return profile?.token;
     }
-    
-    async switchProfileWizard (args = {}) {
+
+    async switchProfileWizard(args = {}) {
         const profiles = this.getProfiles();
-        if ( profiles.length < 1 ) {
+        if (profiles.length < 1) {
             return this.addProfileWizard();
         }
-        
+
         // console.log('doing this branch');
         const answer = await inquirer.prompt([
             {
@@ -134,15 +128,15 @@ class ProfileModule {
                 ]
             }
         ]);
-        
-        if ( answer.profile === 'new' ) {
+
+        if (answer.profile === 'new') {
             return await this.addProfileWizard();
         }
-        
+
         this.selectProfile(answer.profile);
     }
 
-    async addProfileWizard (args = {}) {
+    async addProfileWizard(args = {}) {
         const answers = await inquirer.prompt([
             {
                 type: 'input',
@@ -184,7 +178,7 @@ class ProfileModule {
             //console.log('content type?', '|' + contentType + '|');
 
             // TODO: proper content type parsing
-            if ( ! contentType.trim().startsWith('application/json') ) {
+            if (!contentType.trim().startsWith('application/json')) {
                 throw new Error(await response.text());
             }
 
@@ -266,7 +260,17 @@ class ProfileModule {
     }
 }
 
-export default ({ context }) => {
-    const module = new ProfileModule({ context });
-    context[ProfileAPI] = module;
-};
+export const initProfileModule = () => {
+    profileModule = new ProfileModule();
+}
+
+/**
+ * Get ProfileModule object
+ * @returns {ProfileModule} ProfileModule - ProfileModule Object.
+ */
+export const getProfileModule = () => {
+    if (!profileModule) {
+        throw new Error("Call initprofileModule() first");
+    }
+    return profileModule;
+}

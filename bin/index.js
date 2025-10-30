@@ -5,12 +5,11 @@ import { login, logout } from '../src/commands/auth.js';
 import { init } from '../src/commands/init.js';
 import { startShell } from '../src/commands/shell.js';
 import { PROJECT_NAME, getLatestVersion } from '../src/commons.js';
-import { createApp } from '../src/commands/apps.js';
-import { deploy } from '../src/commands/deploy.js';
+import { appInfo, createApp, listApps, deleteApp } from '../src/commands/apps.js';
 import inquirer from 'inquirer';
 import { initProfileModule } from '../src/modules/ProfileModule.js';
 import { initPuterModule } from '../src/modules/PuterModule.js';
-import { listSites } from '../src/commands/sites.js';
+import { createSite, infoSite, listSites, deleteSite } from '../src/commands/sites.js';
 
 async function main() {
   initProfileModule();
@@ -28,14 +27,18 @@ async function main() {
     .command('login')
     .description('Login to Puter account')
     .option('-s, --save', 'Save authentication token in .env file', '')
-    .action(() => {
-      startShell('login');
+    .action(async () => {
+      await login();
+      process.exit(0);
     });
 
   program
     .command('logout')
     .description('Logout from Puter account')
-    .action(logout);
+    .action(async () => {
+      await logout();
+      process.exit(0);
+    });
 
   program
     .command('init')
@@ -50,22 +53,82 @@ async function main() {
 
   // App commands
   program
-    .command('app:create')
-    .description('Create a new Puter application')
+    .command('apps')
+    .description('List all your apps.')
+    .argument('[period]', 'period: today, yesterday, 7d, 30d, this_month, last_month')
+    .action(async (period) => {
+      await listApps({
+        statsPeriod: period || 'all'
+      });
+      process.exit(0);
+    });
+
+  const app = program
+    .command('app')
+    .description('App management commands');
+
+  app
+    .command('info')
+    .description('Get application information')
+    .argument('<app_name>', 'Name of the application')
+    .action(async (app_name) => {
+      await appInfo([app_name]);
+      process.exit(0);
+    });
+
+  app
+    .command('create')
+    .description('Create a new app')
     .argument('<name>', 'Name of the application')
-    .argument('[remoteDir]', 'Remote directory path')
-    .option('-d, --description [description]', 'Application description', '')
-    .option('-u, --url <url>', 'Application URL', 'https://dev-center.puter.com/coming-soon.html')
-    .action(async (name, remoteDir, options) => {
+    .argument('<remote_dir>', 'Remote directory URL')
+    .action(async (name, remote_dir) => {
       try {
         await createApp({
-          name,
-          directory: remoteDir || '',
-          description: options.description || '',
-          url: options.url
+          name: name,
+          directory: remote_dir || '',
+          description: '',
+          url: 'https://dev-center.puter.com/coming-soon.html'
         });
       } catch (error) {
         console.error(chalk.red(error.message));
+      }
+      process.exit(0);
+    });
+
+  app
+    .command('update')
+    .description('Update an app')
+    .argument('<name>', 'Name of the application')
+    .argument('[dir]', 'Directory path', '.')
+    .action(async (name, dir) => {
+      await updateApp([name, dir]);
+      process.exit(0);
+    });
+
+  app
+    .command('delete')
+    .description('Delete an app')
+    .argument('<name>', 'Name of the application')
+    .option('-f, --force', 'Force deletion without confirmation')
+    .action(async (name, options) => {
+      let shouldDelete = options.force;
+
+      if (!shouldDelete) {
+        const answer = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'confirm',
+            message: `Are you sure you want to delete the app "${name}"?`,
+            default: false
+          }
+        ]);
+        shouldDelete = answer.confirm;
+      }
+
+      if (shouldDelete) {
+        await deleteApp(name);
+      } else {
+        console.log(chalk.yellow('App deletion cancelled.'));
       }
       process.exit(0);
     });
@@ -81,6 +144,25 @@ async function main() {
   const site = program
     .command('site')
     .description('Site management commands');
+
+  site
+    .command('info')
+    .description('Get site information by UID')
+    .argument('<site_uid>', 'Site UID')
+    .action(async (site_uid) => {
+      await infoSite([site_uid]);
+      process.exit(0);
+    });
+
+  site
+    .command('create')
+    .description('Create a static website from directory')
+    .argument('<app_name>', 'Application name')
+    .argument('[dir]', 'Directory path')
+    .option('--subdomain <name>', 'Subdomain name')
+    .action(async (app_name, dir, options) => {
+      await createSite([app_name, dir, options.name])
+    });
 
   site
     .command('deploy')
@@ -112,6 +194,34 @@ async function main() {
       }
 
       await startShell(`site:deploy ${local_dir}${subdomain ? ` --subdomain=${subdomain}` : ''}`)
+      process.exit(0);
+    });
+
+  site
+    .command('delete')
+    .description('Delete a site by UID')
+    .argument('<uid>', 'Site UID')
+    .option('-f, --force', 'Force deletion without confirmation')
+    .action(async (uid, options) => {
+      let shouldDelete = options.force;
+
+      if (!shouldDelete) {
+        const answer = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'confirm',
+            message: `Are you sure you want to delete the site with UID "${uid}"?`,
+            default: false
+          }
+        ]);
+        shouldDelete = answer.confirm;
+      }
+
+      if (shouldDelete) {
+        await deleteSite([uid]);
+      } else {
+        console.log(chalk.yellow('Site deletion cancelled.'));
+      }
       process.exit(0);
     });
 

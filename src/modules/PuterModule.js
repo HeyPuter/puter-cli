@@ -1,4 +1,3 @@
-import { init } from "@heyputer/puter.js/src/init.cjs";
 import Conf from "conf";
 import { PROJECT_NAME } from "../commons.js";
 import { puter } from "@heyputer/puter.js";
@@ -13,7 +12,8 @@ export const initPuterModule = () => {
   const profile = profiles.find((v) => v.uuid === uuid);
   const authToken = profile?.token;
 
-  puterModule = init(authToken);
+  puter.setAuthToken(authToken);
+  puterModule = puter;
 };
 
 /**

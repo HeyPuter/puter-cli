@@ -5,7 +5,7 @@ import { login, logout } from '../src/commands/auth.js';
 import { init } from '../src/commands/init.js';
 import { startShell } from '../src/commands/shell.js';
 import { PROJECT_NAME, getLatestVersion } from '../src/commons.js';
-import { appInfo, createApp, listApps, deleteApp } from '../src/commands/apps.js';
+import { appInfo, createApp, listApps, deleteApp, updateApp } from '../src/commands/apps.js';
 import inquirer from 'inquirer';
 import { initProfileModule } from '../src/modules/ProfileModule.js';
 import { initPuterModule } from '../src/modules/PuterModule.js';
@@ -54,7 +54,7 @@ async function main() {
   // App commands
   program
     .command('apps')
-    .description('List all your apps.')
+    .description('List all your apps')
     .argument('[period]', 'period: today, yesterday, 7d, 30d, this_month, last_month')
     .action(async (period) => {
       await listApps({
@@ -135,7 +135,7 @@ async function main() {
 
   program
     .command('sites')
-    .description('List sites and subdomains.')
+    .description('List sites and subdomains')
     .action(async () => {
       await listSites();
       process.exit(0);
@@ -161,7 +161,12 @@ async function main() {
     .argument('[dir]', 'Directory path')
     .option('--subdomain <name>', 'Subdomain name')
     .action(async (app_name, dir, options) => {
-      await createSite([app_name, dir, options.name])
+      const args = [app_name];
+      if (dir) args.push(dir);
+      if (options.subdomain) args.push(`--subdomain=${options.subdomain}`)
+
+      await createSite(args)
+      process.exit(0);
     });
 
   site

@@ -1,10 +1,8 @@
 import chalk from 'chalk';
-import { generateAppName, isValidAppName } from '../commons.js';
+import { generateAppName } from '../commons.js';
 import { syncDirectory } from './files.js';
 import { createSite } from './sites.js';
-import { getCurrentDirectory } from './auth.js';
-import { getSubdomains } from './subdomains.js';
-import crypto from '../crypto.js';
+import { getPuter } from '../modules/PuterModule.js';
 
 /**
  * Deploy a local web project to Puter.
@@ -18,24 +16,35 @@ export async function deploy(args = []) {
     console.log(chalk.yellow('Example: site:deploy ./dist --subdomain=my-app-new'));
     return;
   }
-  const appName = generateAppName();
+  const puter = getPuter();
+
   const sourceDirArg = args.find(arg => !arg.startsWith('--'));
   const sourceDir = sourceDirArg || '.';
-  const subdomain = args.find(arg => arg.startsWith('--subdomain='))?.split('=')[1] || appName;
 
-  const remoteDir = `deployments/site-${crypto.randomUUID()}`;
+  let subdomain = args.find(arg => arg.startsWith('--subdomain='))?.split('=')[1];
+  if (!subdomain) {
+    subdomain = generateAppName();
+  }
+
+  const remoteDir = `~/sites/${subdomain}/deployment`;
+
+  // this will handle the increments
+  const directory = await puter.fs.mkdir(remoteDir, {
+    dedupeName: true,
+    createMissingParents: true
+  })
 
   console.log(chalk.cyan(`Deploying '${sourceDir}' to '${subdomain}.puter.site'...`));
 
   try {
     // 1. Upload files
-    await syncDirectory([sourceDir, remoteDir, '--delete', '-r', '--overwrite']);
+    await syncDirectory([sourceDir, directory.path, '--delete', '-r', '--overwrite']);
 
     // 2. Create the site
-    const site = await createSite([appName, remoteDir, `--subdomain=${subdomain}`]);
+    const site = await createSite([subdomain, directory.path, `--subdomain=${subdomain}`]);
 
     if (site) {
-      console.log(chalk.green('Deployment successful!'));      
+      console.log(chalk.green('Deployment successful!'));
     } else {
       console.log(chalk.yellow('Deployment successfuly updated!'));
     }

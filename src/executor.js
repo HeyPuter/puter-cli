@@ -2,10 +2,12 @@ import chalk from 'chalk';
 import Conf from 'conf';
 import { listApps, appInfo, createApp, updateApp, deleteApp } from './commands/apps.js';
 import { listSites, createSite, deleteSite, infoSite } from './commands/sites.js';
-import { listFiles, makeDirectory, renameFileOrDirectory, 
-  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd, 
-  getInfo, getDiskUsage, createFile, readFile, uploadFile, 
-  downloadFile, copyFile, syncDirectory, editFile } from './commands/files.js';
+import {
+  listFiles, makeDirectory, renameFileOrDirectory,
+  removeFileOrDirectory, emptyTrash, changeDirectory, showCwd,
+  getInfo, getDiskUsage, createFile, readFile, uploadFile,
+  downloadFile, copyFile, syncDirectory, editFile
+} from './commands/files.js';
 import { getUserInfo, getUsageInfo, login } from './commands/auth.js';
 import { deploy } from './commands/deploy.js';
 import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
@@ -13,7 +15,7 @@ import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
 import { parseArgs, getSystemEditor } from './utils.js';
 import { rl } from './commands/shell.js';
-import { ErrorAPI } from './modules/ErrorModule.js';
+import { showLast } from './modules/ErrorModule.js'
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -39,8 +41,8 @@ const commands = {
   whoami: getUserInfo,
   stat: getInfo,
   apps: async (args) => {
-      await listApps({
-        statsPeriod: args[0] || 'all'
+    await listApps({
+      statsPeriod: args[0] || 'all'
     });
   },
   app: appInfo,
@@ -64,9 +66,7 @@ const commands = {
       rl.write(commandToCopy);
     }
   },
-  'last-error': async (_, context) => {
-    context[ErrorAPI].showLast();
-  },
+  'last-error': showLast,
   'app:create': async (rawArgs) => {
     try {
       const args = parseArgs(rawArgs.join(' '));
@@ -88,8 +88,8 @@ const commands = {
   },
   'app:update': async (args) => {
     if (args.length < 1) {
-        console.log(chalk.red('Usage: app:update <name> <remote_dir>'));
-        return;
+      console.log(chalk.red('Usage: app:update <name> <remote_dir>'));
+      return;
     }
     await updateApp(args);
   },
@@ -102,25 +102,25 @@ const commands = {
       }
     });
     if (args._.length < 1) {
-        console.log(chalk.red('You must specify the app name:'));
-        console.log(chalk.yellow('Example: app:delete <name>'));
-        return;
+      console.log(chalk.red('You must specify the app name:'));
+      console.log(chalk.yellow('Example: app:delete <name>'));
+      return;
     }
     const name = args._[0];
     const force = !!args.f;
 
-    if (!force){
+    if (!force) {
       const { confirm } = await inquirer.prompt([
         {
-            type: 'confirm',
-            name: 'confirm',
-            message: chalk.yellow(`Are you sure you want to delete "${name}"?`),
-            default: false
+          type: 'confirm',
+          name: 'confirm',
+          message: chalk.yellow(`Are you sure you want to delete "${name}"?`),
+          default: false
         }
       ]);
       if (!confirm) {
-          console.log(chalk.yellow('Operation cancelled.'));
-          return false;
+        console.log(chalk.yellow('Operation cancelled.'));
+        return false;
       }
     }
     await deleteApp(name);
@@ -155,9 +155,9 @@ const commands = {
  * Execute a command
  * @param {string} input The command line input
  */
-export async function execCommand(context, input) {
-  const [cmd, ...args] = input?input.split(' '):[];
-  
+export async function execCommand(input) {
+  const [cmd, ...args] = input ? input.split(' ') : [];
+
   // Add the command to history (skip the "history" command itself)
   if (cmd !== 'history') {
     commandHistory.push(input);
@@ -188,7 +188,7 @@ export async function execCommand(context, input) {
   }
   if (commands[cmd]) {
     try {
-      await commands[cmd](args, context);
+      await commands[cmd](args);
     } catch (error) {
       console.error(chalk.red(`Error executing command: ${error.message}`));
     }

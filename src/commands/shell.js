@@ -4,7 +4,6 @@ import Conf from 'conf';
 import { execCommand, getPrompt } from '../executor.js';
 import { PROJECT_NAME } from '../commons.js';
 import { getProfileModule } from '../modules/ProfileModule.js';
-import putility from '@heyputer/putility';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -22,13 +21,6 @@ export function updatePrompt(currentPath) {
  * Start the interactive shell
  */
 export async function startShell(command) {
-  // const modules = [
-  //   SetContextModule,
-  //   ErrorModule,
-  // ];
-
-  // for (const module of modules) module({ context });
-
   const profileModule = getProfileModule();
   await profileModule.checkLogin();
 

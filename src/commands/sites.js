@@ -1,18 +1,16 @@
 import chalk from 'chalk';
-import fetch from 'node-fetch';
 import Table from 'cli-table3';
 import { getCurrentUserName, getCurrentDirectory } from './auth.js';
-import { API_BASE, getHeaders, generateAppName, resolveRemotePath, isValidAppName } from '../commons.js';
+import { resolveRemotePath, isValidAppName } from '../commons.js';
 import { displayNonNullValues, formatDate, isValidAppUuid } from '../utils.js';
 import { getSubdomains, createSubdomain, deleteSubdomain, updateSubdomain } from './subdomains.js';
-import { ErrorAPI } from '../modules/ErrorModule.js';
 import { getPuter } from '../modules/PuterModule.js';
-
+import { report } from '../modules/ErrorModule.js';
 
 /**
  * Listing subdomains
  */
-export async function listSites(args = {}, context) {
+export async function listSites(args = {}) {
     try {
       const result = await getSubdomains(args);
   
@@ -55,7 +53,7 @@ export async function listSites(args = {}, context) {
       }
   
     } catch (error) {
-      context.events.emit('error', { error });
+      report(error);
       console.error(chalk.red('Error listing sites:'), error.message);
       throw error;
     }

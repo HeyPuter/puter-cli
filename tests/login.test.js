@@ -1,19 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { login, logout, getUserInfo, isAuthenticated, getAuthToken, getCurrentUserName, 
-  getCurrentDirectory, getUsageInfo } from '../src/commands/auth.js';
-import inquirer from 'inquirer';
-import ora from 'ora';
+import {
+  login, logout, getUserInfo, isAuthenticated, getAuthToken, getCurrentUserName,
+  getUsageInfo
+} from '../src/commands/auth.js';
 import chalk from 'chalk';
-import fetch from 'node-fetch';
 import Conf from 'conf';
-import { BASE_URL, PROJECT_NAME, API_BASE } from '../src/commons.js';
-import { ProfileAPI } from '../src/modules/ProfileModule.js';
+import { PROJECT_NAME } from '../src/commons.js';
 import * as PuterModule from '../src/modules/PuterModule.js';
-import * as contextHelpers from '../src/temporary/context_helpers.js';
 
 // Mock console to prevent actual logging
-vi.spyOn(console, 'log').mockImplementation(() => {});
-vi.spyOn(console, 'error').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => { });
+vi.spyOn(console, 'error').mockImplementation(() => { });
 
 // Mock dependencies
 vi.mock('inquirer');
@@ -26,8 +23,19 @@ vi.mock('chalk', () => ({
     cyan: vi.fn(text => text),
   }
 }));
-vi.mock('node-fetch');
 vi.mock('../src/modules/PuterModule.js');
+
+// Mock ProfileModule
+const mockProfileModule = {
+  switchProfileWizard: vi.fn(),
+  getAuthToken: vi.fn(),
+  getCurrentProfile: vi.fn(),
+};
+
+vi.mock('../src/modules/ProfileModule.js', () => ({
+  getProfileModule: vi.fn(() => mockProfileModule),
+  initProfileModule: vi.fn(),
+}));
 
 // Create a mock spinner object
 const mockSpinner = {
@@ -53,19 +61,6 @@ vi.mock('conf', () => {
   };
 });
 
-const mockProfileModule = {
-  switchProfileWizard: vi.fn(),
-  getAuthToken: vi.fn(),
-  getCurrentProfile: vi.fn(),
-};
-
-const mockContext = {
-  [ProfileAPI]: mockProfileModule,
-};
-
-vi.spyOn(contextHelpers, 'get_context').mockReturnValue(mockContext);
-
-
 describe('auth.js', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -73,13 +68,13 @@ describe('auth.js', () => {
 
   describe('login', () => {
     it('should login successfully with valid credentials', async () => {
-      await login({}, mockContext);
+      await login({});
       expect(mockProfileModule.switchProfileWizard).toHaveBeenCalled();
     });
 
     it('should fail login with invalid credentials', async () => {
       mockProfileModule.switchProfileWizard.mockRejectedValue(new Error('Invalid credentials'));
-      await expect(login({}, mockContext)).rejects.toThrow('Invalid credentials');
+      await expect(login({})).rejects.toThrow('Invalid credentials');
       expect(mockProfileModule.switchProfileWizard).toHaveBeenCalled();
     });
 
@@ -110,9 +105,9 @@ describe('auth.js', () => {
     it.skip('should handle logout error', async () => {
       // This test needs to be updated to reflect the new login flow
     });
-    
+
   });
-  
+
 
   describe('getUserInfo', () => {
     const mockPuter = {
@@ -124,7 +119,7 @@ describe('auth.js', () => {
     beforeEach(() => {
       vi.spyOn(PuterModule, 'getPuter').mockReturnValue(mockPuter);
     });
-    
+
     it('should fetch user info successfully', async () => {
       mockPuter.auth.getUser.mockResolvedValue({
         username: 'testuser',
@@ -172,28 +167,40 @@ describe('auth.js', () => {
   });
 
   describe('getUsageInfo', () => {
+    const mockPuter = {
+      auth: {
+        getMonthlyUsage: vi.fn(),
+      },
+    };
+
+    beforeEach(() => {
+      vi.spyOn(PuterModule, 'getPuter').mockReturnValue(mockPuter);
+    });
+
     it('should fetch usage info successfully', async () => {
-      mockProfileModule.getAuthToken.mockReturnValue('testtoken');
-      fetch.mockResolvedValue({
-        json: vi.fn().mockResolvedValue({}),
-        ok: true,
+      mockPuter.auth.getMonthlyUsage.mockResolvedValue({
+        allowanceInfo: {
+          monthUsageAllowance: 1000,
+          remaining: 500,
+        },
+        usage: {
+          total: 500,
+        },
+        appTotals: {},
       });
 
       await getUsageInfo();
 
-      expect(fetch).toHaveBeenCalledWith(`${API_BASE}/drivers/usage`, {
-        method: 'GET',
-        headers: expect.any(Object),
-      });
+      expect(mockPuter.auth.getMonthlyUsage).toHaveBeenCalled();
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Allowance Information:'));
     });
 
     it('should handle fetch usage info error', async () => {
-      mockProfileModule.getAuthToken.mockReturnValue('testtoken');
-      fetch.mockRejectedValue(new Error('Network error'));
+      mockPuter.auth.getMonthlyUsage.mockRejectedValue(new Error('Network error'));
       await getUsageInfo();
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Failed to fetch usage information.'));
     });
   });
-  
+
 
 });

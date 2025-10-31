@@ -15,7 +15,7 @@ import inquirer from 'inquirer';
 import { exec } from 'node:child_process';
 import { parseArgs, getSystemEditor } from './utils.js';
 import { rl } from './commands/shell.js';
-import { ErrorAPI } from './modules/ErrorModule.js';
+import { showLast } from './modules/ErrorModule.js'
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -66,9 +66,7 @@ const commands = {
       rl.write(commandToCopy);
     }
   },
-  'last-error': async (_, context) => {
-    context[ErrorAPI].showLast();
-  },
+  'last-error': showLast,
   'app:create': async (rawArgs) => {
     try {
       const args = parseArgs(rawArgs.join(' '));

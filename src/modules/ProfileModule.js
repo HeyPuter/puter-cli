@@ -10,6 +10,7 @@ import { BASE_URL, NULL_UUID, PROJECT_NAME, getHeaders, reconfigureURLs } from '
 // builtin
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import { initPuterModule } from './PuterModule.js';
 
 // initializations
 const config = new Conf({ projectName: PROJECT_NAME });
@@ -39,6 +40,8 @@ class ProfileModule {
         if (!config.get('selected_profile')) {
             console.log(chalk.cyan('Please login first (or use CTRL+C to exit):'));
             await this.switchProfileWizard();
+            // re init with new authToken
+            initPuterModule();
         }
         this.applyProfileToGlobals();
     }

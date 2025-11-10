@@ -12,8 +12,10 @@ export const initPuterModule = () => {
   const profile = profiles.find((v) => v.uuid === uuid);
   const authToken = profile?.token;
 
-  puter.setAuthToken(authToken);
-  puterModule = puter;
+  if (authToken) {
+    puter.setAuthToken(authToken);
+    puterModule = puter;
+  }
 };
 
 /**

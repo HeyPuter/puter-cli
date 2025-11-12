@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import { it } from "vitest";
 import { describe } from "vitest";
-import { getSubdomains } from "../src/commands/subdomains";
+import { deleteSubdomain, getSubdomains } from "../src/commands/subdomains";
 import { expect } from "vitest";
 import { getPuter } from "../src/modules/PuterModule";
 
@@ -14,6 +14,8 @@ vi.mock("conf", () => {
   }));
   return { default: Conf };
 });
+
+vi.spyOn(console, "log").mockImplementation(() => { });
 
 describe("getSubdomains", () => {
   it("should get subdomains successfully", async () => {
@@ -30,5 +32,19 @@ describe("getSubdomains", () => {
     const result = await getSubdomains();
     expect(getPuter).toHaveBeenCalled();
     expect(result).toHaveLength(1)
+  })
+})
+
+describe("deleteSubdomain", () => {
+  it("should delete subdomain successfully", async () => {
+    const mockHostingDelete = vi.fn().mockResolvedValue(true);
+    vi.mocked(getPuter).mockReturnValue({
+      hosting: {
+        delete: mockHostingDelete
+      }
+    })
+    const result = await deleteSubdomain(["hehe.puter.site"]);
+    expect(result).toBe(true);
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Subdomain deleted successfully"));
   })
 })

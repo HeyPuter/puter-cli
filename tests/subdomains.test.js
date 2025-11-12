@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import { it } from "vitest";
 import { describe } from "vitest";
-import { deleteSubdomain, getSubdomains } from "../src/commands/subdomains";
+import { createSubdomain, deleteSubdomain, getSubdomains } from "../src/commands/subdomains";
 import { expect } from "vitest";
 import { getPuter } from "../src/modules/PuterModule";
 
@@ -46,5 +46,24 @@ describe("deleteSubdomain", () => {
     const result = await deleteSubdomain(["hehe.puter.site"]);
     expect(result).toBe(true);
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining("Subdomain deleted successfully"));
+  })
+})
+
+describe("createSubdomain", () => {
+  it("should create subdomain successfully", async () => {
+    const mockHostingCreate = vi.fn().mockResolvedValue({
+      uid: "123",
+      subdomain: "hehe.puter.site",
+      root_dir: { path: "/some/path" },
+    });
+    vi.mocked(getPuter).mockReturnValue({
+      hosting: {
+        create: mockHostingCreate
+      }
+    })
+    const result = await createSubdomain("hehe", "/mydir")
+    expect(result).toMatchObject({
+      subdomain: "hehe.puter.site"
+    })
   })
 })

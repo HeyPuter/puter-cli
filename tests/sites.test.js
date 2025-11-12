@@ -1,6 +1,6 @@
 import { describe, vi, expect, it } from "vitest";
-import { infoSite, listSites } from "../src/commands/sites";
-import { getSubdomains } from "../src/commands/subdomains";
+import { deleteSite, infoSite, listSites } from "../src/commands/sites";
+import { deleteSubdomain, getSubdomains } from "../src/commands/subdomains";
 import { getPuter } from "../src/modules/PuterModule.js";
 
 vi.mock("../src/commands/subdomains")
@@ -37,9 +37,17 @@ describe("infoSite", () => {
       }
     })
 
-    await infoSite("hehe.puter.site")
+    await infoSite(["hehe.puter.site"])
     expect(getPuter).toHaveBeenCalled();
     expect(mockHostingGet).toHaveBeenCalled();
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining("hehe.puter.site"))
+  })
+})
+
+describe("deleteSite", () => {
+  it("should delete site successfully", async () => {
+    vi.mocked(deleteSubdomain)
+    const result = await deleteSite(["hehe.puter.site"]);
+    expect(result).toBe(true);
   })
 })

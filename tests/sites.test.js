@@ -1,6 +1,6 @@
 import { describe, vi, expect, it } from "vitest";
-import { deleteSite, infoSite, listSites } from "../src/commands/sites";
-import { deleteSubdomain, getSubdomains } from "../src/commands/subdomains";
+import { createSite, deleteSite, infoSite, listSites } from "../src/commands/sites";
+import { createSubdomain, deleteSubdomain, getSubdomains } from "../src/commands/subdomains";
 import { getPuter } from "../src/modules/PuterModule.js";
 
 vi.mock("../src/commands/subdomains")
@@ -13,8 +13,6 @@ describe("listSites", () => {
       uid: "123",
       subdomain: "hehe.puter.site",
       root_dir: { path: "/some/path" },
-      created_at: new Date().toISOString(),
-      protected: false
     }])
     await listSites();
     expect(getSubdomains).toHaveBeenCalled();
@@ -28,8 +26,6 @@ describe("infoSite", () => {
       uid: "123",
       subdomain: "hehe.puter.site",
       root_dir: { path: "/some/path" },
-      created_at: new Date().toISOString(),
-      protected: false
     });
     vi.mocked(getPuter).mockReturnValue({
       hosting: {
@@ -49,5 +45,19 @@ describe("deleteSite", () => {
     vi.mocked(deleteSubdomain)
     const result = await deleteSite(["hehe.puter.site"]);
     expect(result).toBe(true);
+  })
+})
+
+describe("createSite", () => {
+  it("should create site successfully", async () => {
+    vi.mocked(createSubdomain).mockResolvedValue({
+      uid: "123",
+      subdomain: "hehe.puter.site",
+      root_dir: { path: "/some/path" },
+    })
+    const result = await createSite(["hehe hehe --subdomain=hehe"]);
+    expect(result).toMatchObject({
+      subdomain: "hehe.puter.site"
+    })
   })
 })

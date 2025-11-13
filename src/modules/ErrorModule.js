@@ -1,11 +1,11 @@
-const ERROR_BUFFER_LIMIT = 20;
+export const ERROR_BUFFER_LIMIT = 20;
 
-const errors = [];
+export const errors = [];
 
 export const report = (error) => {
   errors.push(error);
   if (errors.length > ERROR_BUFFER_LIMIT) {
-    errors = errors.slice(errors.length - ERROR_BUFFER_LIMIT);
+    errors.splice(0, errors.length - ERROR_BUFFER_LIMIT)
   }
 }
 export const showLast = () => {

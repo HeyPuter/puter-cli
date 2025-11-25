@@ -1,40 +1,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { getAuthToken } from '../src/commands/auth.js';
+import { formatSize } from '../src/utils.js';
+import { readFile } from 'fs/promises';
 
-vi.spyOn(console, 'log').mockImplementation(() => { });
-vi.spyOn(console, 'error').mockImplementation(() => { });
-
-const mockGetAuthToken = vi.hoisted(() => vi.fn(() => 'mock-token'));
-const mockFormatSize = vi.hoisted(() => vi.fn((size) => `${size} bytes`));
-const mockReadFile = vi.hoisted(() => vi.fn());
-
-vi.mock('../src/commands/auth.js', () => ({
-  getAuthToken: mockGetAuthToken,
-}));
-
-vi.mock('../src/utils.js', () => ({
-  formatSize: mockFormatSize,
-}));
-
-vi.mock('fs/promises', () => ({
-  readFile: mockReadFile,
-}));
-
+vi.mock('../src/commands/auth.js');
+vi.mock('../src/utils.js');
+vi.mock('fs/promises');
 vi.mock('dotenv', () => ({
   default: {
     config: vi.fn(),
   },
 }));
 
+vi.spyOn(console, 'log').mockImplementation(() => { });
+vi.spyOn(console, 'error').mockImplementation(() => { });
+
 let commons;
 
 beforeEach(async () => {
   vi.resetModules();
-  mockGetAuthToken.mockReturnValue('mock-token');
-  commons = await import('../src/commons.js');
-});
-
-afterEach(() => {
   vi.clearAllMocks();
+
+  vi.mocked(getAuthToken).mockReturnValue('mock-token');
+  vi.mocked(formatSize).mockImplementation((size) => `${size} bytes`);
+
+  commons = await import('../src/commons.js');
 });
 
 describe('constants', () => {
@@ -167,9 +157,9 @@ describe('showDiskSpaceUsage', () => {
     commons.showDiskSpaceUsage(data);
 
     expect(consoleLogSpy).toHaveBeenCalled();
-    expect(mockFormatSize).toHaveBeenCalledWith('1000000000'); // capacity
-    expect(mockFormatSize).toHaveBeenCalledWith('500000000'); // used
-    expect(mockFormatSize).toHaveBeenCalledWith(500000000); // free space
+    expect(formatSize).toHaveBeenCalledWith('1000000000'); // capacity
+    expect(formatSize).toHaveBeenCalledWith('500000000'); // used
+    expect(formatSize).toHaveBeenCalledWith(500000000); // free space
   });
 
   it('should calculate usage percentage correctly', () => {
@@ -312,7 +302,7 @@ describe('getDefaultHomePage', () => {
 
 describe('getVersionFromPackage', () => {
   it('should return version from package.json', async () => {
-    mockReadFile.mockResolvedValueOnce(JSON.stringify({ version: '1.2.3' }));
+    vi.mocked(readFile).mockResolvedValueOnce(JSON.stringify({ version: '1.2.3' }));
 
     const version = await commons.getVersionFromPackage();
 
@@ -320,7 +310,7 @@ describe('getVersionFromPackage', () => {
   });
 
   it('should fallback to production package.json on dev error', async () => {
-    mockReadFile
+    vi.mocked(readFile)
       .mockRejectedValueOnce(new Error('File not found'))
       .mockResolvedValueOnce(JSON.stringify({ version: '2.0.0' }));
 
@@ -330,7 +320,7 @@ describe('getVersionFromPackage', () => {
   });
 
   it('should return null on error', async () => {
-    mockReadFile.mockRejectedValue(new Error('Read error'));
+    vi.mocked(readFile).mockRejectedValue(new Error('Read error'));
 
     const version = await commons.getVersionFromPackage();
 
@@ -340,16 +330,12 @@ describe('getVersionFromPackage', () => {
 
 describe('getLatestVersion', () => {
   beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
+    global.fetch = vi.fn();
   });
 
   it('should return up-to-date status when versions match', async () => {
-    mockReadFile.mockResolvedValueOnce(JSON.stringify({ version: '1.0.0' }));
-    global.fetch.mockResolvedValueOnce({
+    vi.mocked(readFile).mockResolvedValueOnce(JSON.stringify({ version: '1.0.0' }));
+    vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ version: '1.0.0' }),
     });
@@ -360,8 +346,8 @@ describe('getLatestVersion', () => {
   });
 
   it('should return latest version when different', async () => {
-    mockReadFile.mockResolvedValueOnce(JSON.stringify({ version: '1.0.0' }));
-    global.fetch.mockResolvedValueOnce({
+    vi.mocked(readFile).mockResolvedValueOnce(JSON.stringify({ version: '1.0.0' }));
+    vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ version: '2.0.0' }),
     });
@@ -372,8 +358,8 @@ describe('getLatestVersion', () => {
   });
 
   it('should return offline status when fetch fails', async () => {
-    mockReadFile.mockResolvedValueOnce(JSON.stringify({ version: '1.0.0' }));
-    global.fetch.mockRejectedValueOnce(new Error('Network error'));
+    vi.mocked(readFile).mockResolvedValueOnce(JSON.stringify({ version: '1.0.0' }));
+    vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
 
     const result = await commons.getLatestVersion('puter-cli');
 
@@ -381,8 +367,8 @@ describe('getLatestVersion', () => {
   });
 
   it('should handle unknown current version', async () => {
-    mockReadFile.mockRejectedValue(new Error('Read error'));
-    global.fetch.mockResolvedValueOnce({
+    vi.mocked(readFile).mockRejectedValue(new Error('Read error'));
+    vi.mocked(global.fetch).mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ version: '2.0.0' }),
     });

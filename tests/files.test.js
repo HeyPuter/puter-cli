@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createFile, listFiles, pathExists, makeDirectory, renameFileOrDirectory, getInfo } from "../src/commands/files.js";
+import { createFile, listFiles, pathExists, makeDirectory, renameFileOrDirectory, getInfo, showCwd, getDiskUsage } from "../src/commands/files.js";
 import chalk from "chalk";
 import * as PuterModule from "../src/modules/PuterModule.js";
 import * as auth from "../src/commands/auth.js";
@@ -23,10 +23,11 @@ vi.mock("chalk", () => ({
   },
 }));
 vi.mock("node-fetch");
+const mockConfigStore = {};
 vi.mock("conf", () => {
   const Conf = vi.fn(() => ({
-    get: vi.fn(),
-    set: vi.fn(),
+    get: vi.fn((key) => mockConfigStore[key]),
+    set: vi.fn((key, value) => { mockConfigStore[key] = value; }),
     clear: vi.fn(),
   }));
   return { default: Conf };
@@ -529,5 +530,111 @@ describe("getInfo", () => {
     await getInfo([]);
 
     expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files/.");
+  });
+});
+
+describe("showCwd", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should display current working directory from config", async () => {
+    mockConfigStore.cwd = "/testuser/documents";
+
+    await showCwd();
+
+    expect(console.log).toHaveBeenCalledWith(
+      chalk.green("/testuser/documents")
+    );
+  });
+});
+
+describe("getDiskUsage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(PuterModule, "getPuter").mockReturnValue(mockPuter);
+    vi.spyOn(commons, "showDiskSpaceUsage").mockImplementation(() => {});
+  });
+
+  it("should fetch and display disk usage successfully", async () => {
+    const mockSpaceData = { used: 500, capacity: 1000 };
+    mockPuter.fs.space.mockResolvedValue(mockSpaceData);
+
+    await getDiskUsage();
+
+    expect(mockPuter.fs.space).toHaveBeenCalled();
+    expect(commons.showDiskSpaceUsage).toHaveBeenCalledWith(mockSpaceData);
+  });
+
+  it("should handle unable to fetch disk usage", async () => {
+    mockPuter.fs.space.mockResolvedValue(null);
+
+    await getDiskUsage();
+
+    expect(mockPuter.fs.space).toHaveBeenCalled();
+    expect(commons.showDiskSpaceUsage).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(
+      chalk.red("Unable to fetch disk usage information.")
+    );
+  });
+
+  it("should handle error when fetching disk usage", async () => {
+    mockPuter.fs.space.mockRejectedValue(new Error("Network failure"));
+
+    await getDiskUsage();
+
+    expect(mockPuter.fs.space).toHaveBeenCalled();
+    expect(commons.showDiskSpaceUsage).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(
+      chalk.red("Failed to fetch disk usage information.\nError: Network failure")
+    );
+  });
+});
+
+describe("pathExists", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(PuterModule, "getPuter").mockReturnValue(mockPuter);
+  });
+
+  it("should return false when no path provided", async () => {
+    const result = await pathExists("");
+
+    expect(result).toBe(false);
+    expect(console.log).toHaveBeenCalledWith(
+      chalk.red("No path provided.")
+    );
+    expect(mockPuter.fs.stat).not.toHaveBeenCalled();
+  });
+
+  it("should return true when path exists", async () => {
+    mockPuter.fs.stat.mockResolvedValue({ id: "file-id" });
+
+    const result = await pathExists("/testuser/files/existing.txt");
+
+    expect(result).toBe(true);
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files/existing.txt");
+  });
+
+  it("should return false when subject does not exist", async () => {
+    mockPuter.fs.stat.mockRejectedValue({ code: "subject_does_not_exist" });
+
+    const result = await pathExists("/testuser/files/nonexistent.txt");
+
+    expect(result).toBe(false);
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files/nonexistent.txt");
+  });
+
+  it("should return false and log error on other errors", async () => {
+    const otherError = new Error("Unknown error");
+    mockPuter.fs.stat.mockRejectedValue(otherError);
+
+    const result = await pathExists("/testuser/files/error.txt");
+
+    expect(result).toBe(false);
+    expect(console.error).toHaveBeenCalledWith(
+      chalk.red("Failed to check if file exists.")
+    );
+    expect(console.error).toHaveBeenCalledWith("ERROR", otherError);
   });
 });

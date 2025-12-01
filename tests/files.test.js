@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createFile } from "../src/commands/files.js";
+import { createFile, listFiles, pathExists } from "../src/commands/files.js";
 import chalk from "chalk";
 import * as PuterModule from "../src/modules/PuterModule.js";
 import * as auth from "../src/commands/auth.js";
 import * as commons from "../src/commons.js";
 import path from "path";
+import * as utils from "../src/utils.js";
 
 // Mock console to prevent actual logging
 vi.spyOn(console, "log").mockImplementation(() => {});
@@ -32,6 +33,7 @@ vi.mock("conf", () => {
 vi.mock("../src/modules/PuterModule.js");
 vi.mock("../src/commands/auth.js");
 vi.mock("../src/commons.js");
+vi.mock("../src/utils.js");
 
 const mockPuter = {
   fs: {
@@ -39,6 +41,7 @@ const mockPuter = {
     space: vi.fn(),
     mkdir: vi.fn(),
     upload: vi.fn(),
+    readdir: vi.fn(),
   },
 };
 
@@ -147,5 +150,138 @@ describe("createFile", () => {
     expect(console.error).toHaveBeenCalledWith(
       chalk.red("Failed to create file.\nError: API Error")
     );
+  });
+});
+
+describe("listFiles", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(PuterModule, "getPuter").mockReturnValue(mockPuter);
+    vi.spyOn(auth, "getCurrentUserName").mockReturnValue("testuser");
+    vi.spyOn(auth, "getCurrentDirectory").mockReturnValue("/testuser/files");
+    vi.spyOn(commons, "resolvePath").mockImplementation((current, newPath) =>
+      path.join(current, newPath)
+    );
+    vi.spyOn(utils, "formatSize").mockImplementation((size) => `${size}B`);
+    vi.spyOn(utils, "formatDateTime").mockImplementation(() => "2024-01-01 12:00");
+  });
+
+  it("should list files successfully with mocked items", async () => {
+    const mockFiles = [
+      { name: "file1.txt", is_dir: false, writable: true, size: 1024, modified: 1704067200, uid: "abc-123-def-456" },
+      { name: "folder1", is_dir: true, writable: true, size: 0, modified: 1704067200, uid: "ghi-789-jkl-012" },
+    ];
+
+    mockPuter.fs.stat.mockResolvedValue({ id: "dir-id" });
+    mockPuter.fs.readdir.mockResolvedValue(mockFiles);
+
+    await listFiles(["/testuser/files"]);
+
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("Listing files in")
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("file1.txt")
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("folder1")
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("There are 2 object(s).")
+    );
+  });
+
+  it("should handle empty directory", async () => {
+    mockPuter.fs.stat.mockResolvedValue({ id: "dir-id" });
+    mockPuter.fs.readdir.mockResolvedValue([]);
+
+    await listFiles(["/testuser/files"]);
+
+    expect(console.log).toHaveBeenCalledWith(
+      chalk.red("No files or directories found.")
+    );
+  });
+
+  it("should handle error when listing files fails", async () => {
+    mockPuter.fs.stat.mockResolvedValue({ id: "dir-id" });
+    mockPuter.fs.readdir.mockRejectedValue(new Error("Network error"));
+
+    await listFiles(["/testuser/files"]);
+
+    expect(console.log).toHaveBeenCalledWith(
+      chalk.red("Failed to list files.")
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      chalk.red("Error: Network error")
+    );
+  });
+
+  it("should resolve relative path using getCurrentDirectory", async () => {
+    const mockFiles = [
+      { name: "test.txt", is_dir: false, writable: true, size: 512, modified: 1704067200, uid: "xyz-999-abc-111" },
+    ];
+
+    mockPuter.fs.stat.mockResolvedValue({ id: "dir-id" });
+    mockPuter.fs.readdir.mockResolvedValue(mockFiles);
+
+    await listFiles(["subdir"]);
+
+    expect(commons.resolvePath).toHaveBeenCalledWith("/testuser/files", "subdir");
+    expect(mockPuter.fs.readdir).toHaveBeenCalledWith("/testuser/files/subdir");
+  });
+
+  it("should use absolute path directly without resolving", async () => {
+    const mockFiles = [
+      { name: "test.txt", is_dir: false, writable: true, size: 512, modified: 1704067200, uid: "xyz-999-abc-111" },
+    ];
+
+    mockPuter.fs.stat.mockResolvedValue({ id: "dir-id" });
+    mockPuter.fs.readdir.mockResolvedValue(mockFiles);
+
+    await listFiles(["/absolute/path"]);
+
+    expect(commons.resolvePath).not.toHaveBeenCalled();
+    expect(mockPuter.fs.readdir).toHaveBeenCalledWith("/absolute/path");
+  });
+
+  it("should show message when path does not exist", async () => {
+    mockPuter.fs.stat.mockRejectedValue({ code: "subject_does_not_exist" });
+
+    await listFiles(["/nonexistent/path"]);
+
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("doesn't exists!")
+    );
+    expect(mockPuter.fs.readdir).not.toHaveBeenCalled();
+  });
+
+  it("should list files when path exists", async () => {
+    const mockFiles = [
+      { name: "exists.txt", is_dir: false, writable: false, size: 256, modified: 1704067200, uid: "aaa-bbb-ccc-ddd" },
+    ];
+
+    mockPuter.fs.stat.mockResolvedValue({ id: "existing-dir" });
+    mockPuter.fs.readdir.mockResolvedValue(mockFiles);
+
+    await listFiles(["/existing/path"]);
+
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/existing/path");
+    expect(mockPuter.fs.readdir).toHaveBeenCalledWith("/existing/path");
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("exists.txt")
+    );
+  });
+
+  it("should use current directory when no arguments provided", async () => {
+    const mockFiles = [
+      { name: "default.txt", is_dir: false, writable: true, size: 100, modified: 1704067200, uid: "def-ault-uid-000" },
+    ];
+
+    mockPuter.fs.stat.mockResolvedValue({ id: "dir-id" });
+    mockPuter.fs.readdir.mockResolvedValue(mockFiles);
+
+    await listFiles([]);
+
+    expect(commons.resolvePath).toHaveBeenCalledWith("/testuser/files", ".");
   });
 });

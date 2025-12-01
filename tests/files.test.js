@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createFile, listFiles, pathExists, makeDirectory } from "../src/commands/files.js";
+import { createFile, listFiles, pathExists, makeDirectory, renameFileOrDirectory } from "../src/commands/files.js";
 import chalk from "chalk";
 import * as PuterModule from "../src/modules/PuterModule.js";
 import * as auth from "../src/commands/auth.js";
@@ -42,6 +42,8 @@ const mockPuter = {
     mkdir: vi.fn(),
     upload: vi.fn(),
     readdir: vi.fn(),
+    move: vi.fn(),
+    rename: vi.fn(),
   },
 };
 
@@ -360,5 +362,94 @@ describe("makeDirectory", () => {
     expect(console.error).toHaveBeenCalledWith(
       chalk.red("Error: Permission denied")
     );
+  });
+});
+
+describe("renameFileOrDirectory", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(PuterModule, "getPuter").mockReturnValue(mockPuter);
+    vi.spyOn(auth, "getCurrentDirectory").mockReturnValue("/testuser/files");
+    vi.spyOn(commons, "resolvePath").mockImplementation((current, newPath) =>
+      path.join(current, newPath)
+    );
+  });
+
+  it("should show usage when less than 2 arguments provided", async () => {
+    await renameFileOrDirectory([]);
+    expect(console.log).toHaveBeenCalledWith(
+      chalk.red("Usage: mv <source> <destination>")
+    );
+
+    vi.clearAllMocks();
+    await renameFileOrDirectory(["onlyOne"]);
+    expect(console.log).toHaveBeenCalledWith(
+      chalk.red("Usage: mv <source> <destination>")
+    );
+
+    expect(mockPuter.fs.stat).not.toHaveBeenCalled();
+  });
+
+  it("should move file to directory successfully", async () => {
+    // Source file exists
+    mockPuter.fs.stat
+      .mockResolvedValueOnce({ uid: "source-uid-123", name: "file.txt" }) // source stat
+      .mockResolvedValueOnce({ is_dir: true }); // dest stat - it's a directory
+
+    mockPuter.fs.move.mockResolvedValue({
+      moved: { path: "/testuser/files/destdir/file.txt" },
+    });
+
+    await renameFileOrDirectory(["file.txt", "destdir"]);
+
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files/file.txt");
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files/destdir");
+    expect(mockPuter.fs.move).toHaveBeenCalledWith(
+      "source-uid-123",
+      "/testuser/files/destdir",
+      {
+        overwrite: false,
+        newName: "file.txt",
+        createMissingParents: false,
+      }
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("Successfully moved")
+    );
+  });
+
+  it("should rename file successfully when destination is not a directory", async () => {
+    // Source file exists
+    mockPuter.fs.stat
+      .mockResolvedValueOnce({ uid: "source-uid-456", name: "oldname.txt" }) // source stat
+      .mockRejectedValueOnce({ code: "subject_does_not_exist" }); // dest doesn't exist
+
+    mockPuter.fs.rename.mockResolvedValue({
+      path: "/testuser/files/newname.txt",
+    });
+
+    await renameFileOrDirectory(["oldname.txt", "newname.txt"]);
+
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files/oldname.txt");
+    expect(mockPuter.fs.rename).toHaveBeenCalledWith("source-uid-456", "newname.txt");
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("Successfully renamed")
+    );
+  });
+
+  it("should handle absolute paths directly", async () => {
+    mockPuter.fs.stat
+      .mockResolvedValueOnce({ uid: "abs-uid", name: "source.txt" })
+      .mockRejectedValueOnce({ code: "subject_does_not_exist" });
+
+    mockPuter.fs.rename.mockResolvedValue({
+      path: "/absolute/dest.txt",
+    });
+
+    await renameFileOrDirectory(["/absolute/source.txt", "/absolute/dest.txt"]);
+
+    expect(commons.resolvePath).not.toHaveBeenCalled();
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/absolute/source.txt");
+    expect(mockPuter.fs.rename).toHaveBeenCalledWith("abs-uid", "dest.txt");
   });
 });

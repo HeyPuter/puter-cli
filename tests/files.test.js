@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createFile, listFiles, pathExists } from "../src/commands/files.js";
+import { createFile, listFiles, pathExists, makeDirectory } from "../src/commands/files.js";
 import chalk from "chalk";
 import * as PuterModule from "../src/modules/PuterModule.js";
 import * as auth from "../src/commands/auth.js";
@@ -283,5 +283,82 @@ describe("listFiles", () => {
     await listFiles([]);
 
     expect(commons.resolvePath).toHaveBeenCalledWith("/testuser/files", ".");
+  });
+});
+
+describe("makeDirectory", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(PuterModule, "getPuter").mockReturnValue(mockPuter);
+    vi.spyOn(auth, "getCurrentDirectory").mockReturnValue("/testuser/files");
+  });
+
+  it("should show usage when no arguments provided", async () => {
+    await makeDirectory([]);
+
+    expect(console.log).toHaveBeenCalledWith(
+      chalk.red("Usage: mkdir <directory_name>")
+    );
+    expect(mockPuter.fs.mkdir).not.toHaveBeenCalled();
+  });
+
+  it("should create directory successfully", async () => {
+    mockPuter.fs.mkdir.mockResolvedValue({
+      id: "new-dir-id",
+      path: "/testuser/files/newdir",
+      uid: "dir-uid-123",
+    });
+
+    await makeDirectory(["newdir"]);
+
+    expect(mockPuter.fs.mkdir).toHaveBeenCalledWith("/testuser/files/newdir", {
+      overwrite: false,
+      dedupeName: true,
+      createMissingParents: false,
+    });
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('Directory "newdir" created successfully!')
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("Path: /testuser/files/newdir")
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("UID: dir-uid-123")
+    );
+  });
+
+  it("should handle case when mkdir returns invalid response", async () => {
+    mockPuter.fs.mkdir.mockResolvedValue({});
+
+    await makeDirectory(["newdir"]);
+
+    expect(mockPuter.fs.mkdir).toHaveBeenCalled();
+    expect(console.log).toHaveBeenCalledWith(
+      chalk.red("Failed to create directory. Please check your input.")
+    );
+  });
+
+  it("should handle case when mkdir returns null", async () => {
+    mockPuter.fs.mkdir.mockResolvedValue(null);
+
+    await makeDirectory(["newdir"]);
+
+    expect(mockPuter.fs.mkdir).toHaveBeenCalled();
+    expect(console.log).toHaveBeenCalledWith(
+      chalk.red("Failed to create directory. Please check your input.")
+    );
+  });
+
+  it("should handle error when mkdir throws", async () => {
+    mockPuter.fs.mkdir.mockRejectedValue(new Error("Permission denied"));
+
+    await makeDirectory(["newdir"]);
+
+    expect(console.log).toHaveBeenCalledWith(
+      chalk.red("Failed to create directory.")
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      chalk.red("Error: Permission denied")
+    );
   });
 });

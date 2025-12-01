@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createFile, listFiles, pathExists, makeDirectory, renameFileOrDirectory } from "../src/commands/files.js";
+import { createFile, listFiles, pathExists, makeDirectory, renameFileOrDirectory, getInfo } from "../src/commands/files.js";
 import chalk from "chalk";
 import * as PuterModule from "../src/modules/PuterModule.js";
 import * as auth from "../src/commands/auth.js";
@@ -19,6 +19,7 @@ vi.mock("chalk", () => ({
     dim: vi.fn((text) => text),
     yellow: vi.fn((text) => text),
     cyan: vi.fn((text) => text),
+    white: vi.fn((text) => text),
   },
 }));
 vi.mock("node-fetch");
@@ -451,5 +452,82 @@ describe("renameFileOrDirectory", () => {
     expect(commons.resolvePath).not.toHaveBeenCalled();
     expect(mockPuter.fs.stat).toHaveBeenCalledWith("/absolute/source.txt");
     expect(mockPuter.fs.rename).toHaveBeenCalledWith("abs-uid", "dest.txt");
+  });
+});
+
+describe("getInfo", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(PuterModule, "getPuter").mockReturnValue(mockPuter);
+    vi.spyOn(auth, "getCurrentDirectory").mockReturnValue("/testuser/files");
+    vi.spyOn(utils, "formatSize").mockImplementation((size) => `${size}B`);
+  });
+
+  it("should display file info successfully", async () => {
+    mockPuter.fs.stat.mockResolvedValue({
+      name: "test.txt",
+      path: "/testuser/files/test.txt",
+      is_dir: false,
+      size: 1024,
+      created: 1704067200,
+      modified: 1704153600,
+      writable: true,
+      owner: { username: "testuser" },
+    });
+
+    await getInfo(["test.txt"]);
+
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files/test.txt");
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("Getting stat info for")
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("Name: ")
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("Path: ")
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining("Type: ")
+    );
+  });
+
+  it("should handle case when stat returns null", async () => {
+    mockPuter.fs.stat.mockResolvedValue(null);
+
+    await getInfo(["notfound.txt"]);
+
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files/notfound.txt");
+    expect(console.error).toHaveBeenCalledWith(
+      chalk.red("Unable to get stat info. Please check your credentials.")
+    );
+  });
+
+  it("should handle error when stat throws", async () => {
+    mockPuter.fs.stat.mockRejectedValue(new Error("File not found"));
+
+    await getInfo(["error.txt"]);
+
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files/error.txt");
+    expect(console.error).toHaveBeenCalledWith(
+      chalk.red("Failed to get stat info.\nError: File not found")
+    );
+  });
+
+  it("should use current directory with default argument", async () => {
+    mockPuter.fs.stat.mockResolvedValue({
+      name: "files",
+      path: "/testuser/files",
+      is_dir: true,
+      size: 0,
+      created: 1704067200,
+      modified: 1704153600,
+      writable: true,
+      owner: { username: "testuser" },
+    });
+
+    await getInfo([]);
+
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files/.");
   });
 });

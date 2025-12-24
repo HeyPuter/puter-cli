@@ -1,7 +1,7 @@
-# This workflow will run tests using node on every push
+# This workflow will run tests using node on every push and pull request
 name: Build package
 
-on: push
+on: [push, pull_request]
 
 jobs:
   build:
@@ -26,6 +26,7 @@ jobs:
     - name: Run tests & coverage
       run: pnpm run coverage
     - name: Upload coverage reports to Codecov
+      if: github.event_name != 'pull_request'
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

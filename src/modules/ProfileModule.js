@@ -3,6 +3,7 @@ import inquirer from 'inquirer';
 import Conf from 'conf';
 import chalk from 'chalk';
 import ora from 'ora';
+import {getAuthToken} from "@heyputer/puter.js/src/init.cjs";
 
 // project
 import { BASE_URL, NULL_UUID, PROJECT_NAME, getHeaders, reconfigureURLs } from '../commons.js'
@@ -154,76 +155,20 @@ class ProfileModule {
                 message: 'Username:',
                 validate: input => input.length >= 1 || 'Username is required'
             },
-            {
-                type: 'password',
-                name: 'password',
-                message: 'Password:',
-                mask: '*',
-                validate: input => input.length >= 1 || 'Password is required'
-            }
         ]);
 
         let spinner;
         try {
             spinner = ora('Logging in to Puter...').start();
+            const authToken = await getAuthToken();
 
-            const response = await fetch(`${answers.host}/login`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({
-                    username: answers.username,
-                    password: answers.password
-                })
-            });
-
-
-            const contentType = response.headers.get('content-type');
-            //console.log('content type?', '|' + contentType + '|');
-
-            // TODO: proper content type parsing
-            if (!contentType.trim().startsWith('application/json')) {
-                throw new Error(await response.text());
-            }
-
-            let data = await response.json();
-
-            while (data.proceed && data.next_step) {
-                if (data.next_step === 'otp') {
-                    spinner.succeed(chalk.green('2FA is enabled'));
-                    const answers2FA = await inquirer.prompt([
-                        {
-                            type: 'input',
-                            name: 'otp',
-                            message: 'Authenticator Code:',
-                            validate: input => input.length === 6 || 'OTP must be 6 digits'
-                        }
-                    ]);
-                    spinner = ora('Logging in to Puter...').start();
-                    const response = await fetch(`${answers.host}/login/otp`, {
-                        method: 'POST',
-                        headers: getHeaders(),
-                        body: JSON.stringify({
-                            token: data.otp_jwt_token,
-                            code: answers2FA.otp,
-                        }),
-                    });
-                    data = await response.json();
-                    continue;
-                }
-
-                if (data.next_step === 'complete') break;
-
-                spinner.fail(chalk.red(`Unrecognized login step "${data.next_step}"; you might need to update puter-cli.`));
-                return;
-            }
-
-            if (data.proceed && data.token) {
+            if (authToken) {
                 const profileUUID = crypto.randomUUID();
                 const profile = {
                     host: answers.host,
                     username: answers.username,
                     cwd: `/${answers.username}`,
-                    token: data.token,
+                    token: authToken,
                     uuid: profileUUID,
                 };
                 this.addProfile(profile);
@@ -231,7 +176,6 @@ class ProfileModule {
                 if (spinner) {
                     spinner.succeed(chalk.green('Successfully logged in to Puter!'));
                 }
-                console.log(chalk.dim(`Token: ${data.token.slice(0, 5)}...${data.token.slice(-5)}`));
                 // Save token
                 if (args.save) {
                     const localEnvFile = '.env';
@@ -239,14 +183,14 @@ class ProfileModule {
                         // Check if the file exists, if so then append the api key to the EOF.
                         if (fs.existsSync(localEnvFile)) {
                             console.log(chalk.yellow(`File "${localEnvFile}" already exists... Adding token.`));
-                            fs.appendFileSync(localEnvFile, `\nPUTER_API_KEY="${data.token}"`, 'utf8');
+                            fs.appendFileSync(localEnvFile, `\nPUTER_API_KEY="${authToken}"`, 'utf8');
                         } else {
                             console.log(chalk.cyan(`Saving token to ${chalk.green(localEnvFile)} file.`));
-                            fs.writeFileSync(localEnvFile, `PUTER_API_KEY="${data.token}"`, 'utf8');
+                            fs.writeFileSync(localEnvFile, `PUTER_API_KEY="${authToken}"`, 'utf8');
                         }
                     } catch (error) {
                         console.error(chalk.red(`Cannot save token to .env file. Error: ${error.message}`));
-                        console.log(chalk.cyan(`PUTER_API_KEY="${data.token}"`));
+                        console.log(chalk.cyan(`PUTER_API_KEY="${authToken}"`));
                     }
                 }
             } else {

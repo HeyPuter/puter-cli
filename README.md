@@ -258,10 +258,18 @@ or just type (you'll need to login):
 
 ## Examples
 
+In order to execute any command you'll need to authenticate first, this is a one time action:
+ ```bash
+   # This will open the browser to authenticate you for the first time.
+   puter login
+   # or (if you want to authenticate using your username/password)
+   #puter login --with-credentials
+ ```
 1. **Log in and List Files**:
  ```bash
-   puter login
    puter> ls
+   # or list files in a specific directory:
+   puter> ls /
  ```
 
 2. **Create and Deploy a Static Site**:

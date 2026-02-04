@@ -8,11 +8,16 @@ const config = new Conf({ projectName: PROJECT_NAME });
 
 /**
  * Login user
+ * @param {Object} options - Login options
+ * @param {boolean} options.save - Save token to .env file
+ * @param {boolean} options.web - Use browser-based login (default)
+ * @param {boolean} options.withCredentials - Use username/password login
+ * @param {string} options.host - Puter host URL
  * @returns void
  */
-export async function login() {
-  const profileAPI = getProfileModule();;
-  await profileAPI.switchProfileWizard();
+export async function login(options = {}) {
+  const profileAPI = getProfileModule();
+  await profileAPI.switchProfileWizard(options);
 }
 
 /**

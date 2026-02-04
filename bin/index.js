@@ -26,9 +26,12 @@ async function main() {
   program
     .command('login')
     .description('Login to Puter account')
-    .option('-s, --save', 'Save authentication token in .env file', '')
-    .action(async () => {
-      await login();
+    .option('-s, --save', 'Save authentication token in .env file')
+    .option('--web', 'Use browser-based login (default)')
+    .option('--with-credentials', 'Use username/password login')
+    .option('--host <url>', 'Puter host URL', 'https://puter.com')
+    .action(async (options) => {
+      await login(options);
       process.exit(0);
     });
 

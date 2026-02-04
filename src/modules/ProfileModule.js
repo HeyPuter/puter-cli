@@ -3,6 +3,8 @@ import inquirer from 'inquirer';
 import Conf from 'conf';
 import chalk from 'chalk';
 import ora from 'ora';
+import {getAuthToken} from "@heyputer/puter.js/src/init.cjs";
+import { puter } from "@heyputer/puter.js";
 
 // project
 import { BASE_URL, NULL_UUID, PROJECT_NAME, getHeaders, reconfigureURLs } from '../commons.js'
@@ -108,10 +110,9 @@ class ProfileModule {
     async switchProfileWizard(args = {}) {
         const profiles = this.getProfiles();
         if (profiles.length < 1) {
-            return this.addProfileWizard();
+            return this.addProfileWizard(args);
         }
 
-        // console.log('doing this branch');
         const answer = await inquirer.prompt([
             {
                 name: 'profile',
@@ -133,21 +134,79 @@ class ProfileModule {
         ]);
 
         if (answer.profile === 'new') {
-            return await this.addProfileWizard();
+            return await this.addProfileWizard(args);
         }
 
         this.selectProfile(answer.profile);
     }
 
     async addProfileWizard(args = {}) {
+        const host = args.host || 'https://puter.com';
+
+        if (args.withCredentials) {
+            return await this.credentialLogin({ ...args, host });
+        }
+
+        // Browser-based login (default)
+        return await this.browserLogin({ ...args, host });
+    }
+
+    async browserLogin(args) {
+        const { host, save } = args;
+        const TIMEOUT_MS = 60000; // 1 minute timeout
+        let spinner;
+
+        try {
+            spinner = ora('Opening browser for login...').start();
+
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Login timed out after 60 seconds')), TIMEOUT_MS);
+            });
+
+            const authToken = await Promise.race([
+                getAuthToken(),
+                timeoutPromise
+            ]);
+
+            if (!authToken) {
+                spinner.fail(chalk.red('Login failed or was cancelled.'));
+                return;
+            }
+
+            spinner.text = 'Fetching user info...';
+
+            // Set token and fetch user info
+            puter.setAuthToken(authToken);
+            const userInfo = await puter.auth.getUser();
+
+            const profileUUID = crypto.randomUUID();
+            const profile = {
+                host,
+                username: userInfo.username,
+                cwd: `/${userInfo.username}`,
+                token: authToken,
+                uuid: profileUUID,
+            };
+
+            this.addProfile(profile);
+            this.selectProfile(profile);
+            spinner.succeed(chalk.green(`Successfully logged in as ${userInfo.username}!`));
+
+            // Handle --save option
+            this.saveTokenToEnv(authToken, save);
+        } catch (error) {
+            if (spinner) {
+                spinner.fail(chalk.red(`Failed to login: ${error.message}`));
+            } else {
+                console.error(chalk.red(`Failed to login: ${error.message}`));
+            }
+        }
+    }
+
+    async credentialLogin(args) {
+        const { host, save } = args;
+
         const answers = await inquirer.prompt([
-            {
-                type: 'input',
-                name: 'host',
-                message: 'Host (leave blank for puter.com):',
-                default: 'https://puter.com',
-                validate: input => input.length >= 1 || 'Host is required'
-            },
             {
                 type: 'input',
                 name: 'username',
@@ -167,98 +226,94 @@ class ProfileModule {
         try {
             spinner = ora('Logging in to Puter...').start();
 
-            const response = await fetch(`${answers.host}/login`, {
+            const apiHost = toApiSubdomain(host);
+            const response = await fetch(`${apiHost}/login`, {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify({
                     username: answers.username,
-                    password: answers.password
-                })
+                    password: answers.password,
+                }),
             });
 
+            const data = await response.json();
 
-            const contentType = response.headers.get('content-type');
-            //console.log('content type?', '|' + contentType + '|');
-
-            // TODO: proper content type parsing
-            if (!contentType.trim().startsWith('application/json')) {
-                throw new Error(await response.text());
-            }
-
-            let data = await response.json();
-
-            while (data.proceed && data.next_step) {
-                if (data.next_step === 'otp') {
-                    spinner.succeed(chalk.green('2FA is enabled'));
-                    const answers2FA = await inquirer.prompt([
-                        {
-                            type: 'input',
-                            name: 'otp',
-                            message: 'Authenticator Code:',
-                            validate: input => input.length === 6 || 'OTP must be 6 digits'
-                        }
-                    ]);
-                    spinner = ora('Logging in to Puter...').start();
-                    const response = await fetch(`${answers.host}/login/otp`, {
-                        method: 'POST',
-                        headers: getHeaders(),
-                        body: JSON.stringify({
-                            token: data.otp_jwt_token,
-                            code: answers2FA.otp,
-                        }),
-                    });
-                    data = await response.json();
-                    continue;
-                }
-
-                if (data.next_step === 'complete') break;
-
-                spinner.fail(chalk.red(`Unrecognized login step "${data.next_step}"; you might need to update puter-cli.`));
-                return;
-            }
-
-            if (data.proceed && data.token) {
-                const profileUUID = crypto.randomUUID();
-                const profile = {
-                    host: answers.host,
-                    username: answers.username,
-                    cwd: `/${answers.username}`,
-                    token: data.token,
-                    uuid: profileUUID,
-                };
-                this.addProfile(profile);
-                this.selectProfile(profile);
-                if (spinner) {
-                    spinner.succeed(chalk.green('Successfully logged in to Puter!'));
-                }
-                console.log(chalk.dim(`Token: ${data.token.slice(0, 5)}...${data.token.slice(-5)}`));
-                // Save token
-                if (args.save) {
-                    const localEnvFile = '.env';
-                    try {
-                        // Check if the file exists, if so then append the api key to the EOF.
-                        if (fs.existsSync(localEnvFile)) {
-                            console.log(chalk.yellow(`File "${localEnvFile}" already exists... Adding token.`));
-                            fs.appendFileSync(localEnvFile, `\nPUTER_API_KEY="${data.token}"`, 'utf8');
-                        } else {
-                            console.log(chalk.cyan(`Saving token to ${chalk.green(localEnvFile)} file.`));
-                            fs.writeFileSync(localEnvFile, `PUTER_API_KEY="${data.token}"`, 'utf8');
-                        }
-                    } catch (error) {
-                        console.error(chalk.red(`Cannot save token to .env file. Error: ${error.message}`));
-                        console.log(chalk.cyan(`PUTER_API_KEY="${data.token}"`));
+            if (data.proceed && data.next_step === 'otp') {
+                // Handle 2FA
+                spinner.stop();
+                const otpAnswer = await inquirer.prompt([
+                    {
+                        type: 'input',
+                        name: 'otp',
+                        message: 'Enter your 2FA code:',
+                        validate: input => input.length >= 1 || '2FA code is required'
                     }
+                ]);
+
+                spinner = ora('Verifying 2FA code...').start();
+                const otpResponse = await fetch(`${apiHost}/login/otp`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        token: data.otp_jwt_token,
+                        code: otpAnswer.otp,
+                    }),
+                });
+
+                const otpData = await otpResponse.json();
+
+                if (otpData.token) {
+                    this.createProfileFromToken(otpData.token, answers.username, host, spinner, save);
+                } else {
+                    spinner.fail(chalk.red('2FA verification failed.'));
                 }
+            } else if (data.token) {
+                this.createProfileFromToken(data.token, answers.username, host, spinner, save);
             } else {
-                spinner.fail(chalk.red('Login failed. Please check your credentials.'));
+                spinner.fail(chalk.red(data.error?.message || 'Login failed. Please check your credentials.'));
             }
         } catch (error) {
             if (spinner) {
                 spinner.fail(chalk.red(`Failed to login: ${error.message}`));
-                console.log(error);
             } else {
                 console.error(chalk.red(`Failed to login: ${error.message}`));
             }
+        }
+    }
+
+    createProfileFromToken(token, username, host, spinner, save) {
+        const profileUUID = crypto.randomUUID();
+        const profile = {
+            host,
+            username,
+            cwd: `/${username}`,
+            token,
+            uuid: profileUUID,
+        };
+
+        this.addProfile(profile);
+        this.selectProfile(profile);
+        spinner.succeed(chalk.green(`Successfully logged in as ${username}!`));
+
+        // Handle --save option
+        this.saveTokenToEnv(token, save);
+    }
+
+    saveTokenToEnv(token, save) {
+        if (!save) return;
+
+        const localEnvFile = '.env';
+        try {
+            if (fs.existsSync(localEnvFile)) {
+                console.log(chalk.yellow(`File "${localEnvFile}" already exists... Adding token.`));
+                fs.appendFileSync(localEnvFile, `\nPUTER_API_KEY="${token}"`, 'utf8');
+            } else {
+                console.log(chalk.cyan(`Saving token to ${chalk.green(localEnvFile)} file.`));
+                fs.writeFileSync(localEnvFile, `PUTER_API_KEY="${token}"`, 'utf8');
+            }
+        } catch (error) {
+            console.error(chalk.red(`Cannot save token to .env file. Error: ${error.message}`));
+            console.log(chalk.cyan(`PUTER_API_KEY="${token}"`));
         }
     }
 }

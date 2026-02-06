@@ -10,6 +10,36 @@ const normalizeNumber = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const normalizeString = (value) => {
+  if (value === undefined || value === null) return '';
+  return String(value).trim();
+};
+
+const normalizeBoolean = (value, fallback = false) => {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'boolean') return value;
+  const normalized = String(value).trim().toLowerCase();
+  if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'n', 'off'].includes(normalized)) return false;
+  return fallback;
+};
+
+const buildDefaults = (options = {}) => {
+  const requestedModel = normalizeString(options.model);
+  return {
+    defaults: {
+      host: options.host || '127.0.0.1',
+      port: normalizeNumber(options.port, 8080),
+      model: requestedModel || process.env.PUTER_AI_MODEL || 'gpt-4.1-nano',
+      system: options.system ?? process.env.PUTER_AI_SYSTEM ?? '',
+      maxTokens: normalizeNumber(options.maxTokens, 2048),
+      temperature: normalizeNumber(options.temperature, 1),
+      testMode: normalizeBoolean(options.testMode, false)
+    },
+    requestedModel
+  };
+};
+
 const estimateTokens = (text) => {
   if (!text) return 0;
   const trimmed = String(text).trim();
@@ -139,14 +169,7 @@ const resolveAvailableModelsRaw = async (puter) => {
 };
 
 export const createAIProxyServer = (options = {}) => {
-  const defaults = {
-    host: options.host || '127.0.0.1',
-    port: normalizeNumber(options.port, 8080),
-    model: options.model || process.env.PUTER_AI_MODEL || 'gpt-5-nano',
-    system: options.system ?? process.env.PUTER_AI_SYSTEM ?? '',
-    maxTokens: normalizeNumber(options.maxTokens, 1024),
-    temperature: normalizeNumber(options.temperature, 1)
-  };
+  const { defaults } = buildDefaults(options);
   const availableModelsRaw = options.availableModelsRaw;
   const availableModelsNormalized = Array.isArray(availableModelsRaw)
     ? normalizeModelIds(availableModelsRaw)
@@ -201,6 +224,7 @@ export const createAIProxyServer = (options = {}) => {
         const temperature = normalizeNumber(body.temperature, defaults.temperature);
         const maxTokens = normalizeNumber(body.max_tokens, defaults.maxTokens);
         const stream = !!body.stream;
+        const testMode = typeof body.testMode === 'boolean' ? body.testMode : defaults.testMode;
 
         try {
           const profileModule = getProfileModule();
@@ -225,7 +249,7 @@ export const createAIProxyServer = (options = {}) => {
             }
           }
 
-          const result = await puter.ai.chat(prompt, {
+          const result = await puter.ai.chat(prompt, testMode, {
             model,
             temperature,
             maxTokens,
@@ -257,17 +281,7 @@ export const createAIProxyServer = (options = {}) => {
 };
 
 export const startAIProxyServer = async (options = {}) => {
-  const requestedModel = typeof options.model === 'string'
-    ? options.model.trim()
-    : (options.model ? String(options.model).trim() : '');
-  const defaults = {
-    host: options.host || '127.0.0.1',
-    port: normalizeNumber(options.port, 8080),
-    model: requestedModel || process.env.PUTER_AI_MODEL || 'gpt-5-nano',
-    system: options.system ?? process.env.PUTER_AI_SYSTEM ?? '',
-    maxTokens: normalizeNumber(options.maxTokens, 1024),
-    temperature: normalizeNumber(options.temperature, 1)
-  };
+  const { defaults, requestedModel } = buildDefaults(options);
   const profileModule = getProfileModule();
   const authToken = profileModule.getAuthToken();
   if (!authToken) {
@@ -311,6 +325,7 @@ export const startAIProxyServer = async (options = {}) => {
   console.log(chalk.dim(`  system: ${systemPreview}`));
   console.log(chalk.dim(`  max_tokens: ${defaults.maxTokens}`));
   console.log(chalk.dim(`  temperature: ${defaults.temperature}`));
+  console.log(chalk.dim(`  testMode: ${defaults.testMode}`));
   console.log(chalk.cyan('Usage'));
   console.log(chalk.dim(`  GET  http://${host}:${port}/v1/models`));
   console.log(chalk.dim(`  POST http://${host}:${port}/v1/chat/completions`));

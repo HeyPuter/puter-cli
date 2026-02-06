@@ -38,7 +38,7 @@ describe('AI proxy server', () => {
   it('serves models list', async () => {
     const puterMock = {
       ai: {
-        listModels: vi.fn().mockResolvedValue(['gpt-5-nano'])
+        listModels: vi.fn().mockResolvedValue(['gpt-4.1-nano'])
       }
     };
     const { port } = await startServer(puterMock);
@@ -46,7 +46,7 @@ describe('AI proxy server', () => {
     const data = await response.json();
     expect(response.status).toBe(200);
     expect(data.object).toBe('list');
-    expect(data.data[0].id).toBe('gpt-5-nano');
+    expect(data.data[0].id).toBe('gpt-4.1-nano');
   });
 
   it('serves root heartbeat', async () => {
@@ -66,7 +66,7 @@ describe('AI proxy server', () => {
     const puterMock = {
       ai: {
         chat: vi.fn().mockResolvedValue('Hello there'),
-        listModels: vi.fn().mockResolvedValue(['gpt-5-nano'])
+        listModels: vi.fn().mockResolvedValue(['gpt-4.1-nano'])
       }
     };
     const { port } = await startServer(puterMock);
@@ -74,7 +74,7 @@ describe('AI proxy server', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-5-nano',
+        model: 'gpt-4.1-nano',
         messages: [{ role: 'user', content: 'Hi' }]
       })
     });
@@ -84,11 +84,12 @@ describe('AI proxy server', () => {
     expect(data.choices[0].message.content).toBe('Hello there');
   });
 
-  it('serves streaming chat completion', async () => {
+  it('passes testMode when provided', async () => {
+    const chat = vi.fn().mockResolvedValue('Hello there');
     const puterMock = {
       ai: {
-        chat: vi.fn().mockResolvedValue('Hello world'),
-        listModels: vi.fn().mockResolvedValue(['gpt-5-nano'])
+        chat,
+        listModels: vi.fn().mockResolvedValue(['gpt-4.1-nano'])
       }
     };
     const { port } = await startServer(puterMock);
@@ -96,7 +97,31 @@ describe('AI proxy server', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-5-nano',
+        testMode: true,
+        messages: [{ role: 'user', content: 'Hi' }]
+      })
+    });
+    const data = await response.json();
+    expect(response.status).toBe(200);
+    expect(data.choices[0].message.content).toBe('Hello there');
+    expect(chat).toHaveBeenCalledWith('USER: Hi', true, expect.objectContaining({
+      model: 'gpt-4.1-nano'
+    }));
+  });
+
+  it('serves streaming chat completion', async () => {
+    const puterMock = {
+      ai: {
+        chat: vi.fn().mockResolvedValue('Hello world'),
+        listModels: vi.fn().mockResolvedValue(['gpt-4.1-nano'])
+      }
+    };
+    const { port } = await startServer(puterMock);
+    const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4.1-nano',
         stream: true,
         messages: [{ role: 'user', content: 'Hi' }]
       })
@@ -111,7 +136,7 @@ describe('AI proxy server', () => {
     const puterMock = {
       ai: {
         chat: vi.fn().mockResolvedValue('Hello world'),
-        listModels: vi.fn().mockResolvedValue(['gpt-5-nano'])
+        listModels: vi.fn().mockResolvedValue(['gpt-4.1-nano'])
       }
     };
     const { port } = await startServer(puterMock);
@@ -132,7 +157,7 @@ describe('AI proxy server', () => {
     vi.mocked(getProfileModule).mockReturnValue({
       getAuthToken: vi.fn(() => 'test-token')
     });
-    const listModels = vi.fn().mockResolvedValue(['gpt-5-nano']);
+    const listModels = vi.fn().mockResolvedValue(['gpt-4.1-nano']);
     vi.mocked(getPuter).mockReturnValue({
       ai: {
         listModels
@@ -149,10 +174,10 @@ describe('AI proxy server', () => {
     });
     vi.mocked(getPuter).mockReturnValue({
       ai: {
-        listModels: vi.fn().mockResolvedValue(['gpt-5-nano'])
+        listModels: vi.fn().mockResolvedValue(['gpt-4.1-nano'])
       }
     });
-    const server = await startAIProxyServer({ model: 'gpt-5-nano', port: 0 });
+    const server = await startAIProxyServer({ model: 'gpt-4.1-nano', port: 0 });
     await server.stop();
   });
 });

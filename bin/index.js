@@ -63,6 +63,7 @@ async function main() {
     .option('--temperature <number>', 'Temperature')
     .option('--host <host>', 'Host', '127.0.0.1')
     .option('--port <number>', 'Port', '8080')
+    .option('--testMode <boolean>, --test-mode <boolean>', 'Test mode', 'false')
     .action(async (options) => {
       await startAIProxyServer(options);
     });

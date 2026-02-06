@@ -38,8 +38,12 @@ lerna-debug.log*
 .windsurf
 .windsurfrules
 .kilocode/
+.trae/
 
 # agents
 AGENTS.md
 GEMINI.md
 QWEN.md
+
+# docs
+docs/

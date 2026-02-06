@@ -10,6 +10,7 @@ import inquirer from 'inquirer';
 import { initProfileModule } from '../src/modules/ProfileModule.js';
 import { initPuterModule } from '../src/modules/PuterModule.js';
 import { createSite, infoSite, listSites, deleteSite } from '../src/commands/sites.js';
+import { startAIProxyServer } from '../src/commands/ai.js';
 
 async function main() {
   initProfileModule();
@@ -52,6 +53,19 @@ async function main() {
     .command('shell')
     .description('Start interactive shell')
     .action(() => startShell());
+
+  program
+    .command('ai')
+    .description('Start AI proxy server')
+    .option('--model <id>', 'AI model')
+    .option('--system <prompt>', 'System prompt')
+    .option('--max-tokens <number>', 'Max tokens')
+    .option('--temperature <number>', 'Temperature')
+    .option('--host <host>', 'Host', '127.0.0.1')
+    .option('--port <number>', 'Port', '8080')
+    .action(async (options) => {
+      await startAIProxyServer(options);
+    });
 
 
   // App commands

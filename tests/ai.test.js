@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createAIProxyServer } from '../src/commands/ai.js';
+import { createAIProxyServer, startAIProxyServer } from '../src/commands/ai.js';
 import { getPuter } from '../src/modules/PuterModule.js';
 import { getProfileModule } from '../src/modules/ProfileModule.js';
 
@@ -65,7 +65,8 @@ describe('AI proxy server', () => {
   it('serves non-streaming chat completion', async () => {
     const puterMock = {
       ai: {
-        chat: vi.fn().mockResolvedValue('Hello there')
+        chat: vi.fn().mockResolvedValue('Hello there'),
+        listModels: vi.fn().mockResolvedValue(['gpt-5-nano'])
       }
     };
     const { port } = await startServer(puterMock);
@@ -86,7 +87,8 @@ describe('AI proxy server', () => {
   it('serves streaming chat completion', async () => {
     const puterMock = {
       ai: {
-        chat: vi.fn().mockResolvedValue('Hello world')
+        chat: vi.fn().mockResolvedValue('Hello world'),
+        listModels: vi.fn().mockResolvedValue(['gpt-5-nano'])
       }
     };
     const { port } = await startServer(puterMock);
@@ -103,5 +105,54 @@ describe('AI proxy server', () => {
     expect(response.status).toBe(200);
     expect(text).toContain('data: ');
     expect(text).toContain('[DONE]');
+  });
+
+  it('rejects unknown model', async () => {
+    const puterMock = {
+      ai: {
+        chat: vi.fn().mockResolvedValue('Hello world'),
+        listModels: vi.fn().mockResolvedValue(['gpt-5-nano'])
+      }
+    };
+    const { port } = await startServer(puterMock);
+    const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'missing-model',
+        messages: [{ role: 'user', content: 'Hi' }]
+      })
+    });
+    const data = await response.json();
+    expect(response.status).toBe(400);
+    expect(data.error.message).toContain('Unknown model');
+  });
+
+  it('rejects unknown model before startup', async () => {
+    vi.mocked(getProfileModule).mockReturnValue({
+      getAuthToken: vi.fn(() => 'test-token')
+    });
+    const listModels = vi.fn().mockResolvedValue(['gpt-5-nano']);
+    vi.mocked(getPuter).mockReturnValue({
+      ai: {
+        listModels
+      }
+    });
+    const server = await startAIProxyServer({ model: 'missing-model', port: 0 });
+    expect(server).toBeNull();
+    expect(listModels).toHaveBeenCalled();
+  });
+
+  it('starts server when model exists', async () => {
+    vi.mocked(getProfileModule).mockReturnValue({
+      getAuthToken: vi.fn(() => 'test-token')
+    });
+    vi.mocked(getPuter).mockReturnValue({
+      ai: {
+        listModels: vi.fn().mockResolvedValue(['gpt-5-nano'])
+      }
+    });
+    const server = await startAIProxyServer({ model: 'gpt-5-nano', port: 0 });
+    await server.stop();
   });
 });

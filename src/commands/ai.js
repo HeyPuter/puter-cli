@@ -123,6 +123,21 @@ const buildModelListResponse = (models, fallbackModel) => {
   return { object: 'list', data };
 };
 
+const normalizeModelIds = (models) => {
+  if (!Array.isArray(models)) return [];
+  return models.map((model) => {
+    if (typeof model === 'string') return model;
+    if (model && model.id) return model.id;
+    return null;
+  }).filter(Boolean);
+};
+
+const resolveAvailableModelsRaw = async (puter) => {
+  if (!puter.ai || typeof puter.ai.listModels !== 'function') return [];
+  const models = await puter.ai.listModels();
+  return Array.isArray(models) ? models : [];
+};
+
 export const createAIProxyServer = (options = {}) => {
   const defaults = {
     host: options.host || '127.0.0.1',
@@ -132,11 +147,18 @@ export const createAIProxyServer = (options = {}) => {
     maxTokens: normalizeNumber(options.maxTokens, 1024),
     temperature: normalizeNumber(options.temperature, 1)
   };
+  const availableModelsRaw = options.availableModelsRaw;
+  const availableModelsNormalized = Array.isArray(availableModelsRaw)
+    ? normalizeModelIds(availableModelsRaw)
+    : null;
 
   const modelsHandler = async ({ res }) => {
     try {
+      if (Array.isArray(availableModelsRaw)) {
+        return sendJson(res, 200, buildModelListResponse(availableModelsRaw, defaults.model));
+      }
       const puter = getPuter();
-      const models = typeof puter.ai?.listModels === 'function' ? await puter.ai.listModels() : [];
+      const models = await resolveAvailableModelsRaw(puter);
       return sendJson(res, 200, buildModelListResponse(models, defaults.model));
     } catch (error) {
       return sendJson(res, 500, { error: { message: error.message || 'Failed to list models' } });
@@ -148,7 +170,7 @@ export const createAIProxyServer = (options = {}) => {
       method: 'GET',
       path: '/',
       handler: async ({ res }) => {
-        return sendJson(res, 200, { status: 'ok', message: 'Puter AI proxy running on /v1' });
+        return sendJson(res, 200, { status: 'ok', message: 'Puter AI running on /v1' });
       }
     },
     {
@@ -192,6 +214,17 @@ export const createAIProxyServer = (options = {}) => {
             return sendJson(res, 500, { error: { message: 'AI service not available', type: 'service_unavailable' } });
           }
 
+          if (availableModelsNormalized) {
+            if (availableModelsNormalized.length > 0 && !availableModelsNormalized.includes(model)) {
+              return sendJson(res, 400, { error: { message: `Unknown model: ${model}`, type: 'invalid_request_error' } });
+            }
+          } else if (typeof puter.ai.listModels === 'function') {
+            const availableModels = normalizeModelIds(await puter.ai.listModels());
+            if (availableModels.length > 0 && !availableModels.includes(model)) {
+              return sendJson(res, 400, { error: { message: `Unknown model: ${model}`, type: 'invalid_request_error' } });
+            }
+          }
+
           const result = await puter.ai.chat(prompt, {
             model,
             temperature,
@@ -224,15 +257,48 @@ export const createAIProxyServer = (options = {}) => {
 };
 
 export const startAIProxyServer = async (options = {}) => {
+  const requestedModel = typeof options.model === 'string'
+    ? options.model.trim()
+    : (options.model ? String(options.model).trim() : '');
   const defaults = {
     host: options.host || '127.0.0.1',
     port: normalizeNumber(options.port, 8080),
-    model: options.model || process.env.PUTER_AI_MODEL || 'gpt-5-nano',
+    model: requestedModel || process.env.PUTER_AI_MODEL || 'gpt-5-nano',
     system: options.system ?? process.env.PUTER_AI_SYSTEM ?? '',
     maxTokens: normalizeNumber(options.maxTokens, 1024),
     temperature: normalizeNumber(options.temperature, 1)
   };
-  const server = createAIProxyServer(defaults);
+  const profileModule = getProfileModule();
+  const authToken = profileModule.getAuthToken();
+  if (!authToken) {
+    throw new Error('Not authenticated. Run: puter login');
+  }
+
+  const puter = getPuter();
+  const availableModelsRaw = await resolveAvailableModelsRaw(puter);
+  const availableModels = normalizeModelIds(availableModelsRaw);
+  if (requestedModel && availableModels.length > 0 && !availableModels.includes(requestedModel)) {
+    console.error(chalk.red(`Unknown model: ${requestedModel}`));
+    const normalizedQuery = requestedModel.toLowerCase();
+    const tokens = normalizedQuery.split(/[-_/]/).filter(Boolean);
+    const primaryToken = tokens[0];
+    const prefix = normalizedQuery.slice(0, 3);
+    const suggestedModels = Array.from(new Set(availableModels.filter((model) => {
+      const lower = model.toLowerCase();
+      if (primaryToken && lower.includes(primaryToken)) return true;
+      if (!primaryToken && normalizedQuery.length > 3 && lower.includes(prefix)) return true;
+      return false;
+    })));
+    if (suggestedModels.length > 0) {
+      console.log(chalk.cyan('Try one of the following:'));
+      for (const suggestedModel of suggestedModels) {
+        console.log(chalk.dim(`  ${suggestedModel}`));
+      }
+    }
+    return null;
+  }
+
+  const server = createAIProxyServer({ ...defaults, availableModelsRaw });
   const { host, port } = await server.start();
   const trimmedSystem = String(defaults.system || '').trim();
   const systemPreview = trimmedSystem

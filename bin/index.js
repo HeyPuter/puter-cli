@@ -64,6 +64,13 @@ async function main() {
     .option('--host <host>', 'Host', '127.0.0.1')
     .option('--port <number>', 'Port', '8080')
     .option('--testMode <boolean>, --test-mode <boolean>', 'Test mode', 'false')
+    .addHelpText('after', `
+Usage:
+  puter ai
+
+Streaming example:
+  curl -X POST http://127.0.0.1:8080/v1/chat/completions -H "content-type: application/json" -d '{"messages":[{"role":"user","content":"Hello"}],"stream":true}'
+`)
     .action(async (options) => {
       await startAIProxyServer(options);
     });

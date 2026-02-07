@@ -330,5 +330,6 @@ export const startAIProxyServer = async (options = {}) => {
   console.log(chalk.dim(`  GET  http://${host}:${port}/v1/models`));
   console.log(chalk.dim(`  POST http://${host}:${port}/v1/chat/completions`));
   console.log(chalk.dim(`  curl -X POST http://${host}:${port}/v1/chat/completions -H "content-type: application/json" -d '{"messages":[{"role":"user","content":"Hello"}]}'`));
+  console.log(chalk.dim(`  curl -X POST http://${host}:${port}/v1/chat/completions -H "content-type: application/json" -d '{"messages":[{"role":"user","content":"Hello"}],"stream":true}'`));
   return server;
 };

@@ -388,5 +388,8 @@ For issues or questions, please open an issue on [GitHub](https://github.com/Hey
 
 ---
 
+## Star History
+
+[![Star History Chart](https://star-history.dera.page/svg?repos=HeyPuter/puter-cli&type=date&legend=top-left)](https://star-history.dera.page/#HeyPuter/puter-cli&type=date&legend=top-left)
 
 Happy deploying with **Puter CLI**! 🚀

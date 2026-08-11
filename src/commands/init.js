@@ -4,6 +4,7 @@ import ora from 'ora';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { generateAppName, getDefaultHomePage } from '../commons.js';
+import { getProfileModule } from '../modules/ProfileModule.js';
 
 const JS_BUNDLERS = ['Vite', 'Webpack', 'Parcel', 'esbuild', 'Farm'];
 const FULLSTACK_FRAMEWORKS = ['Next', 'Nuxt', 'SvelteKit', 'Astro'];
@@ -11,6 +12,9 @@ const JS_LIBRARIES = ['React', 'Vue', 'Angular', 'Svelte', 'jQuery'];
 const CSS_LIBRARIES = ['Bootstrap', 'Bulma', 'shadcn', 'Tailwind', 'Material-UI', 'Semantic UI', 'AntDesign', 'Element-Plus', 'PostCSS', 'AutoPrefixer'];
 
 export async function init() {
+  const profileModule = getProfileModule();
+  await profileModule.checkLogin();
+
   const answers = await inquirer.prompt([
     {
       type: 'input',

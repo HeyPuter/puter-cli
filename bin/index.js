@@ -7,13 +7,15 @@ import { startShell } from '../src/commands/shell.js';
 import { PROJECT_NAME, getLatestVersion } from '../src/commons.js';
 import { appInfo, createApp, listApps, deleteApp, updateApp } from '../src/commands/apps.js';
 import inquirer from 'inquirer';
-import { initProfileModule } from '../src/modules/ProfileModule.js';
+import { initProfileModule, getProfileModule } from '../src/modules/ProfileModule.js';
 import { initPuterModule } from '../src/modules/PuterModule.js';
 import { createSite, infoSite, listSites, deleteSite } from '../src/commands/sites.js';
 
 async function main() {
   initProfileModule();
   initPuterModule();
+
+  const profileModule = getProfileModule();
 
   const version = await getLatestVersion(PROJECT_NAME);
 
@@ -60,6 +62,7 @@ async function main() {
     .description('List all your apps')
     .argument('[period]', 'period: today, yesterday, 7d, 30d, this_month, last_month')
     .action(async (period) => {
+      await profileModule.checkLogin();
       await listApps({
         statsPeriod: period || 'all'
       });
@@ -75,6 +78,7 @@ async function main() {
     .description('Get application information')
     .argument('<app_name>', 'Name of the application')
     .action(async (app_name) => {
+      await profileModule.checkLogin();
       await appInfo([app_name]);
       process.exit(0);
     });
@@ -86,6 +90,7 @@ async function main() {
     .argument('<remote_dir>', 'Remote directory URL')
     .action(async (name, remote_dir) => {
       try {
+        await profileModule.checkLogin();
         await createApp({
           name: name,
           directory: remote_dir || '',
@@ -104,6 +109,7 @@ async function main() {
     .argument('<name>', 'Name of the application')
     .argument('[dir]', 'Directory path', '.')
     .action(async (name, dir) => {
+      await profileModule.checkLogin();
       await updateApp([name, dir]);
       process.exit(0);
     });
@@ -114,6 +120,7 @@ async function main() {
     .argument('<name>', 'Name of the application')
     .option('-f, --force', 'Force deletion without confirmation')
     .action(async (name, options) => {
+      await profileModule.checkLogin();
       let shouldDelete = options.force;
 
       if (!shouldDelete) {
@@ -140,6 +147,7 @@ async function main() {
     .command('sites')
     .description('List sites and subdomains')
     .action(async () => {
+      await profileModule.checkLogin();
       await listSites();
       process.exit(0);
     });
@@ -153,6 +161,7 @@ async function main() {
     .description('Get site information by UID')
     .argument('<site_uid>', 'Site UID')
     .action(async (site_uid) => {
+      await profileModule.checkLogin();
       await infoSite([site_uid]);
       process.exit(0);
     });
@@ -164,6 +173,7 @@ async function main() {
     .argument('[dir]', 'Directory path')
     .option('--subdomain <name>', 'Subdomain name')
     .action(async (app_name, dir, options) => {
+      await profileModule.checkLogin();
       const args = [app_name];
       if (dir) args.push(dir);
       if (options.subdomain) args.push(`--subdomain=${options.subdomain}`)
@@ -178,6 +188,7 @@ async function main() {
     .argument('[local_dir]', 'Local directory path')
     .argument('[subdomain]', 'Deployment subdomain (<subdomain>.puter.site)')
     .action(async (local_dir, subdomain) => {
+      await profileModule.checkLogin();
       if (!local_dir) {
         const answer = await inquirer.prompt([
           {
@@ -211,6 +222,7 @@ async function main() {
     .argument('<uid>', 'Site UID')
     .option('-f, --force', 'Force deletion without confirmation')
     .action(async (uid, options) => {
+      await profileModule.checkLogin();
       let shouldDelete = options.force;
 
       if (!shouldDelete) {

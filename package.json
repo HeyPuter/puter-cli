@@ -1,6 +1,6 @@
 {
   "name": "@heyputer/shell",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "SSH-style shell access to your Puter files",
   "main": "index.js",
   "bin": {

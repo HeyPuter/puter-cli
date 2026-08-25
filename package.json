@@ -1,7 +1,7 @@
 {
-  "name": "puter-shell",
+  "name": "@heyputer/shell",
   "version": "2.1.0",
-  "description": "Command line interface for Puter cloud platform",
+  "description": "SSH-style shell access to your Puter files",
   "main": "index.js",
   "bin": {
     "puter-sh": "./bin/index.js",
@@ -21,7 +21,7 @@
   },
   "keywords": [
     "puter",
-    "cli",
+    "shell",
     "cloud"
   ],
   "author": "Ibrahim.H",

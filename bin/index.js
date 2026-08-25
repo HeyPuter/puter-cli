@@ -11,6 +11,14 @@ import { initProfileModule, getProfileModule } from '../src/modules/ProfileModul
 import { initPuterModule } from '../src/modules/PuterModule.js';
 import { createSite, infoSite, listSites, deleteSite } from '../src/commands/sites.js';
 
+if (process.stderr.isTTY) {
+  process.stderr.write(
+    '\n⚠  puter-cli has been renamed to @heyputer/shell.\n' +
+    '   npm uninstall -g puter-cli && npm install -g @heyputer/shell\n\n'
+  );
+}
+
+
 async function main() {
   initProfileModule();
   initPuterModule();

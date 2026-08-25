@@ -1,10 +1,10 @@
 {
   "name": "puter-cli",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Command line interface for Puter cloud platform",
   "main": "index.js",
   "bin": {
-    "puter": "./bin/index.js"
+    "puter-sh": "./bin/index.js"
   },
   "preferGlobal": true,
   "type": "module",

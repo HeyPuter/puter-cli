@@ -17,9 +17,7 @@ vi.mock('conf', () => {
 });
 
 vi.mock('../src/commons.js', () => ({
-  BASE_URL: 'https://puter.com',
   HOME: '~',
-  NULL_UUID: '00000000-0000-0000-0000-000000000000',
   PROJECT_NAME: 'puter-sh',
   getHeaders: vi.fn(() => ({ 'Content-Type': 'application/json' })),
   reconfigureURLs: vi.fn(),
@@ -220,33 +218,6 @@ describe('ProfileModule.getAuthToken', () => {
     const token = profileModule.getAuthToken();
 
     expect(token).toBeUndefined();
-  });
-});
-
-describe('ProfileModule.migrateLegacyConfig', () => {
-  it('should migrate legacy config to profile format', () => {
-    mockConfig.get.mockImplementation((key) => {
-      if (key === 'auth_token') return 'legacy-token';
-      if (key === 'username') return 'legacyuser';
-      if (key === 'profiles') return [];
-      return undefined;
-    });
-
-    initProfileModule();
-    const profileModule = getProfileModule();
-    profileModule.migrateLegacyConfig();
-
-    expect(mockConfig.set).toHaveBeenCalledWith('profiles', [
-      {
-        host: 'https://puter.com',
-        username: 'legacyuser',
-        cwd: '/legacyuser',
-        token: 'legacy-token',
-        uuid: '00000000-0000-0000-0000-000000000000',
-      },
-    ]);
-    expect(mockConfig.delete).toHaveBeenCalledWith('auth_token');
-    expect(mockConfig.delete).toHaveBeenCalledWith('username');
   });
 });
 

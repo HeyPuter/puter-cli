@@ -32,10 +32,6 @@ describe('constants', () => {
     expect(commons.PROJECT_NAME).toBe('puter-sh');
   });
 
-  it('should export NULL_UUID', () => {
-    expect(commons.NULL_UUID).toBe('00000000-0000-0000-0000-000000000000');
-  });
-
   it('should have default API_BASE', () => {
     expect(commons.API_BASE).toBeDefined();
   });

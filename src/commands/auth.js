@@ -29,23 +29,10 @@ export async function logout() {
   let spinner;
   try {
     spinner = ora('Logging out from Puter...').start();
-    const token = config.get('auth_token');
     const selected_profile = config.get('selected_profile');
 
-    if (token) {
-      // legacy auth
-      config.clear();
-      spinner.succeed(chalk.green('Successfully logged out from Puter!'));
-    } else if (selected_profile) {
-      // multi profile auth
+    if (selected_profile) {
       config.delete('selected_profile');
-      // Superseded top-level copies; the profile owns these now.
-      config.delete('username');
-      config.delete('cwd');
-      // Dead keys from an older layout that nothing reads any more, but which
-      // still hold a token. Logging out must not leave credentials behind.
-      config.delete('accounts');
-      config.delete('active');
 
       const profiles = config.get('profiles');
       config.set('profiles', profiles.filter(profile => profile.uuid != selected_profile));
@@ -91,10 +78,6 @@ export async function getUserInfo() {
   }
 }
 export function isAuthenticated() {
-  // Legacy flat token...
-  if (config.get('auth_token')) return true;
-  // ...or a selected profile that still carries one. `migrateLegacyConfig`
-  // deletes `auth_token`, so checking it alone reports false when logged in.
   const uuid = config.get('selected_profile');
   if (!uuid) return false;
   const profiles = config.get('profiles') ?? [];

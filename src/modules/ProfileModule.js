@@ -7,7 +7,7 @@ import {getAuthToken} from "@heyputer/puter.js/src/init.cjs";
 import { puter } from "@heyputer/puter.js";
 
 // project
-import { BASE_URL, HOME, NULL_UUID, PROJECT_NAME, getHeaders, reconfigureURLs, setHomePath, expandHome } from '../commons.js'
+import { HOME, PROJECT_NAME, getHeaders, reconfigureURLs, setHomePath } from '../commons.js'
 
 // builtin
 import fs from 'node:fs';
@@ -41,9 +41,6 @@ function toApiSubdomain(inputUrl) {
 
 class ProfileModule {
     async checkLogin() {
-        if (config.get('auth_token')) {
-            this.migrateLegacyConfig();
-        }
         if (!config.get('selected_profile')) {
             console.log(chalk.cyan('Please login first (or use CTRL+C to exit):'));
             await this.switchProfileWizard();
@@ -51,7 +48,6 @@ class ProfileModule {
             initPuterModule();
         }
         this.applyProfileToGlobals();
-        this.migrateConfig();
 
         if (await this.refreshIdentity() === SESSION_INVALID) {
             console.log(chalk.yellow('Your session has expired or its token is no longer valid.'));
@@ -75,38 +71,6 @@ class ProfileModule {
         config.delete('cwd');
     }
 
-    /**
-     * Bring an on-disk config written by an older version up to date.
-     */
-    migrateConfig() {
-        const profile = this.getCurrentProfile();
-
-        // `username` and `cwd` used to be duplicated at the top level. The
-        // selected profile owns both now, so adopt any stored cwd and drop them.
-        const rootCwd = config.get('cwd');
-        if (profile) {
-            const cwd = profile.cwd || rootCwd;
-            // "~" was briefly stored; resolve it now that the home path is known.
-            const concrete = expandHome(cwd || HOME);
-            if (concrete !== profile.cwd) {
-                this.updateProfile(profile.uuid, { cwd: concrete });
-            }
-        }
-        config.delete('cwd');
-        config.delete('username');
-
-        // Dead keys from a superseded layout. They still carry a token, so
-        // leaving them behind means `logout` cannot fully clear credentials.
-        config.delete('accounts');
-        config.delete('active');
-
-        // `user_uuid` was briefly stored alongside a locally-generated id. The
-        // profile is now keyed by the server's user id, so it is redundant.
-        const profiles = this.getProfiles();
-        if (profiles.some(p => 'user_uuid' in p)) {
-            config.set('profiles', profiles.map(({ user_uuid, ...rest }) => rest));
-        }
-    }
 
     /**
      * Re-read the identity from the server using the current token.
@@ -129,10 +93,6 @@ class ProfileModule {
                 this.rehomePaths(profile.username, userInfo.username);
                 this.updateProfile(profile.uuid, { username: userInfo.username });
             }
-            // Older versions keyed profiles by a locally-generated id; adopt the
-            // server's user id so the profile is identified the same way the
-            // account is.
-            this.rekeyProfile(profile.uuid, userInfo.uuid);
             setHomePath(`/${userInfo.username}`);
             return SESSION_OK;
         } catch (error) {
@@ -146,33 +106,6 @@ class ProfileModule {
         }
     }
 
-    /**
-     * Re-key a profile onto the server's user id.
-     *
-     * Profiles used to be keyed by a locally-generated uuid that meant nothing
-     * to the server. The account's own id is the natural key, so adopt it and
-     * move the selection with it. Any duplicate entry for the same account
-     * collapses into one.
-     *
-     * @param {string} currentId - The profile's existing id
-     * @param {string} userId - The account's server-side uuid
-     */
-    rekeyProfile(currentId, userId) {
-        if (!userId || currentId === userId) return;
-
-        const profiles = this.getProfiles();
-        const target = profiles.find(p => p.uuid === currentId);
-        if (!target) return;
-
-        config.set('profiles', [
-            ...profiles.filter(p => p.uuid !== currentId && p.uuid !== userId),
-            { ...target, uuid: userId },
-        ]);
-
-        if (config.get('selected_profile') === currentId) {
-            config.set('selected_profile', userId);
-        }
-    }
 
     /**
      * Ask the server who a token belongs to.
@@ -215,21 +148,6 @@ class ProfileModule {
             p.uuid === profileId ? { ...p, ...patch } : p
         ));
         config.set('profiles', profiles);
-    }
-    migrateLegacyConfig() {
-        const auth_token = config.get('auth_token');
-        const username = config.get('username');
-
-        this.addProfile({
-            host: BASE_URL,
-            username,
-            cwd: `/${username}`,
-            token: auth_token,
-            uuid: NULL_UUID,
-        });
-
-        config.delete('auth_token');
-        config.delete('username');
     }
     getProfiles() {
         const profiles = config.get('profiles') ?? [];

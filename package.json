@@ -1,10 +1,11 @@
 {
-  "name": "puter-cli",
-  "version": "2.0.0",
+  "name": "puter-shell",
+  "version": "2.1.0",
   "description": "Command line interface for Puter cloud platform",
   "main": "index.js",
   "bin": {
-    "puter": "./bin/index.js"
+    "puter-sh": "./bin/index.js",
+    "psh": "./bin/index.js"
   },
   "preferGlobal": true,
   "type": "module",
@@ -48,10 +49,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/HeyPuter/puter-cli.git"
+    "url": "git+https://github.com/HeyPuter/puter-sh.git"
   },
   "bugs": {
-    "url": "https://github.com/HeyPuter/puter-cli/issues"
+    "url": "https://github.com/HeyPuter/puter-sh/issues"
   },
-  "homepage": "https://github.com/HeyPuter/puter-cli"
+  "homepage": "https://github.com/HeyPuter/puter-sh"
 }

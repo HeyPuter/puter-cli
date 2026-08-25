@@ -18,10 +18,13 @@ vi.mock('conf', () => {
 
 vi.mock('../src/commons.js', () => ({
   BASE_URL: 'https://puter.com',
+  HOME: '~',
   NULL_UUID: '00000000-0000-0000-0000-000000000000',
-  PROJECT_NAME: 'puter-cli',
+  PROJECT_NAME: 'puter-sh',
   getHeaders: vi.fn(() => ({ 'Content-Type': 'application/json' })),
   reconfigureURLs: vi.fn(),
+  setHomePath: vi.fn(),
+  expandHome: vi.fn((p) => p),
 }));
 
 vi.mock('./PuterModule.js', () => ({
@@ -137,8 +140,12 @@ describe('ProfileModule.selectProfile', () => {
     profileModule.selectProfile(profile);
 
     expect(mockConfig.set).toHaveBeenCalledWith('selected_profile', 'test-uuid');
-    expect(mockConfig.set).toHaveBeenCalledWith('username', 'testuser');
-    expect(mockConfig.set).toHaveBeenCalledWith('cwd', '/testuser');
+    // username and cwd live on the profile now, not at the top level.
+    expect(mockConfig.set).not.toHaveBeenCalledWith('username', expect.anything());
+    expect(mockConfig.set).not.toHaveBeenCalledWith('cwd', expect.anything());
+    expect(mockConfig.set).toHaveBeenCalledWith('profiles', [
+      expect.objectContaining({ uuid: 'test-uuid', cwd: '/testuser' }),
+    ]);
   });
 });
 
@@ -216,36 +223,6 @@ describe('ProfileModule.getAuthToken', () => {
   });
 });
 
-describe('ProfileModule.getDefaultProfile', () => {
-  it('should return default profile if auth_token exists', () => {
-    mockConfig.get.mockImplementation((key) => {
-      if (key === 'auth_token') return 'legacy-token';
-      if (key === 'username') return 'legacyuser';
-      return undefined;
-    });
-
-    initProfileModule();
-    const profileModule = getProfileModule();
-    const defaultProfile = profileModule.getDefaultProfile();
-
-    expect(defaultProfile).toEqual({
-      host: 'puter.com',
-      username: 'legacyuser',
-      token: 'legacy-token',
-    });
-  });
-
-  it('should return undefined if no auth_token exists', () => {
-    mockConfig.get.mockReturnValue(undefined);
-
-    initProfileModule();
-    const profileModule = getProfileModule();
-    const defaultProfile = profileModule.getDefaultProfile();
-
-    expect(defaultProfile).toBeUndefined();
-  });
-});
-
 describe('ProfileModule.migrateLegacyConfig', () => {
   it('should migrate legacy config to profile format', () => {
     mockConfig.get.mockImplementation((key) => {
@@ -270,5 +247,71 @@ describe('ProfileModule.migrateLegacyConfig', () => {
     ]);
     expect(mockConfig.delete).toHaveBeenCalledWith('auth_token');
     expect(mockConfig.delete).toHaveBeenCalledWith('username');
+  });
+});
+
+describe('ProfileModule.rehomePaths', () => {
+  const setup = (cwd, profile) => {
+    const stored = { ...profile, cwd };
+    mockConfig.get.mockImplementation((key) => {
+      if (key === 'profiles') return [stored];
+      if (key === 'selected_profile') return stored.uuid;
+      return undefined;
+    });
+    initProfileModule();
+    return getProfileModule();
+  };
+
+  it('should re-point the cwd at the new home after a rename', () => {
+    const profile = { uuid: 'p1', username: 'oldname', cwd: '/oldname', host: 'https://puter.com' };
+    const profileModule = setup('/oldname/Desktop/notes', profile);
+
+    profileModule.rehomePaths('oldname', 'newname');
+
+    expect(mockConfig.set).toHaveBeenCalledWith('profiles', [
+      expect.objectContaining({ cwd: '/newname/Desktop/notes' }),
+    ]);
+  });
+
+  it('should re-point a cwd sitting exactly at the old home', () => {
+    const profile = { uuid: 'p1', username: 'oldname', cwd: '/oldname', host: 'https://puter.com' };
+    const profileModule = setup('/oldname', profile);
+
+    profileModule.rehomePaths('oldname', 'newname');
+
+    expect(mockConfig.set).toHaveBeenCalledWith('profiles', [
+      expect.objectContaining({ cwd: '/newname' }),
+    ]);
+  });
+
+  it('should leave a cwd under another user\'s tree alone', () => {
+    const profile = { uuid: 'p1', username: 'oldname', cwd: '/oldname', host: 'https://puter.com' };
+    const profileModule = setup('/someoneelse/public', profile);
+
+    profileModule.rehomePaths('oldname', 'newname');
+
+    expect(mockConfig.set).toHaveBeenCalledWith('profiles', [
+      expect.objectContaining({ cwd: '/someoneelse/public' }),
+    ]);
+  });
+
+  it('should not rewrite a prefix that only partially matches', () => {
+    const profile = { uuid: 'p1', username: 'bob', cwd: '/bob', host: 'https://puter.com' };
+    const profileModule = setup('/bobby/files', profile);
+
+    profileModule.rehomePaths('bob', 'robert');
+
+    expect(mockConfig.set).toHaveBeenCalledWith('profiles', [
+      expect.objectContaining({ cwd: '/bobby/files' }),
+    ]);
+  });
+
+  it('should do nothing when the username is unchanged', () => {
+    const profile = { uuid: 'p1', username: 'bob', cwd: '/bob', host: 'https://puter.com' };
+    const profileModule = setup('/bob/files', profile);
+
+    profileModule.rehomePaths('bob', 'bob');
+
+    expect(mockConfig.set).not.toHaveBeenCalled();
   });
 });

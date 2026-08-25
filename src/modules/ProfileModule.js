@@ -7,15 +7,20 @@ import {getAuthToken} from "@heyputer/puter.js/src/init.cjs";
 import { puter } from "@heyputer/puter.js";
 
 // project
-import { BASE_URL, NULL_UUID, PROJECT_NAME, getHeaders, reconfigureURLs } from '../commons.js'
+import { BASE_URL, HOME, NULL_UUID, PROJECT_NAME, getHeaders, reconfigureURLs, setHomePath, expandHome } from '../commons.js'
 
 // builtin
 import fs from 'node:fs';
-import crypto from 'node:crypto';
 import { initPuterModule } from './PuterModule.js';
+import { isAuthError } from './ErrorModule.js';
 
 // initializations
 const config = new Conf({ projectName: PROJECT_NAME });
+
+// Outcomes of a session check against the server.
+const SESSION_OK = 'ok';            // token works; identity refreshed
+const SESSION_INVALID = 'invalid';  // token rejected; the user must log in again
+const SESSION_UNKNOWN = 'unknown';  // unreachable or unexpected reply; assume usable
 
 let profileModule;
 
@@ -46,6 +51,170 @@ class ProfileModule {
             initPuterModule();
         }
         this.applyProfileToGlobals();
+        this.migrateConfig();
+
+        if (await this.refreshIdentity() === SESSION_INVALID) {
+            console.log(chalk.yellow('Your session has expired or its token is no longer valid.'));
+            console.log(chalk.cyan('Please log in again (or use CTRL+C to exit):'));
+            this.dropCurrentProfile();
+            await this.switchProfileWizard();
+            initPuterModule();
+            this.applyProfileToGlobals();
+        }
+    }
+
+    /**
+     * Forget the selected profile, whose token the server has rejected. Keeping
+     * a dead token around only makes the next command fail the same way.
+     */
+    dropCurrentProfile() {
+        const selected = config.get('selected_profile');
+        config.set('profiles', this.getProfiles().filter(p => p.uuid !== selected));
+        config.delete('selected_profile');
+        config.delete('username');
+        config.delete('cwd');
+    }
+
+    /**
+     * Bring an on-disk config written by an older version up to date.
+     */
+    migrateConfig() {
+        const profile = this.getCurrentProfile();
+
+        // `username` and `cwd` used to be duplicated at the top level. The
+        // selected profile owns both now, so adopt any stored cwd and drop them.
+        const rootCwd = config.get('cwd');
+        if (profile) {
+            const cwd = profile.cwd || rootCwd;
+            // "~" was briefly stored; resolve it now that the home path is known.
+            const concrete = expandHome(cwd || HOME);
+            if (concrete !== profile.cwd) {
+                this.updateProfile(profile.uuid, { cwd: concrete });
+            }
+        }
+        config.delete('cwd');
+        config.delete('username');
+
+        // Dead keys from a superseded layout. They still carry a token, so
+        // leaving them behind means `logout` cannot fully clear credentials.
+        config.delete('accounts');
+        config.delete('active');
+
+        // `user_uuid` was briefly stored alongside a locally-generated id. The
+        // profile is now keyed by the server's user id, so it is redundant.
+        const profiles = this.getProfiles();
+        if (profiles.some(p => 'user_uuid' in p)) {
+            config.set('profiles', profiles.map(({ user_uuid, ...rest }) => rest));
+        }
+    }
+
+    /**
+     * Re-read the identity from the server using the current token.
+     *
+     * A username is a mutable display label that the user can change at any
+     * time; the token is the identity. Nothing may depend on the cached username
+     * beyond display, and the cache is refreshed here on every run so it never
+     * silently drifts.
+     */
+    async refreshIdentity() {
+        const profile = this.getCurrentProfile();
+        if (!profile?.token) return SESSION_INVALID;
+
+        try {
+            puter.setAuthToken(profile.token);
+            const userInfo = await puter.auth.getUser();
+            if (!userInfo?.username) return SESSION_UNKNOWN;
+
+            if (userInfo.username !== profile.username) {
+                this.rehomePaths(profile.username, userInfo.username);
+                this.updateProfile(profile.uuid, { username: userInfo.username });
+            }
+            // Older versions keyed profiles by a locally-generated id; adopt the
+            // server's user id so the profile is identified the same way the
+            // account is.
+            this.rekeyProfile(profile.uuid, userInfo.uuid);
+            setHomePath(`/${userInfo.username}`);
+            return SESSION_OK;
+        } catch (error) {
+            // A rejected token will not start working again, so say so and let
+            // the caller re-authenticate.
+            if (isAuthError(error)) return SESSION_INVALID;
+
+            // Offline or a transient API failure. Keep the cached label and
+            // carry on rather than forcing a login the user cannot complete.
+            return SESSION_UNKNOWN;
+        }
+    }
+
+    /**
+     * Re-key a profile onto the server's user id.
+     *
+     * Profiles used to be keyed by a locally-generated uuid that meant nothing
+     * to the server. The account's own id is the natural key, so adopt it and
+     * move the selection with it. Any duplicate entry for the same account
+     * collapses into one.
+     *
+     * @param {string} currentId - The profile's existing id
+     * @param {string} userId - The account's server-side uuid
+     */
+    rekeyProfile(currentId, userId) {
+        if (!userId || currentId === userId) return;
+
+        const profiles = this.getProfiles();
+        const target = profiles.find(p => p.uuid === currentId);
+        if (!target) return;
+
+        config.set('profiles', [
+            ...profiles.filter(p => p.uuid !== currentId && p.uuid !== userId),
+            { ...target, uuid: userId },
+        ]);
+
+        if (config.get('selected_profile') === currentId) {
+            config.set('selected_profile', userId);
+        }
+    }
+
+    /**
+     * Ask the server who a token belongs to.
+     * @param {string} token - The auth token to identify
+     * @returns {Promise<{username: string, uuid: string}>} The account identity
+     */
+    async fetchIdentity(token) {
+        puter.setAuthToken(token);
+        const userInfo = await puter.auth.getUser();
+        if (!userInfo?.username) {
+            throw new Error('The server did not return an account for this token.');
+        }
+        return userInfo;
+    }
+
+    /**
+     * The selected profile's current working directory.
+     * @returns {string} The stored cwd, or the home directory as a fallback
+     */
+    getCwd() {
+        return this.getCurrentProfile()?.cwd || HOME;
+    }
+
+    /**
+     * Record the selected profile's current working directory.
+     * @param {string} cwd - The new working directory
+     */
+    setCwd(cwd) {
+        const profile = this.getCurrentProfile();
+        if (profile) this.updateProfile(profile.uuid, { cwd });
+    }
+
+    /**
+     * Merge a patch into a stored profile, matched by its id.
+     * @param {string} profileId - The `uuid` of the profile to patch
+     * @param {Object} patch - Fields to merge into the profile
+     */
+    updateProfile(profileId, patch) {
+        const profiles = this.getProfiles().map(p => (
+            p.uuid === profileId ? { ...p, ...patch } : p
+        ));
+        config.set('profiles', profiles);
     }
     migrateLegacyConfig() {
         const auth_token = config.get('auth_token');
@@ -62,30 +231,24 @@ class ProfileModule {
         config.delete('auth_token');
         config.delete('username');
     }
-    getDefaultProfile() {
-        const auth_token = config.get('auth_token');
-        if (!auth_token) return;
-        return {
-            host: 'puter.com',
-            username: config.get('username'),
-            token: auth_token,
-        };
-    }
     getProfiles() {
         const profiles = config.get('profiles') ?? [];
         return profiles;
     }
     addProfile(newProfile) {
         const profiles = [
-            ...this.getProfiles().filter(p => !p.transient),
+            // Profiles are keyed by account id, so re-authenticating replaces the
+            // existing entry rather than adding a second one for the same account.
+            ...this.getProfiles().filter(p => !p.transient && p.uuid !== newProfile.uuid),
             newProfile,
         ];
         config.set('profiles', profiles);
     }
     selectProfile(profile) {
         config.set('selected_profile', profile.uuid);
-        config.set('username', `${profile.username}`);
-        config.set('cwd', `/${profile.username}`);
+        if (!profile.cwd) {
+            this.updateProfile(profile.uuid, { cwd: `/${profile.username}` });
+        }
         this.applyProfileToGlobals(profile);
     }
     getCurrentProfile() {
@@ -99,6 +262,36 @@ class ProfileModule {
             base: profile.host,
             api: toApiSubdomain(profile.host),
         });
+        // Provisional home from the cached label, so paths resolve before the
+        // network round-trip; refreshIdentity() re-points it at the live value.
+        setHomePath(`/${profile.username}`);
+    }
+
+    /**
+     * Re-point any stored path that lives under the old home directory at the
+     * new one, after the account was renamed.
+     *
+     * Only the home prefix is rewritten: a cwd under some other user's tree is
+     * left alone, since that path did not move.
+     *
+     * @param {string} oldUsername - The username the paths were written with
+     * @param {string} newUsername - The account's current username
+     */
+    rehomePaths(oldUsername, newUsername) {
+        if (!oldUsername || oldUsername === newUsername) return;
+
+        const oldHome = `/${oldUsername}`;
+        const newHome = `/${newUsername}`;
+        const rehome = p => (
+            p === oldHome || p?.startsWith(`${oldHome}/`)
+                ? `${newHome}${p.slice(oldHome.length)}`
+                : p
+        );
+
+        const profile = this.getCurrentProfile();
+        if (profile?.cwd) {
+            this.updateProfile(profile.uuid, { cwd: rehome(profile.cwd) });
+        }
     }
     getAuthToken() {
         const uuid = config.get('selected_profile');
@@ -179,13 +372,14 @@ class ProfileModule {
             puter.setAuthToken(authToken);
             const userInfo = await puter.auth.getUser();
 
-            const profileUUID = crypto.randomUUID();
             const profile = {
                 host,
+                // Display label only; re-resolved from the token on every run.
                 username: userInfo.username,
                 cwd: `/${userInfo.username}`,
                 token: authToken,
-                uuid: profileUUID,
+                // The account's own id, as reported by the server.
+                uuid: userInfo.uuid,
             };
 
             this.addProfile(profile);
@@ -263,12 +457,12 @@ class ProfileModule {
                 const otpData = await otpResponse.json();
 
                 if (otpData.token) {
-                    this.createProfileFromToken(otpData.token, answers.username, host, spinner, save);
+                    await this.createProfileFromToken(otpData.token, answers.username, host, spinner, save);
                 } else {
                     spinner.fail(chalk.red('2FA verification failed.'));
                 }
             } else if (data.token) {
-                this.createProfileFromToken(data.token, answers.username, host, spinner, save);
+                await this.createProfileFromToken(data.token, answers.username, host, spinner, save);
             } else {
                 spinner.fail(chalk.red(data.error?.message || 'Login failed. Please check your credentials.'));
             }
@@ -281,19 +475,23 @@ class ProfileModule {
         }
     }
 
-    createProfileFromToken(token, username, host, spinner, save) {
-        const profileUUID = crypto.randomUUID();
+    async createProfileFromToken(token, username, host, spinner, save) {
+        // The server is the authority on both the account id and the spelling of
+        // the username, so ask it rather than trusting what was typed.
+        const userInfo = await this.fetchIdentity(token);
         const profile = {
             host,
-            username,
-            cwd: `/${username}`,
+            // Display label only; re-resolved from the token on every run.
+            username: userInfo.username,
+            cwd: `/${userInfo.username}`,
             token,
-            uuid: profileUUID,
+            // The account's own id, as reported by the server.
+            uuid: userInfo.uuid,
         };
 
         this.addProfile(profile);
         this.selectProfile(profile);
-        spinner.succeed(chalk.green(`Successfully logged in as ${username}!`));
+        spinner.succeed(chalk.green(`Successfully logged in as ${userInfo.username}!`));
 
         // Handle --save option
         this.saveTokenToEnv(token, save);

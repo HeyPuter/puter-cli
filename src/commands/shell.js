@@ -4,6 +4,7 @@ import Conf from 'conf';
 import { execCommand, getPrompt } from '../executor.js';
 import { PROJECT_NAME } from '../commons.js';
 import { getProfileModule } from '../modules/ProfileModule.js';
+import { report, formatError } from '../modules/ErrorModule.js';
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -13,7 +14,7 @@ export let rl;
  * Update the current shell prompt
  */
 export function updatePrompt(currentPath) {
-  config.set('cwd', currentPath);
+  getProfileModule().setCwd(currentPath);
   rl.setPrompt(getPrompt());
 }
 
@@ -37,7 +38,7 @@ export async function startShell(command) {
   })
 
   try {
-    console.log(chalk.green('Welcome to Puter-CLI! Type "help" for available commands.'));
+    console.log(chalk.green('Welcome to Puter Shell! Type "help" for available commands.'));
     rl.setPrompt(getPrompt());
     rl.prompt();
 
@@ -47,7 +48,8 @@ export async function startShell(command) {
         try {
           await execCommand(trimmedLine);
         } catch (error) {
-          console.error(chalk.red(error.message));
+          report(error);
+          console.error(chalk.red(formatError(error)));
         }
       }
       rl.prompt();

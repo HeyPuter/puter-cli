@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import Conf from 'conf';
 import ora from 'ora';
-import { PROJECT_NAME, } from '../commons.js'
+import { HOME, PROJECT_NAME, expandHome } from '../commons.js'
 import { getProfileModule } from '../modules/ProfileModule.js';
 import { getPuter } from '../modules/PuterModule.js';
 const config = new Conf({ projectName: PROJECT_NAME });
@@ -39,8 +39,13 @@ export async function logout() {
     } else if (selected_profile) {
       // multi profile auth
       config.delete('selected_profile');
+      // Superseded top-level copies; the profile owns these now.
       config.delete('username');
       config.delete('cwd');
+      // Dead keys from an older layout that nothing reads any more, but which
+      // still hold a token. Logging out must not leave credentials behind.
+      config.delete('accounts');
+      config.delete('active');
 
       const profiles = config.get('profiles');
       config.set('profiles', profiles.filter(profile => profile.uuid != selected_profile));
@@ -86,7 +91,14 @@ export async function getUserInfo() {
   }
 }
 export function isAuthenticated() {
-  return !!config.get('auth_token');
+  // Legacy flat token...
+  if (config.get('auth_token')) return true;
+  // ...or a selected profile that still carries one. `migrateLegacyConfig`
+  // deletes `auth_token`, so checking it alone reports false when logged in.
+  const uuid = config.get('selected_profile');
+  if (!uuid) return false;
+  const profiles = config.get('profiles') ?? [];
+  return !!profiles.find(p => p.uuid === uuid)?.token;
 }
 
 export function getAuthToken() {
@@ -100,7 +112,7 @@ export function getCurrentUserName() {
 }
 
 export function getCurrentDirectory() {
-  return config.get('cwd');
+  return expandHome(getProfileModule().getCwd());
 }
 
 /**

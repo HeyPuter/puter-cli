@@ -7,10 +7,10 @@ import { minimatch } from 'minimatch';
 import chalk from 'chalk';
 import Conf from 'conf';
 import fetch from 'node-fetch';
-import { API_BASE, BASE_URL, PROJECT_NAME, getHeaders, showDiskSpaceUsage, resolvePath, resolveRemotePath } from '../commons.js';
+import { API_BASE, BASE_URL, HOME, PROJECT_NAME, expandHome, getHeaders, isAbsolutePath, showDiskSpaceUsage, resolvePath, resolveRemotePath } from '../commons.js';
 import { formatDateTime, formatSize, getSystemEditor } from '../utils.js';
 import inquirer from 'inquirer';
-import { getAuthToken, getCurrentDirectory, getCurrentUserName } from './auth.js';
+import { getAuthToken, getCurrentDirectory } from './auth.js';
 import { updatePrompt } from './shell.js';
 import crypto from '../crypto.js';
 import { getPuter } from '../modules/PuterModule.js';
@@ -85,7 +85,7 @@ export async function makeDirectory(args = []) {
     const puter = getPuter();
 
     try {
-        const data = await puter.fs.mkdir(`${getCurrentDirectory()}/${directoryName}`, {
+        const data = await puter.fs.mkdir(resolvePath(getCurrentDirectory(), directoryName), {
             overwrite: false,
             dedupeName: true,
             createMissingParents: false
@@ -314,7 +314,7 @@ export async function removeFileOrDirectory(args = []) {
                 const uid = statData.uid;
 
                 // Step 4.2: Perform the move operation to Trash
-                const moveData = await puter.fs.move(uid, `/${getCurrentUserName()}/Trash`, {
+                const moveData = await puter.fs.move(uid, expandHome(`${HOME}/Trash`), {
                     overwrite: false,
                     newName: uid,
                     createMissingParents: false,
@@ -385,7 +385,7 @@ export async function deleteFolder(folderPath, skipConfirmation = false) {
  * @param {boolean} skipConfirmation - Whether to skip the confirmation prompt.
  */
 export async function emptyTrash(skipConfirmation = true) {
-    const trashPath = `/${getCurrentUserName()}/Trash`;
+    const trashPath = expandHome(`${HOME}/Trash`);
     await deleteFolder(trashPath, skipConfirmation);
 }
 
@@ -398,7 +398,7 @@ export async function getInfo(args = []) {
     const puter = getPuter();
     for (let name of names)
         try {
-            name = `${getCurrentDirectory()}/${name}`;
+            name = resolvePath(getCurrentDirectory(), name);
             console.log(chalk.green(`Getting stat info for: "${name}"...\n`));
             const data = await puter.fs.stat(name);
             if (data) {
@@ -425,7 +425,7 @@ export async function getInfo(args = []) {
  * Show the current working directory
  */
 export async function showCwd() {
-    console.log(chalk.green(`${config.get('cwd')}`));
+    console.log(chalk.green(`${getCurrentDirectory()}`));
 }
 
 /**
@@ -434,7 +434,7 @@ export async function showCwd() {
  * @returns void
  */
 export async function changeDirectory(args) {
-    let currentPath = config.get('cwd');
+    let currentPath = getCurrentDirectory();
     // If no arguments, print the current directory
     if (!args.length) {
         console.log(chalk.green(currentPath));
@@ -443,17 +443,15 @@ export async function changeDirectory(args) {
     const puter = getPuter();
 
     const path = args[0];
-    // Handle "/","~",".." and deeper navigation
-    const newPath = path.startsWith('/')? path: (path === '~'? `/${getCurrentUserName()}` :resolvePath(currentPath, path));
+    // resolvePath handles "/", "~", "~/...", "." and ".." in one place.
+    const newPath = resolvePath(currentPath, path);
     try {
         // Check if the new path is a valid directory
         const data = await puter.fs.stat(newPath);
         if (data && data.is_dir) {
-            // Update the newPath to use the correct name from the response
-            const arrayDirs = newPath.split('/');
-            arrayDirs.pop();
-            arrayDirs.push(data.name);
-            updatePrompt(arrayDirs.join('/')); // Update the shell prompt
+            // Adopt the server's canonical path, which is already rooted at the
+            // account's current home directory.
+            updatePrompt(data.path || newPath); // Update the shell prompt
         } else {
             console.log(chalk.red(`"${newPath}" is not a directory`));
         }
@@ -519,7 +517,7 @@ export async function createFile(args = []) {
     const filePath = args[0]; // File path (e.g., "app/index.html")
     const content = args.length > 1 ? args.slice(1).join(' ') : ''; // Optional content
     let fullPath = filePath;
-    if (!filePath.startsWith(`/${getCurrentUserName()}/`)){
+    if (!isAbsolutePath(filePath)) {
         fullPath = resolvePath(getCurrentDirectory(), filePath); // Resolve the full path
     }
     const dirName = path.dirname(fullPath); // Extract the directory name
@@ -763,8 +761,8 @@ export async function copyFile(args = []) {
         return;
     }
 
-    const sourcePath = args[0].startsWith(`/${getCurrentUserName()}`) ? args[0] : resolvePath(getCurrentDirectory(), args[0]); // Resolve the source path
-    const destinationPath = args[1].startsWith(`/${getCurrentUserName()}`) ? args[1] : resolvePath(getCurrentDirectory(), args[1]); // Resolve the destination path
+    const sourcePath = resolvePath(getCurrentDirectory(), args[0]); // Resolve the source path
+    const destinationPath = resolvePath(getCurrentDirectory(), args[1]); // Resolve the destination path
 
     console.log(chalk.green(`Copy: "${chalk.dim(sourcePath)}" to: "${chalk.dim(destinationPath)}"...\n`));
     const puter = getPuter();

@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-export const PROJECT_NAME = 'puter-cli';
+export const PROJECT_NAME = 'puter-sh';
 // If you haven't defined your own values in .env file, we'll assume you're running Puter on a local instance:
 export let API_BASE = process.env.PUTER_API_BASE || 'https://api.puter.com';
 export let BASE_URL = process.env.PUTER_BASE_URL || 'https://puter.com';
@@ -40,64 +40,6 @@ export function getHeaders(contentType = 'application/json') {
 }
 
 /**
- * Generate a random app name
- * @returns a random app name or null if it fails
- * @see: [randName](https://github.com/HeyPuter/puter/blob/06a67a3b223a6cbd7ec2e16853b6d2304f621a88/src/puter-js/src/index.js#L389)
- */
-export function generateAppName(separateWith = '-'){
-  console.log(chalk.cyan('Generating random name...'));
-  try {        
-      const first_adj = ['helpful','sensible', 'loyal', 'honest', 'clever', 'capable','calm', 'smart', 'genius', 'bright', 'charming', 'creative', 'diligent', 'elegant', 'fancy', 
-      'colorful', 'avid', 'active', 'gentle', 'happy', 'intelligent', 'jolly', 'kind', 'lively', 'merry', 'nice', 'optimistic', 'polite', 
-      'quiet', 'relaxed', 'silly', 'victorious', 'witty', 'young', 'zealous', 'strong', 'brave', 'agile', 'bold'];
-
-      const nouns = ['street', 'roof', 'floor', 'tv', 'idea', 'morning', 'game', 'wheel', 'shoe', 'bag', 'clock', 'pencil', 'pen', 
-      'magnet', 'chair', 'table', 'house', 'dog', 'room', 'book', 'car', 'cat', 'tree', 
-      'flower', 'bird', 'fish', 'sun', 'moon', 'star', 'cloud', 'rain', 'snow', 'wind', 'mountain', 
-      'river', 'lake', 'sea', 'ocean', 'island', 'bridge', 'road', 'train', 'plane', 'ship', 'bicycle', 
-      'horse', 'elephant', 'lion', 'tiger', 'bear', 'zebra', 'giraffe', 'monkey', 'snake', 'rabbit', 'duck', 
-      'goose', 'penguin', 'frog', 'crab', 'shrimp', 'whale', 'octopus', 'spider', 'ant', 'bee', 'butterfly', 'dragonfly', 
-      'ladybug', 'snail', 'camel', 'kangaroo', 'koala', 'panda', 'piglet', 'sheep', 'wolf', 'fox', 'deer', 'mouse', 'seal',
-      'chicken', 'cow', 'dinosaur', 'puppy', 'kitten', 'circle', 'square', 'garden', 'otter', 'bunny', 'meerkat', 'harp']
-
-      // return a random combination of first_adj + noun + number (between 0 and 9999)
-      // e.g. clever-idea-123
-      const appName = first_adj[Math.floor(Math.random() * first_adj.length)] + separateWith + nouns[Math.floor(Math.random() * nouns.length)] + separateWith + Math.floor(Math.random() * 10000);
-      console.log(chalk.green(`Name: "${appName}"`));
-      return appName;
-  } catch (error) {
-      console.error(`Error: ${error.message}`);
-      return null;
-  }
-}
-
-/**
- * Display data in a structured format
- * @param {Array} data - The data to display
- * @param {Object} options - Display options
- * @param {Array} options.headers - Headers for the table
- * @param {Array} options.columns - Columns to display
- * @param {number} options.columnWidth - Width of each column
- */
-export function displayTable(data, options = {}) {
-  const { headers = [], columns = [], columnWidth = 20 } = options;
-
-  // Create the header row
-  const headerRow = headers.map(header => chalk.cyan(header.padEnd(columnWidth))).join(' | ');
-  console.log(headerRow);
-  console.log(chalk.dim('-'.repeat(headerRow.length)));
-
-  // Create and display each row of data
-  data.forEach(item => {
-      const row = columns.map(col => {
-          const value = item[col] || 'N/A';
-          return value.toString().padEnd(columnWidth);
-      }).join(' | ');
-      console.log(row);
-  });
-}
-
-/**
  * Display structured ouput of disk usage informations
  */
 export function showDiskSpaceUsage(data) {
@@ -114,224 +56,108 @@ export function showDiskSpaceUsage(data) {
 }
 
 /**
- * Resolve a relative path to an absolute path
- * @param {string} currentPath - The current working directory
- * @param {string} relativePath - The relative path to resolve
- * @returns {string} The resolved absolute path
+ * The home anchor as typed by the user.
  */
-export function resolvePath(currentPath, relativePath) {
-    // Normalize the current path (remove trailing slashes)
-    currentPath = currentPath.replace(/\/+$/, '');
+export const HOME = '~';
 
-    // Split the relative path into parts
-    const parts = relativePath.split('/').filter(p => p); // Remove empty parts
+/**
+ * The concrete home directory ("/<username>") for the active profile.
+ *
+ * Resolved from the token at login and refreshed on every run -- never read
+ * from a cached username -- so it always names the account's current home.
+ * Null until a profile is selected.
+ */
+export let HOME_PATH = null;
 
-    // Handle each part of the relative path
-    for (const part of parts) {
-        if (part === '..') {
-            // Move one level up
-            const currentParts = currentPath.split('/').filter(p => p);
-            if (currentParts.length > 0) {
-                currentParts.pop(); // Remove the last part
-            }
-            currentPath = '/' + currentParts.join('/');
-        } else if (part === '.') {
-            // Stay in the current directory (no change)
-            continue;
-        } else {
-            // Move into a subdirectory
-            currentPath += `/${part}`;
-        }
-    }
+/**
+ * Point the home anchor at the current account's home directory.
+ * @param {string} homePath - The concrete home path, e.g. "/alice"
+ */
+export const setHomePath = (homePath) => {
+    HOME_PATH = homePath;
+};
 
-    // Normalize the final path (remove duplicate slashes)
-    currentPath = currentPath.replace(/\/+/g, '/');
-
-    // Ensure the path ends with a slash if it's the root
-    if (currentPath === '') {
-        currentPath = '/';
-    }
-
-    return currentPath;
+/**
+ * Expand a leading "~" to the resolved home directory. Paths that are not
+ * home-anchored are returned untouched, as are all paths when no profile is
+ * active yet (nothing to expand against).
+ * @param {string} p - The path to expand
+ * @returns {string} The expanded path
+ */
+export function expandHome(p) {
+    if (!HOME_PATH || typeof p !== 'string') return p;
+    if (p === HOME) return HOME_PATH;
+    if (p.startsWith('~/')) return `${HOME_PATH}${p.slice(1)}`;
+    return p;
 }
 
 /**
- * Resolve a remote path to an absolute path, handling both absolute and relative paths.
+ * Check whether a path is already fully-qualified (root- or home-anchored) and
+ * therefore must NOT be resolved against the current working directory.
+ * @param {string} p - The path to test
+ * @returns {boolean} True if the path is absolute or home-anchored
+ */
+export function isAbsolutePath(p) {
+    if (typeof p !== 'string') return false;
+    return p === HOME || p.startsWith('~/') || p.startsWith('/');
+}
+
+/**
+ * Resolve a path against the current working directory.
+ *
+ * If `relativePath` is itself absolute ("/...") or home-anchored ("~", "~/..."),
+ * it replaces `currentPath` entirely instead of being appended to it.
+ *
+ * @param {string} currentPath - The current working directory
+ * @param {string} relativePath - The path to resolve
+ * @returns {string} The resolved path, preserving a "~" root if present
+ */
+export function resolvePath(currentPath, relativePath) {
+    // A fully-qualified path re-roots the resolution rather than extending it.
+    if (isAbsolutePath(relativePath)) {
+        currentPath = relativePath.startsWith('~') ? HOME : '/';
+        relativePath = relativePath.replace(/^~/, '');
+    }
+
+    // Track whether we are anchored at home so "~" survives normalization.
+    const atHome = currentPath === HOME || currentPath.startsWith('~/');
+    const root = atHome ? HOME : '';
+
+    // Strip the root and any trailing slashes, leaving bare segments.
+    let parts = currentPath
+        .replace(/^~/, '')
+        .split('/')
+        .filter(p => p);
+
+    for (const part of relativePath.split('/').filter(p => p)) {
+        if (part === '..') {
+            // Clamp at the root: "~/.." stays at home, "/.." stays at "/".
+            parts.pop();
+        } else if (part === '.') {
+            continue;
+        } else {
+            parts.push(part);
+        }
+    }
+
+    const joined = parts.join('/');
+    // Expand "~" so callers and the API always see a concrete "/<username>" path.
+    if (!joined) return expandHome(root || '/');
+    return expandHome(`${root}/${joined}`);
+}
+
+/**
+ * Resolve a remote path to a fully-qualified path.
  * @param {string} currentPath - The current working directory.
  * @param {string} remotePath - The remote path to resolve.
- * @returns {string} The resolved absolute path.
+ * @returns {string} The resolved path.
  */
 export function resolveRemotePath(currentPath, remotePath) {
-    if (remotePath.startsWith('/')) {
-        return remotePath;
+    if (isAbsolutePath(remotePath)) {
+        return expandHome(remotePath);
     }
     return resolvePath(currentPath, remotePath);
 }
-
-/**
-* Checks if a given string is a valid app name.
-* The name must:
-*  - Not be '.' or '..'
-*  - Not contain path separators ('/' or '\\')
-*  - Not contain wildcard characters ('*')
-*  - (Optional) Contain only allowed characters (letters, numbers, spaces, underscores, hyphens)
-*
-* @param {string} name - The app name to validate.
-* @returns {boolean} - Returns true if valid, false otherwise.
-*/
-export function isValidAppName(name) {
-   // Ensure the name is a non-empty string
-   if (typeof name !== 'string' || name.trim().length === 0) {
-       return false;
-   }
-
-   // Trim whitespace from both ends
-   const trimmedName = name.trim();
-
-   // Reject reserved names
-   if (trimmedName === '.' || trimmedName === '..') {
-       return false;
-   }
-
-   // Regex patterns for invalid characters
-   const invalidPattern = /[\/\\*]/; // Disallow /, \, and *
-
-   if (invalidPattern.test(trimmedName)) {
-       return false;
-   }
-
-   // Optional: Define allowed characters pattern
-   // Uncomment the following lines if you want to enforce allowed characters
-   /*
-   const allowedPattern = /^[A-Za-z0-9 _-]+$/;
-   if (!allowedPattern.test(trimmedName)) {
-       return false;
-   }
-   */
-
-   // All checks passed
-   return true;
-}
-
-/**
- * Generate the default home page for a new web application
- * @param {string} appName The name of the web application
- * @returns HTML template of the app
- */
-export function getDefaultHomePage(appName, jsFiles = [], cssFiles= []) {
-    const defaultIndexContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${appName}</title>
-    ${cssFiles.map(css => `<link href="${css}" rel="stylesheet">`).join('\n  ')}
-    <style>
-        body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f9fafb;
-            color: #1f2937;
-        }
-        .container {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #2563eb;
-            margin-bottom: 1rem;
-        }
-        .code-block {
-            background: #f1f5f9;
-            padding: 1rem;
-            border-radius: 4px;
-            font-family: monospace;
-            overflow-x: auto;
-        }
-        .tip {
-            background: #dbeafe;
-            border-left: 4px solid #2563eb;
-            padding: 1rem;
-            margin: 1rem 0;
-        }
-        .links {
-            display: flex;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-        .links a {
-            color: #2563eb;
-            text-decoration: none;
-        }
-        .links a:hover {
-            text-decoration: underline;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 50px;
-            color: var(--color-grey);
-            font-size: 0.9rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🚀 Welcome to ${appName}!</h1>
-        
-        <p>This is your new website powered by Puter. You can start customizing it right away!</p>
-
-        <div class="tip">
-            <strong>Quick Tip:</strong> Replace this content with your own by editing the <code>index.html</code> file.
-        </div>
-
-        <h2>🌟 Getting Started</h2>
-        
-        <p>Here's a simple example using Puter.js:</p>
-        
-        <div class="code-block">
-&lt;script src="https://js.puter.com/v2/">&lt;/script>
-&lt;script>
-    // Create a new file in the cloud
-    puter.fs.write('hello.txt', 'Hello, Puter!')
-        .then(file => console.log(\`File created at: \${file.path}\`));
-&lt;/script>
-        </div>
-
-        <h2>💡 Key Features</h2>
-        <ul>
-            <li>Cloud Storage</li>
-            <li>AI Services (GPT-4, DALL-E)</li>
-            <li>Static Website Hosting</li>
-            <li>Key-Value Store</li>
-            <li>Authentication</li>
-        </ul>
-
-        <div class="links">
-            <a href="https://docs.puter.com" target="_blank">📚 Documentation</a>
-            <a href="https://discord.gg/puter" target="_blank">💬 Discord Community</a>
-            <a href="https://github.com/HeyPuter" target="_blank">👩‍💻 GitHub</a>
-        </div>
-    </div>
-
-<footer class="footer">
-    &copy; 2025 ${appName}. All rights reserved.
-</footer>
-
-    <div id="${(jsFiles.length && jsFiles.some(f => f.includes('react'))) ? 'root' : 'app'}"></div>
-${jsFiles.map(js => 
-`<script ${js.endsWith('app.js') ? 'type="text/babel"' : ''} src="${js}"></script>`
-).join('\n  ')}
-</body>
-</html>`;
-    
-    return defaultIndexContent;
-}
-
 
 /**
  * Read latest package from package file

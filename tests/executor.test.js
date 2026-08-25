@@ -11,6 +11,14 @@ vi.mock('conf', () => ({
 
 vi.mock('node:child_process');
 
+vi.mock('../src/modules/ProfileModule.js', () => ({
+  initProfileModule: vi.fn(),
+  getProfileModule: vi.fn(() => ({
+    getCwd: () => '/mockuser',
+    setCwd: vi.fn(),
+  })),
+}));
+
 vi.spyOn(console, 'log').mockImplementation(() => {});
 vi.spyOn(console, 'error').mockImplementation(() => {});
 

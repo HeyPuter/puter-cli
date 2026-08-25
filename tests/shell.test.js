@@ -27,6 +27,7 @@ beforeEach(async () => {
   vi.mocked(getPrompt).mockReturnValue('puter@/> ');
   vi.mocked(getProfileModule).mockReturnValue({
     checkLogin: vi.fn(),
+    setCwd: vi.fn(),
   });
 
   const mockOn = vi.fn().mockReturnThis();
@@ -97,7 +98,7 @@ describe('startShell', () => {
 
     it('should display welcome message', async () => {
       await startShell();
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Welcome to Puter-CLI'));
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('Welcome to Puter Shell'));
     });
 
     it('should set prompt and call prompt()', async () => {

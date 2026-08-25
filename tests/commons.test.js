@@ -29,11 +29,7 @@ beforeEach(async () => {
 
 describe('constants', () => {
   it('should export PROJECT_NAME', () => {
-    expect(commons.PROJECT_NAME).toBe('puter-cli');
-  });
-
-  it('should export NULL_UUID', () => {
-    expect(commons.NULL_UUID).toBe('00000000-0000-0000-0000-000000000000');
+    expect(commons.PROJECT_NAME).toBe('puter-sh');
   });
 
   it('should have default API_BASE', () => {
@@ -83,65 +79,6 @@ describe('getHeaders', () => {
 
     expect(headers['Origin']).toBe('https://test.com');
     expect(headers['Referer']).toBe('https://test.com/');
-  });
-});
-
-describe('generateAppName', () => {
-  it('should generate a name with default separator', () => {
-    const name = commons.generateAppName();
-
-    expect(name).toMatch(/^[a-z]+-[a-z]+-\d+$/);
-  });
-
-  it('should generate a name with custom separator', () => {
-    const name = commons.generateAppName('_');
-
-    expect(name).toMatch(/^[a-z]+_[a-z]+_\d+$/);
-  });
-});
-
-describe('displayTable', () => {
-  it('should display a table with headers and data', () => {
-    const consoleLogSpy = vi.spyOn(console, 'log');
-
-    const data = [
-      { name: 'App1', status: 'running' },
-      { name: 'App2', status: 'stopped' },
-    ];
-
-    commons.displayTable(data, {
-      headers: ['Name', 'Status'],
-      columns: ['name', 'status'],
-      columnWidth: 15,
-    });
-
-    expect(consoleLogSpy).toHaveBeenCalled();
-  });
-
-  it('should handle empty data', () => {
-    const consoleLogSpy = vi.spyOn(console, 'log');
-
-    commons.displayTable([], {
-      headers: ['Name'],
-      columns: ['name'],
-    });
-
-    expect(consoleLogSpy).toHaveBeenCalledTimes(2); // header + separator
-  });
-
-  it('should display N/A for missing values', () => {
-    const consoleLogSpy = vi.spyOn(console, 'log');
-
-    const data = [{ name: 'App1' }];
-
-    commons.displayTable(data, {
-      headers: ['Name', 'Status'],
-      columns: ['name', 'status'],
-      columnWidth: 10,
-    });
-
-    const calls = consoleLogSpy.mock.calls.flat();
-    expect(calls.some(call => call.includes('N/A'))).toBe(true);
   });
 });
 
@@ -209,6 +146,84 @@ describe('resolvePath', () => {
   it('should normalize duplicate slashes', () => {
     expect(commons.resolvePath('/home//user', 'documents')).toBe('/home/user/documents');
   });
+
+  it('should re-root on an absolute path instead of appending it', () => {
+    expect(commons.resolvePath('/home/user', '/other/place')).toBe('/other/place');
+  });
+
+  it('should leave "~" unexpanded when no home is resolved yet', () => {
+    commons.setHomePath(null);
+    expect(commons.resolvePath('/home/user', '~/Desktop')).toBe('~/Desktop');
+    expect(commons.resolvePath('/home/user', '~')).toBe('~');
+  });
+
+  it('should walk up within a home-anchored path', () => {
+    commons.setHomePath(null);
+    expect(commons.resolvePath('~/Desktop/notes', '..')).toBe('~/Desktop');
+  });
+
+  it('should clamp at the home anchor rather than escaping to root', () => {
+    commons.setHomePath(null);
+    expect(commons.resolvePath('~/Desktop', '../../..')).toBe('~');
+  });
+});
+
+describe('expandHome', () => {
+  afterEach(() => commons.setHomePath(null));
+
+  it('should expand "~" and "~/..." to the resolved home', () => {
+    commons.setHomePath('/alice');
+    expect(commons.expandHome('~')).toBe('/alice');
+    expect(commons.expandHome('~/Desktop')).toBe('/alice/Desktop');
+  });
+
+  it('should leave non-home paths untouched', () => {
+    commons.setHomePath('/alice');
+    expect(commons.expandHome('/bob/public')).toBe('/bob/public');
+    expect(commons.expandHome('notes.txt')).toBe('notes.txt');
+  });
+
+  it('should be a no-op before a home is resolved', () => {
+    commons.setHomePath(null);
+    expect(commons.expandHome('~/Desktop')).toBe('~/Desktop');
+  });
+
+  it('should follow a username change without touching stored paths', () => {
+    commons.setHomePath('/alice');
+    expect(commons.expandHome('~/Desktop')).toBe('/alice/Desktop');
+    commons.setHomePath('/alice-renamed');
+    expect(commons.expandHome('~/Desktop')).toBe('/alice-renamed/Desktop');
+  });
+});
+
+describe('resolvePath with a resolved home', () => {
+  afterEach(() => commons.setHomePath(null));
+
+  it('should resolve "~" to the concrete home directory', () => {
+    commons.setHomePath('/alice');
+    expect(commons.resolvePath('/anywhere', '~')).toBe('/alice');
+    expect(commons.resolvePath('/anywhere', '~/Desktop')).toBe('/alice/Desktop');
+  });
+
+  it('should resolve relative paths against a concrete cwd', () => {
+    commons.setHomePath('/alice');
+    expect(commons.resolvePath('/alice', 'Desktop')).toBe('/alice/Desktop');
+    expect(commons.resolvePath('/alice/Desktop', '..')).toBe('/alice');
+  });
+});
+
+describe('isAbsolutePath', () => {
+  it('should accept root- and home-anchored paths', () => {
+    expect(commons.isAbsolutePath('/a/b')).toBe(true);
+    expect(commons.isAbsolutePath('~')).toBe(true);
+    expect(commons.isAbsolutePath('~/a')).toBe(true);
+  });
+
+  it('should reject relative paths and non-strings', () => {
+    expect(commons.isAbsolutePath('a/b')).toBe(false);
+    expect(commons.isAbsolutePath('..')).toBe(false);
+    expect(commons.isAbsolutePath(undefined)).toBe(false);
+  });
 });
 
 describe('resolveRemotePath', () => {
@@ -219,84 +234,11 @@ describe('resolveRemotePath', () => {
   it('should resolve relative path', () => {
     expect(commons.resolveRemotePath('/home/user', 'relative/path')).toBe('/home/user/relative/path');
   });
-});
 
-describe('isValidAppName', () => {
-  it('should return true for valid app name', () => {
-    expect(commons.isValidAppName('my-app')).toBe(true);
-  });
-
-  it('should return true for app name with spaces', () => {
-    expect(commons.isValidAppName('my app')).toBe(true);
-  });
-
-  it('should return false for empty string', () => {
-    expect(commons.isValidAppName('')).toBe(false);
-  });
-
-  it('should return false for whitespace only', () => {
-    expect(commons.isValidAppName('   ')).toBe(false);
-  });
-
-  it('should return false for reserved name "."', () => {
-    expect(commons.isValidAppName('.')).toBe(false);
-  });
-
-  it('should return false for reserved name ".."', () => {
-    expect(commons.isValidAppName('..')).toBe(false);
-  });
-
-  it('should return false for name with forward slash', () => {
-    expect(commons.isValidAppName('my/app')).toBe(false);
-  });
-
-  it('should return false for name with backslash', () => {
-    expect(commons.isValidAppName('my\\app')).toBe(false);
-  });
-
-  it('should return false for name with wildcard', () => {
-    expect(commons.isValidAppName('my*app')).toBe(false);
-  });
-
-  it('should return false for non-string input', () => {
-    expect(commons.isValidAppName(123)).toBe(false);
-    expect(commons.isValidAppName(null)).toBe(false);
-    expect(commons.isValidAppName(undefined)).toBe(false);
-  });
-});
-
-describe('getDefaultHomePage', () => {
-  it('should generate HTML with app name', () => {
-    const html = commons.getDefaultHomePage('TestApp');
-
-    expect(html).toContain('<title>TestApp</title>');
-    expect(html).toContain('Welcome to TestApp!');
-  });
-
-  it('should include CSS files when provided', () => {
-    const html = commons.getDefaultHomePage('TestApp', [], ['style.css', 'theme.css']);
-
-    expect(html).toContain('<link href="style.css" rel="stylesheet">');
-    expect(html).toContain('<link href="theme.css" rel="stylesheet">');
-  });
-
-  it('should include JS files when provided', () => {
-    const html = commons.getDefaultHomePage('TestApp', ['app.js', 'utils.js']);
-
-    expect(html).toContain('<script type="text/babel" src="app.js"></script>');
-    expect(html).toContain('<script  src="utils.js"></script>');
-  });
-
-  it('should use id="root" when react is included', () => {
-    const html = commons.getDefaultHomePage('TestApp', ['react.js']);
-
-    expect(html).toContain('id="root"');
-  });
-
-  it('should use id="app" when no react', () => {
-    const html = commons.getDefaultHomePage('TestApp', ['vanilla.js']);
-
-    expect(html).toContain('id="app"');
+  it('should expand a home-anchored path against the resolved home', () => {
+    commons.setHomePath('/alice');
+    expect(commons.resolveRemotePath('/home/user', '~/site')).toBe('/alice/site');
+    commons.setHomePath(null);
   });
 });
 
@@ -340,7 +282,7 @@ describe('getLatestVersion', () => {
       json: () => Promise.resolve({ version: '1.0.0' }),
     });
 
-    const result = await commons.getLatestVersion('puter-cli');
+    const result = await commons.getLatestVersion('puter-sh');
 
     expect(result).toBe('v1.0.0 (up-to-date)');
   });
@@ -352,7 +294,7 @@ describe('getLatestVersion', () => {
       json: () => Promise.resolve({ version: '2.0.0' }),
     });
 
-    const result = await commons.getLatestVersion('puter-cli');
+    const result = await commons.getLatestVersion('puter-sh');
 
     expect(result).toBe('v1.0.0 (latest: 2.0.0)');
   });
@@ -361,7 +303,7 @@ describe('getLatestVersion', () => {
     vi.mocked(readFile).mockResolvedValueOnce(JSON.stringify({ version: '1.0.0' }));
     vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
 
-    const result = await commons.getLatestVersion('puter-cli');
+    const result = await commons.getLatestVersion('puter-sh');
 
     expect(result).toBe('v1.0.0 (offline)');
   });
@@ -373,7 +315,7 @@ describe('getLatestVersion', () => {
       json: () => Promise.resolve({ version: '2.0.0' }),
     });
 
-    const result = await commons.getLatestVersion('puter-cli');
+    const result = await commons.getLatestVersion('puter-sh');
 
     expect(result).toBe('vunknown (latest: 2.0.0)');
   });

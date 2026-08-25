@@ -1,21 +1,17 @@
 import chalk from 'chalk';
 import Conf from 'conf';
-import { listApps, appInfo, createApp, updateApp, deleteApp } from './commands/apps.js';
-import { listSites, createSite, deleteSite, infoSite } from './commands/sites.js';
 import {
   listFiles, makeDirectory, renameFileOrDirectory,
   removeFileOrDirectory, emptyTrash, changeDirectory, showCwd,
   getInfo, getDiskUsage, createFile, readFile, uploadFile,
   downloadFile, copyFile, syncDirectory, editFile
 } from './commands/files.js';
-import { getUserInfo, getUsageInfo, login } from './commands/auth.js';
-import { deploy } from './commands/deploy.js';
-import { PROJECT_NAME, API_BASE, getHeaders } from './commons.js';
-import inquirer from 'inquirer';
+import { getUserInfo, getUsageInfo, login, getCurrentDirectory } from './commands/auth.js';
+import { PROJECT_NAME, API_BASE, HOME, expandHome, getHeaders } from './commons.js';
 import { exec } from 'node:child_process';
-import { parseArgs, getSystemEditor } from './utils.js';
+import { getSystemEditor } from './utils.js';
 import { rl } from './commands/shell.js';
-import { showLast } from './modules/ErrorModule.js'
+import { showLast, report, formatError, isAuthError } from './modules/ErrorModule.js'
 
 const config = new Conf({ projectName: PROJECT_NAME });
 
@@ -27,7 +23,7 @@ const commandHistory = [];
  * @returns The current prompt
  */
 export function getPrompt() {
-  return chalk.cyan(`puter@${config.get('cwd').slice(1)}> `);
+  return chalk.cyan(`puter@${getCurrentDirectory().slice(1)}> `);
 }
 
 const commands = {
@@ -40,12 +36,6 @@ const commands = {
   login: login,
   whoami: getUserInfo,
   stat: getInfo,
-  apps: async (args) => {
-    await listApps({
-      statsPeriod: args[0] || 'all'
-    });
-  },
-  app: appInfo,
   history: async (args) => {
     const lineNumber = parseInt(args[0]);
 
@@ -67,64 +57,6 @@ const commands = {
     }
   },
   'last-error': showLast,
-  'app:create': async (rawArgs) => {
-    try {
-      const args = parseArgs(rawArgs.join(' '));
-      // Consider using explicit argument definition if necessary
-      // const args = parseArgs(rawArgs.join(' '), {string: ['description', 'url'],
-      //   alias: { d: 'description', u: 'url', },
-      // });
-
-      // NOTE: Keep the check for now at the function level, move the check here so in the future we'll use the function for non-interactive command mode.
-      await createApp({
-        name: args._[0],
-        directory: args._[1] || '',
-        description: args.description || '',
-        url: args.url || 'https://dev-center.puter.com/coming-soon.html'
-      });
-    } catch (error) {
-      console.error(chalk.red(error.message));
-    }
-  },
-  'app:update': async (args) => {
-    if (args.length < 1) {
-      console.log(chalk.red('Usage: app:update <name> <remote_dir>'));
-      return;
-    }
-    await updateApp(args);
-  },
-  'app:delete': async (rawArgs) => {
-    const args = parseArgs(rawArgs.join(' '), {
-      string: ['_'],
-      boolean: ['f'],
-      configuration: {
-        'populate--': true
-      }
-    });
-    if (args._.length < 1) {
-      console.log(chalk.red('You must specify the app name:'));
-      console.log(chalk.yellow('Example: app:delete <name>'));
-      return;
-    }
-    const name = args._[0];
-    const force = !!args.f;
-
-    if (!force) {
-      const { confirm } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'confirm',
-          message: chalk.yellow(`Are you sure you want to delete "${name}"?`),
-          default: false
-        }
-      ]);
-      if (!confirm) {
-        console.log(chalk.yellow('Operation cancelled.'));
-        return false;
-      }
-    }
-    await deleteApp(name);
-  },
   ls: listFiles,
   cd: async (args) => {
     await changeDirectory(args);
@@ -144,11 +76,6 @@ const commands = {
   pull: downloadFile,
   update: syncDirectory,
   edit: editFile,
-  sites: listSites,
-  site: infoSite,
-  'site:delete': deleteSite,
-  'site:create': createSite,
-  'site:deploy': deploy,
 };
 
 /**
@@ -190,7 +117,13 @@ export async function execCommand(input) {
     try {
       await commands[cmd](args);
     } catch (error) {
-      console.error(chalk.red(`Error executing command: ${error.message}`));
+      report(error);
+      if (isAuthError(error)) {
+        console.error(chalk.red('Your session has expired or its token is no longer valid.'));
+        console.error(chalk.cyan('Type "login" to sign in again.'));
+      } else {
+        console.error(chalk.red(`Error executing command: ${formatError(error)}`));
+      }
     }
     return;
   }
@@ -237,32 +170,6 @@ function showHelp(command) {
     usage: `
       ${chalk.cyan('usage')}
       Show usage information.
-    `,
-    apps: `
-      ${chalk.cyan('apps [period]')}
-      List all your apps.
-      period: today, yesterday, 7d, 30d, this_month, last_month
-      Example: apps today
-    `,
-    app: `
-      ${chalk.cyan('app <app_name>')}
-      Get application information.
-      Example: app myapp
-    `,
-    'app:create': `
-      ${chalk.cyan('app:create <name> <remote_dir>')}
-      Create a new app.
-      Example: app:create myapp https://myapp.puter.site
-    `,
-    'app:update': `
-      ${chalk.cyan('app:update <name> [dir]')}
-      Update an app.
-      Example: app:update myapp .
-    `,
-    'app:delete': `
-      ${chalk.cyan('app:delete <name>')}
-      Delete an app.
-      Example: app:delete myapp
     `,
     ls: `
       ${chalk.cyan('ls [dir]')}
@@ -333,30 +240,6 @@ function showHelp(command) {
       Example: edit /path/to/file
 
       System editor: ${chalk.green(getSystemEditor())}
-    `,
-    sites: `
-      ${chalk.cyan('sites')}
-      List sites and subdomains.
-    `,
-    site: `
-      ${chalk.cyan('site <site_uid>')}
-      Get site information by UID.
-      Example: site sd-123456
-    `,
-    'site:delete': `
-      ${chalk.cyan('site:delete <uid>')}
-      Delete a site by UID.
-      Example: site:delete sd-123456
-    `,
-    'site:create': `
-      ${chalk.cyan('site:create <app_name> [<dir>] [--subdomain=<name>]')}
-      Create a static website from directory.
-      Example: site:create mywebsite /path/to/dir --subdomain=mywebsite
-    `,
-    'site:deploy': `
-      ${chalk.cyan('site:deploy [<remote_dir>] [--subdomain=<subdomain>]')}
-      Deploy a local web project to Puter.
-      Example: site:deploy ./my-app --subdomain my-app
     `,
     '!': `
       ${chalk.cyan('!<command>')}

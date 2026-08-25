@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import Conf from 'conf';
 import ora from 'ora';
-import { PROJECT_NAME, } from '../commons.js'
+import { HOME, PROJECT_NAME, expandHome } from '../commons.js'
 import { getProfileModule } from '../modules/ProfileModule.js';
 import { getPuter } from '../modules/PuterModule.js';
 const config = new Conf({ projectName: PROJECT_NAME });
@@ -29,18 +29,10 @@ export async function logout() {
   let spinner;
   try {
     spinner = ora('Logging out from Puter...').start();
-    const token = config.get('auth_token');
     const selected_profile = config.get('selected_profile');
 
-    if (token) {
-      // legacy auth
-      config.clear();
-      spinner.succeed(chalk.green('Successfully logged out from Puter!'));
-    } else if (selected_profile) {
-      // multi profile auth
+    if (selected_profile) {
       config.delete('selected_profile');
-      config.delete('username');
-      config.delete('cwd');
 
       const profiles = config.get('profiles');
       config.set('profiles', profiles.filter(profile => profile.uuid != selected_profile));
@@ -86,7 +78,10 @@ export async function getUserInfo() {
   }
 }
 export function isAuthenticated() {
-  return !!config.get('auth_token');
+  const uuid = config.get('selected_profile');
+  if (!uuid) return false;
+  const profiles = config.get('profiles') ?? [];
+  return !!profiles.find(p => p.uuid === uuid)?.token;
 }
 
 export function getAuthToken() {
@@ -100,7 +95,7 @@ export function getCurrentUserName() {
 }
 
 export function getCurrentDirectory() {
-  return config.get('cwd');
+  return expandHome(getProfileModule().getCwd());
 }
 
 /**

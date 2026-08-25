@@ -459,6 +459,9 @@ describe("renameFileOrDirectory", () => {
 describe("getInfo", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Undo the naive resolvePath stub other suites install: getInfo relies on
+    // real "~" and absolute-path resolution.
+    if (vi.isMockFunction(commons.resolvePath)) commons.resolvePath.mockRestore();
     vi.spyOn(PuterModule, "getPuter").mockReturnValue(mockPuter);
     vi.spyOn(auth, "getCurrentDirectory").mockReturnValue("/testuser/files");
     vi.spyOn(utils, "formatSize").mockImplementation((size) => `${size}B`);
@@ -515,6 +518,23 @@ describe("getInfo", () => {
     );
   });
 
+  it("should resolve the argument instead of concatenating it", async () => {
+    mockPuter.fs.stat.mockResolvedValue({
+      name: "files",
+      path: "/testuser/files",
+      is_dir: true,
+      owner: { username: "testuser" },
+    });
+    // Raw concatenation used to produce "/testuser/files/~/Desktop"; delegating
+    // to resolvePath is what makes "~" and absolute paths work here.
+    vi.spyOn(commons, "resolvePath").mockReturnValue("/resolved/path");
+
+    await getInfo(["~/Desktop"]);
+
+    expect(commons.resolvePath).toHaveBeenCalledWith("/testuser/files", "~/Desktop");
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/resolved/path");
+  });
+
   it("should use current directory with default argument", async () => {
     mockPuter.fs.stat.mockResolvedValue({
       name: "files",
@@ -529,7 +549,7 @@ describe("getInfo", () => {
 
     await getInfo([]);
 
-    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files/.");
+    expect(mockPuter.fs.stat).toHaveBeenCalledWith("/testuser/files");
   });
 });
 
@@ -538,8 +558,8 @@ describe("showCwd", () => {
     vi.clearAllMocks();
   });
 
-  it("should display current working directory from config", async () => {
-    mockConfigStore.cwd = "/testuser/documents";
+  it("should display the selected profile's working directory", async () => {
+    vi.spyOn(auth, "getCurrentDirectory").mockReturnValue("/testuser/documents");
 
     await showCwd();
 
